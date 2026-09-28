@@ -3,17 +3,15 @@
 ## I. Dòng tiền / quyền lợi
 
 ### Mua lần đầu
-```
 Buyer --tiền mua vé (originalPrice)--> Organizer
 Buyer <--Ticket-- Organizer
-```
+
 Thanh toán và chuyển quyền sở hữu diễn ra trong cùng một transaction (`buyTicket()`), tránh trường hợp trả tiền mà không nhận vé.
 
 ### Bán lại
-```
 Buyer B --giá resale--> Buyer A (chủ cũ)
 Buyer A --Ticket--> Buyer B
-```
+
 Resale price = 100% chuyển cho người bán cũ, không thu phí/commission ở Lab 8–11 để giữ contract đơn giản.
 
 ## II. Giới hạn chống lạm dụng
