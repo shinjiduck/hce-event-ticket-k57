@@ -1,0 +1,13 @@
+
+
+  Lab 13 - Negative test cho ProjectCore.sol
+  [OK] buyTicket() gui sai gia (0.04 ETH thay vi 0.05 ETH) -> revert IncorrectPayment dung nhu ky vong
+    ✔ Sai so tien: buyTicket() voi gia sai phai bi tu choi IncorrectPayment (587ms)
+  [OK] So lan Organizer doc thu goi lai trong receive(): 1 (ky vong 1)
+  [OK] Lan goi lai co rut duoc them tien khong: false (ky vong false)
+  [OK] Organizer doc chi nhan dung 0.02 ETH (dung 1 lan, khong rut trung), pull-payment tu Lab 10 van dung
+    ✔ Goi lai (reentrancy): Organizer doc thu goi lai withdrawProceeds() nhung khong rut duoc lan 2 (39ms)
+
+
+  2 passing (629ms)
+

@@ -97,3 +97,26 @@ Biên dịch lại bằng `solc 0.8.37` (`npx solc --bin --abi`) không lỗi/wa
 - Quyết định không làm phần "Mở rộng tùy chọn" (ClassPoint/token) vì sản phẩm nhóm không phải đề tài token.
 
 **Giới hạn:** `docs/SPEC.md` đã có sẵn `resalePrice`/`forSale` trong data model và tên hàm `listForResale()`/`buyResaleTicket()` từ trước (Lab 8) nên không cần sửa SPEC.md lần này; nhóm đã đối chiếu để xác nhận khớp.
+
+## Lab 13
+
+**Công cụ:** Claude (Claude Code)
+
+**Bài luyện — `VulnerableBank.sol` + `Attacker.sol`:**
+- Soạn `VulnerableBank.sol` (lỗi reentrancy cố ý: `withdraw()` gọi `call` chuyển tiền trước khi `balances[msg.sender] = 0`), `Attacker.sol` (khai thác qua `receive()` gọi lại `withdraw()` liên tục), và `VulnerableBank_Fixed.sol` (Cách 1 — chỉ đổi thứ tự 2 dòng, không đổi tên hàm/không thêm từ khóa).
+- Chạy thử trên Hardhat local EVM trước khi giao cho Linh/Thảo làm lại thủ công trên Remix VM (theo đúng yêu cầu đề — Remix VM mới tính là bằng chứng chính thức): 3 tài khoản deposit 2 ETH → `bankBalance() = 6 ETH`; `Attacker.attack()` 1 ETH → rút cạn `7 ETH`; chạy lại trên bản đã vá → `attack()` revert toàn bộ, 6 ETH của người khác an toàn. Log ở `evidence/lab-13/reentrancy-log.txt`.
+
+**Ba câu giải thích vì sao THỨ TỰ dòng lệnh (không phải một từ khóa) là thứ chặn được tấn công:**
+1. Cuộc tấn công dựa vào việc `withdraw()` còn "tin" số dư cũ trong lúc tiền đã rời khỏi hợp đồng — nó không khai thác một từ khóa bị thiếu, mà khai thác một khoảng thời gian giữa "trả tiền" và "ghi sổ" vẫn còn tồn tại.
+2. Khi đổi `balances[msg.sender] = 0` lên **trước** dòng `call{value: bal}("")`, lần gọi lại (reentrant call) trong `receive()` của kẻ tấn công đọc thấy số dư đã là 0 và tự revert — không có `nonReentrant`, không có thư viện nào tham gia, chỉ có thứ tự 2 dòng lệnh thay đổi.
+3. Nếu thêm `nonReentrant` (Cách 2) mà vẫn giữ nguyên thứ tự cũ (trả tiền trước, ghi sổ sau) thì cũng chặn được tấn công, nhưng đó là chặn bằng một lớp khóa bên ngoài — bản chất lỗi (thứ tự Effects sau Interactions) vẫn còn nguyên trong hàm, chỉ là bị khóa che lại; hiểu rõ Cách 1 mới là hiểu đúng gốc rễ.
+
+**Mục tiêu thật — negative test cho `ProjectCore.sol`:**
+- Soi toàn bộ nơi có chuyển tiền/gọi hợp đồng khác trong `ProjectCore.sol`: `buyTicket()`, `buyResaleTicket()`, `withdrawProceeds()` (đều đã qua pull-payment từ Lab 10, không còn `call` trực tiếp trong luồng mua/bán).
+- Viết 2 ca kiểm thử thất bại (yêu cầu tối thiểu 1): (1) `buyTicket()` sai số tiền → `IncorrectPayment`; (2) dựng `ReentrantOrganizer.sol` cố gọi lại `withdrawProceeds()` ngay trong `receive()` — bị chặn đúng như thiết kế, không rút được lần 2. Xem `evidence/lab-13/projectcore-negative-log.txt`.
+- **Quyết định:** không phát hiện hành vi sai `SPEC.md`, không cần sửa `ProjectCore.sol` thêm — cơ chế pull-payment vá ở Lab 10 đã đứng vững trước phép thử reentrancy chủ đề Lab 13.
+
+**Phần do nhóm tự quyết định (không phải AI đề xuất):**
+- Chọn kiểm thử reentrancy cho `withdrawProceeds()` thay vì chỉ lặp lại các ca "sai người/sai số tiền" đã có từ Lab 11, vì đây là chỗ duy nhất trong `ProjectCore.sol` còn chuyển ETH ra ngoài bằng `call`.
+
+**Giới hạn:** log Hardhat trong `evidence/lab-13/` là bằng chứng kỹ thuật bổ sung do AI chạy được ngay, **không thay thế** yêu cầu "ảnh/ảnh động chụp Remix VM" của đề — phần đó cần Linh/Thảo tự tay làm lại và chụp lại.

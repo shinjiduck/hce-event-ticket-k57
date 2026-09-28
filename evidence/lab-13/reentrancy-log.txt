@@ -1,0 +1,15 @@
+
+
+  Lab 13 - Reentrancy: mat tien va cach khac phuc
+  [OK] 3 tai khoan da deposit 2 ETH moi nguoi -> bankBalance() = 6 ETH
+  [OK] Sau attack(): bankBalance() = 0.0 ETH (ky vong 0)
+  [OK] So du hop dong Attacker = 7.0 ETH (ky vong 7)
+    ✔ VulnerableBank: Attacker rut can 7 ETH (6 ETH cua 3 nguoi + 1 ETH cua chinh no) (622ms)
+  [OK] attack() bi REVERT toan bo tren ban da va (loi "Chuyen that bai")
+  [OK] bankBalance() sau khi attack that bai = 6.0 ETH (ky vong 6, tien cua 3 nguoi hoan toan an toan)
+  [OK] So du hop dong Attacker = 0.0 ETH (ky vong 0, ke tan cong khong lay duoc gi, ke ca von bo ra)
+    ✔ VulnerableBankFixed (Cach 1 - doi thu tu CEI): attack() khong con rut duoc gi ngoai phan cua chinh no (40ms)
+
+
+  2 passing (666ms)
+
