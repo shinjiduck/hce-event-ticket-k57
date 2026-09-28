@@ -25,10 +25,12 @@ contract ProjectCore {
 
     mapping(uint256 => EventInfo) public events;
     mapping(uint256 => Ticket) public tickets;
+    mapping(address => uint256) public pendingWithdrawals;
 
     event EventCreated(uint256 indexed eventId, address indexed organizer, uint256 maxSupply, uint256 startTime);
     event TicketMinted(uint256 indexed ticketId, uint256 indexed eventId, uint256 originalPrice);
     event TicketBought(uint256 indexed ticketId, address indexed buyer, uint256 amount);
+    event ProceedsWithdrawn(address indexed organizer, uint256 amount);
 
     error EventDoesNotExist();
     error TicketDoesNotExist();
@@ -36,7 +38,10 @@ contract ProjectCore {
     error MaxSupplyReached();
     error TicketAlreadySold();
     error IncorrectPayment(uint256 expected, uint256 sent);
-    error TransferFailed();
+    error WithdrawFailed();
+    error InvalidMaxSupply();
+    error InvalidPrice();
+    error NothingToWithdraw();
 
     /// @notice Organizer tao mot su kien moi voi tran so ve co dinh.
     function createEvent(
@@ -44,6 +49,10 @@ contract ProjectCore {
         uint256 startTime,
         uint256 maxSupply
     ) external returns (uint256 eventId) {
+        // Lab 10 - audit finding: thieu kiem tra maxSupply, truoc day cho phep
+        // tao event khong the ban duoc ve nao (maxSupply = 0).
+        if (maxSupply == 0) revert InvalidMaxSupply();
+
         eventId = nextEventId++;
         events[eventId] = EventInfo({
             name: name,
@@ -63,6 +72,9 @@ contract ProjectCore {
         EventInfo storage evt = events[eventId];
         if (msg.sender != evt.organizer) revert NotOrganizer();
         if (evt.ticketsMinted >= evt.maxSupply) revert MaxSupplyReached();
+        // Lab 10 - audit finding: thieu kiem tra originalPrice, truoc day
+        // Organizer co the mint ve gia 0 ma khong ai phat hien duoc la loi hay co y.
+        if (originalPrice == 0) revert InvalidPrice();
 
         // 2. Effects
         evt.ticketsMinted++;
@@ -78,6 +90,13 @@ contract ProjectCore {
     }
 
     /// @notice R2: mua ve truc tiep tu Organizer, dung gia niem yet, doi chu mot lan.
+    /// Lab 10 - audit finding: ban dau ham nay "day" tien thang cho Organizer bang
+    /// call() ngay trong buyTicket(). Neu dia chi Organizer khong nhan duoc ETH
+    /// (hop dong khong co receive/fallback, hoac co doi tuong choi nhan), call()
+    /// that bai lam ca giao dich revert -> ve cua event do bi khoa vinh vien,
+    /// khong ai mua duoc nua (tu-DoS). Sua bang mo hinh pull-payment: ghi nhan
+    /// so tien Organizer duoc nhan vao pendingWithdrawals, Organizer tu goi
+    /// withdrawProceeds() de rut, tach rieng khoi luong mua ve cua nguoi khac.
     function buyTicket(uint256 ticketId) external payable {
         // 1. Checks
         if (ticketId >= nextTicketId) revert TicketDoesNotExist();
@@ -88,13 +107,25 @@ contract ProjectCore {
         EventInfo storage evt = events[t.eventId];
         address organizer = evt.organizer;
 
-        // 2. Effects - doi chu truoc khi chuyen tien ra ngoai
+        // 2. Effects - doi chu va ghi nhan tien cho Organizer rut sau
         t.owner = msg.sender;
         t.sold = true;
+        pendingWithdrawals[organizer] += msg.value;
         emit TicketBought(ticketId, msg.sender, msg.value);
+    }
 
-        // 3. Interactions - chuyen tien cho Organizer sau cung
-        (bool ok, ) = payable(organizer).call{value: msg.value}("");
-        if (!ok) revert TransferFailed();
+    /// @notice Organizer tu rut tien ban ve cua minh (pull-payment).
+    function withdrawProceeds() external {
+        // 1. Checks
+        uint256 amount = pendingWithdrawals[msg.sender];
+        if (amount == 0) revert NothingToWithdraw();
+
+        // 2. Effects
+        pendingWithdrawals[msg.sender] = 0;
+        emit ProceedsWithdrawn(msg.sender, amount);
+
+        // 3. Interactions
+        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        if (!ok) revert WithdrawFailed();
     }
 }
