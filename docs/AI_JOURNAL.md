@@ -69,6 +69,8 @@ Nhật ký sử dụng AI trong quá trình làm Lab 8, theo yêu cầu minh b�
 | 🟡 **Medium** | 46–54 | **Emergency withdrawal không gắn với owner và không cập nhật accounting** | Người có PIN có thể rút ETH mà không cần là owner; đồng thời `balances` của người gửi tiền không giảm, làm số liệu nội bộ không còn khớp với ETH thực tế. | Thiết kế lại emergency withdrawal với access control và xác định rõ cách cập nhật/trạng thái hóa số dư. |
 | 🔵 **Low / thiết kế** | 20–23 | **Cho phép deposit 0 ETH** | `deposit()` không kiểm tra `msg.value > 0`, nên có thể tạo event `Deposited(..., 0)`. Không trực tiếp làm mất tiền nhưng tạo giao dịch/event vô nghĩa. | Thêm `require(msg.value > 0, "So tien phai > 0");`. |
 
+*Ghi chú kỹ thuật (không phải nội dung audit của Linh): commit gốc đẩy `contracts/training/VaultBuggy.sol` lên bị rỗng (0 byte) — đã khôi phục lại đúng bản gốc gửi cho Linh. Số dòng trong bảng trên có thể lệch vài dòng so với bản khôi phục (khác định dạng/khoảng trắng ở bản Linh audit), nhưng tên hàm và mô tả lỗ hổng khớp chính xác.*
+
 **Bằng chứng thực nghiệm (Bước 3):** *(chưa có — cần triển khai `VaultBuggy` với `_pin = 123456` và đọc `eth_getStorageAt` slot `0x2`, lưu ảnh vào `evidence/lab-10/`)*.
 
 ## Lab 11
