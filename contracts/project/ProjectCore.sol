@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// @title FairTicket - luong loi: tao su kien, phat hanh ve, mua ve
-/// @notice Lab 9: chi cai luong loi (R1, R2, R9 trong docs/SPEC.md).
-///         Resale (R3, R4, R7, R8) va check-in (R5, R6) de danh cho Lab 10-11.
+/// @title FairTicket - luong loi: tao su kien, phat hanh ve, mua ve, ban lai co tran gia
+/// @notice Lab 9: luong loi (R1, R2, R9 trong docs/SPEC.md).
+///         Lab 11: R3 - tran gia ban lai (listForResale/buyResaleTicket).
+///         R4, R7, R8 (quyen ban lai, han resale, cam transfer tu do) va check-in (R5, R6) de danh cho Lab sau.
 contract ProjectCore {
+    uint256 public constant MAX_RESALE_BPS = 11_000; // 110% = 11000 / 10000
+
     struct EventInfo {
         string name;
         uint256 startTime;
@@ -18,6 +21,8 @@ contract ProjectCore {
         address owner;
         uint256 originalPrice;
         bool sold;
+        uint256 resalePrice;
+        bool forSale;
     }
 
     uint256 public nextEventId;
@@ -31,6 +36,8 @@ contract ProjectCore {
     event TicketMinted(uint256 indexed ticketId, uint256 indexed eventId, uint256 originalPrice);
     event TicketBought(uint256 indexed ticketId, address indexed buyer, uint256 amount);
     event ProceedsWithdrawn(address indexed organizer, uint256 amount);
+    event TicketListedForResale(uint256 indexed ticketId, address indexed seller, uint256 resalePrice);
+    event TicketResold(uint256 indexed ticketId, address indexed from, address indexed to, uint256 amount);
 
     error EventDoesNotExist();
     error TicketDoesNotExist();
@@ -42,6 +49,10 @@ contract ProjectCore {
     error InvalidMaxSupply();
     error InvalidPrice();
     error NothingToWithdraw();
+    error NotTicketOwner();
+    error TicketNotYetSold();
+    error ResalePriceTooHigh(uint256 attempted, uint256 limit);
+    error TicketNotForSale();
 
     /// @notice Organizer tao mot su kien moi voi tran so ve co dinh.
     function createEvent(
@@ -83,7 +94,9 @@ contract ProjectCore {
             eventId: eventId,
             owner: evt.organizer,
             originalPrice: originalPrice,
-            sold: false
+            sold: false,
+            resalePrice: 0,
+            forSale: false
         });
 
         emit TicketMinted(ticketId, eventId, originalPrice);
@@ -112,6 +125,45 @@ contract ProjectCore {
         t.sold = true;
         pendingWithdrawals[organizer] += msg.value;
         emit TicketBought(ticketId, msg.sender, msg.value);
+    }
+
+    /// @notice R3 + R4: chu ve hien tai rao ban lai, gia toi da 110% gia goc.
+    /// Lab 11 - quy tac kinh te: dung basis point (10_000 = 100%) de tinh
+    /// tran gia vi Solidity khong co so thap phan.
+    function listForResale(uint256 ticketId, uint256 price) external {
+        // 1. Checks
+        if (ticketId >= nextTicketId) revert TicketDoesNotExist();
+        Ticket storage t = tickets[ticketId];
+        if (!t.sold) revert TicketNotYetSold();
+        if (msg.sender != t.owner) revert NotTicketOwner();
+
+        uint256 maxResalePrice = (t.originalPrice * MAX_RESALE_BPS) / 10_000;
+        if (price > maxResalePrice) revert ResalePriceTooHigh(price, maxResalePrice);
+
+        // 2. Effects
+        t.resalePrice = price;
+        t.forSale = true;
+
+        emit TicketListedForResale(ticketId, msg.sender, price);
+    }
+
+    /// @notice Mua lai ve dang rao ban, doi chu va tra tien cho chu cu qua pull-payment.
+    function buyResaleTicket(uint256 ticketId) external payable {
+        // 1. Checks
+        if (ticketId >= nextTicketId) revert TicketDoesNotExist();
+        Ticket storage t = tickets[ticketId];
+        if (!t.forSale) revert TicketNotForSale();
+        if (msg.value != t.resalePrice) revert IncorrectPayment(t.resalePrice, msg.value);
+
+        address seller = t.owner;
+
+        // 2. Effects - doi chu va ghi nhan tien cho nguoi ban rut sau
+        t.owner = msg.sender;
+        t.forSale = false;
+        t.resalePrice = 0;
+        pendingWithdrawals[seller] += msg.value;
+
+        emit TicketResold(ticketId, seller, msg.sender, msg.value);
     }
 
     /// @notice Organizer tu rut tien ban ve cua minh (pull-payment).

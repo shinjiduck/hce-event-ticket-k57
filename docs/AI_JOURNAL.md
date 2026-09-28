@@ -67,3 +67,25 @@ Nhật ký sử dụng AI trong quá trình làm Lab 8, theo yêu cầu minh b�
 | 4 | | | |
 
 **Bằng chứng thực nghiệm (Bước 3):** *(chưa có — cần triển khai `VaultBuggy` với `_pin = 123456` và đọc `eth_getStorageAt` slot `0x2`, lưu ảnh vào `evidence/lab-10/`)*.
+
+## Lab 11
+
+**Công cụ:** Claude (Claude Code)
+
+**Mục đích sử dụng:**
+- Chọn 1 quy tắc trong `docs/ECONOMIC_RULES.md` để cài vào `contracts/project/ProjectCore.sol`: **R3 — trần giá bán lại 110%** (mục II.1), vì đây là quy tắc "về tiền" rõ ràng nhất và đã có sẵn field `resalePrice`/`forSale` trong `docs/SPEC.md` từ Lab 8.
+- Thêm hằng số `MAX_RESALE_BPS = 11_000` (basis point, 10_000 = 100%) theo đúng gợi ý bài mẫu `ClassPoint` — tránh số thập phân trong Solidity.
+- Cài 2 hàm mới: `listForResale()` (kiểm tra `price <= originalPrice * 11000 / 10000`, chỉ chủ vé hiện tại được gọi) và `buyResaleTicket()` (đổi chủ, trả tiền cho người bán qua `pendingWithdrawals` — tái dùng pattern pull-payment đã sửa ở Lab 10 để nhất quán và an toàn hơn `call` trực tiếp).
+- Không cài R4/R7/R8 (quyền bán lại nâng cao, hạn resale theo `startTime`, cấm transfer tự do) — đúng phạm vi "chỉ một quy tắc" của Bước 3.
+
+**Kiểm thử (Bước 4):** viết 2 ca kiểm thử chạy thật trên EVM (Hardhat local network, không phải mock) — xem `evidence/lab-11/resale.test.js` và log `evidence/lab-11/test-log.txt`:
+- Ca hợp lệ: list giá đúng 110% gốc → thành công, event `TicketListedForResale`; mua lại thành công, đổi chủ.
+- Ca vi phạm: list giá 120% gốc → revert đúng `ResalePriceTooHigh(attempted, limit)`.
+
+Biên dịch lại bằng `solc 0.8.37` (`npx solc --bin --abi`) không lỗi/warning mới.
+
+**Phần do nhóm tự quyết định (không phải AI đề xuất):**
+- Chọn đúng quy tắc R3 (không phải phí hay tiền cọc) vì phù hợp nhất với sản phẩm vé sự kiện.
+- Quyết định không làm phần "Mở rộng tùy chọn" (ClassPoint/token) vì sản phẩm nhóm không phải đề tài token.
+
+**Giới hạn:** `docs/SPEC.md` đã có sẵn `resalePrice`/`forSale` trong data model và tên hàm `listForResale()`/`buyResaleTicket()` từ trước (Lab 8) nên không cần sửa SPEC.md lần này; nhóm đã đối chiếu để xác nhận khớp.

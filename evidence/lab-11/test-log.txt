@@ -1,0 +1,15 @@
+Lenh chay: npx hardhat test test/resale.test.js
+Moi truong: Hardhat local EVM (solidity 0.8.20), khong phai Remix VM, nhung la EVM
+thuc thi that (khong mock/gia lap), dung de chung minh Buoc 4 cua Lab 11.
+Ma nguon test: evidence/lab-11/resale.test.js
+
+  Lab 11 - R3 tran gia ban lai
+  [OK] listForResale gia = 0.011 ETH (dung 110% tran = 0.011 ETH)
+  [OK] buyResaleTicket thanh cong, ve doi chu sang 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+    ✔ Ca hop le: list + mua lai voi gia <= 110% thanh cong (771ms)
+  [OK] listForResale gia = 0.012 ETH (>110%) bi revert dung ResalePriceTooHigh(attempted=0.012, limit=0.011)
+    ✔ Ca vi pham: list gia > 110% goc bi tu choi voi ResalePriceTooHigh (39ms)
+
+
+  2 passing (819ms)
+
