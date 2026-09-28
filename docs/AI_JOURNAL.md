@@ -59,12 +59,15 @@ Nhật ký sử dụng AI trong quá trình làm Lab 8, theo yêu cầu minh b�
 
 ### Bảng phát hiện lỗi — `contracts/training/VaultBuggy.sol` (bài luyện)
 
-| Lỗi | Mô tả | Ai phát hiện | Cách khắc phục |
-|---|---|---|---|
-| 1 | *(chưa điền — cần chạy Bước 1–2 trên `VaultBuggy.sol` khi có mã nguồn)* | | |
-| 2 | | | |
-| 3 | | | |
-| 4 | | | |
+| Mức độ | Dòng | Lỗ hổng | Khai thác thế nào | Cách sửa |
+|---|---:|---|---|---|
+| 🔴 **Critical** | 40–42 | **`setBalance()` không kiểm soát quyền** | Bất kỳ ai cũng gọi `setBalance(address, newBalance)` để tự ý sửa `balances` của mình hoặc người khác. Kẻ tấn công có thể tạo số dư giả rồi tìm cách rút ETH thật đang có trong vault. | Thêm `onlyOwner` hoặc kiểm tra `require(msg.sender == owner)`. |
+| 🔴 **Critical** | 47–54 | **PIN `private` không thực sự bí mật** | `emergencyPin` dù khai báo `private` vẫn nằm trong storage blockchain. Người quan sát blockchain có thể đọc giá trị storage; biết PIN rồi có thể gọi `emergencyWithdraw()` và chuyển tiền về chính `msg.sender`. | Không dùng secret/PIN on-chain để xác thực. Dùng quyền owner, multisig hoặc cơ chế chữ ký. |
+| 🔴 **High** | 25–32 | **Reentrancy trong `withdraw()`** | ETH được gửi bằng `call` ở dòng 28 **trước khi** số dư giảm ở dòng 31. Contract nhận tiền có thể dùng `receive()`/`fallback()` để gọi lại `withdraw()` trước khi trạng thái được cập nhật. | Theo Checks-Effects-Interactions: giảm `balances` **trước** khi `call`; có thể kết hợp `nonReentrant`. |
+| 🟠 **High** | 36 | **Dùng `tx.origin` để xác thực owner** | Owner có thể bị dụ gọi một contract độc hại. Contract trung gian gọi `changeOwner()` nhưng `tx.origin` vẫn là địa chỉ owner ban đầu, nên kiểm tra có thể vượt qua. | Thay bằng `require(msg.sender == owner)` hoặc modifier `onlyOwner`. |
+| 🟡 **Medium** | 35–40 | **Không kiểm tra `newOwner != address(0)`** | Owner có thể vô tình đặt owner thành `0x000...000`, khiến quyền quản trị bị mất/khóa tùy thiết kế. | Thêm `require(newOwner != address(0), "...")`. |
+| 🟡 **Medium** | 46–54 | **Emergency withdrawal không gắn với owner và không cập nhật accounting** | Người có PIN có thể rút ETH mà không cần là owner; đồng thời `balances` của người gửi tiền không giảm, làm số liệu nội bộ không còn khớp với ETH thực tế. | Thiết kế lại emergency withdrawal với access control và xác định rõ cách cập nhật/trạng thái hóa số dư. |
+| 🔵 **Low / thiết kế** | 20–23 | **Cho phép deposit 0 ETH** | `deposit()` không kiểm tra `msg.value > 0`, nên có thể tạo event `Deposited(..., 0)`. Không trực tiếp làm mất tiền nhưng tạo giao dịch/event vô nghĩa. | Thêm `require(msg.value > 0, "So tien phai > 0");`. |
 
 **Bằng chứng thực nghiệm (Bước 3):** *(chưa có — cần triển khai `VaultBuggy` với `_pin = 123456` và đọc `eth_getStorageAt` slot `0x2`, lưu ảnh vào `evidence/lab-10/`)*.
 
