@@ -1,0 +1,3 @@
+# Build/compile output (regenerated from contracts/, not source)
+artifacts/
+.deps/
