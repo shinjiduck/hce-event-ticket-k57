@@ -57,3 +57,4 @@ contract VaultBuggy {
         emit EmergencyWithdrawn(msg.sender, amount);
     }
 }
+

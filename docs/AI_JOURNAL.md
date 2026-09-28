@@ -87,6 +87,9 @@ Nhật ký sử dụng AI trong quá trình làm Lab 8, theo yêu cầu minh b�
 - Ca hợp lệ: list giá đúng 110% gốc → thành công, event `TicketListedForResale`; mua lại thành công, đổi chủ.
 - Ca vi phạm: list giá 120% gốc → revert đúng `ResalePriceTooHigh(attempted, limit)`.
 
+**Phần kiểm thử bổ sung của Linh (R4):**
+- Account B (không phải chủ vé #0) gọi `listForResale()` → revert đúng `NotTicketOwner`, xem `evidence/lab-11/04-resale-not-owner-reverted.png`.
+
 Biên dịch lại bằng `solc 0.8.37` (`npx solc --bin --abi`) không lỗi/warning mới.
 
 **Phần do nhóm tự quyết định (không phải AI đề xuất):**
