@@ -138,3 +138,21 @@ Biên dịch lại bằng `solc 0.8.37` (`npx solc --bin --abi`) không lỗi/wa
 - Không sửa 2 quan sát mục 3, 4 vì không phải lỗi thật (mục 3 là tính năng chưa làm, có chủ đích; mục 4 không khai thác được ở quy mô giá vé thực tế).
 
 **Giới hạn:** đây là bản tự rà soát nội bộ, **không phải** `docs/AUDIT_REPORT.md` chính thức của Lab 14 — file đó sẽ do nhóm được ghép cặp tạo ra sau khi rà soát chéo trên lớp, và nhóm mình cũng cần làm report tương tự cho nhóm bạn. Commit `lab-14: xu ly ket qua audit cheo` chỉ nên tạo **sau** khi có báo cáo thật từ nhóm bạn.
+
+## Lab 15
+
+**Công cụ:** Claude (Claude Code) + skill `ui-skills` (`ibelick/ui-skills`, cài qua `npx skills add ibelick/ui-skills`, dùng CLI `vercel-labs/skills`).
+
+**Quyết định về kiến trúc (không theo đúng gợi ý "điền tệp HTML giảng viên phát" của đề):** nhóm chọn tự xây giao diện riêng thay vì dùng tệp HTML tối giản giảng viên phát, để giao diện đúng theme sản phẩm (FairTicket) thay vì giao diện demo chung chung. Quyết định không làm backend: mọi dữ liệu (sự kiện, vé, lịch sử giao dịch) đã nằm sẵn trên blockchain qua các `event` đã khai báo từ Lab 9-11, đọc được trực tiếp bằng `contract.queryFilter(...)` phía client — không cần server lưu trữ riêng. Lý do thực tế: đề bắt deploy qua GitHub Pages, chỉ host được file tĩnh, không chạy được backend.
+
+**Đã xây `web/index.html`:** một trang tĩnh (không build step), dùng Tailwind CDN + `ethers.js` v6 CDN, áp theo đúng rule của skill `baseline-ui` (không gradient, 1 màu nhấn, `h-dvh` không `h-screen`, `aria-label` cho nút icon, `safe-area-inset`, `tabular-nums` cho số liệu, `text-balance`/`text-pretty`...). 4 khu vực: Sự kiện (tạo event, phát hành vé, danh sách), Vé của tôi (tra cứu + mua), Chợ bán lại (rao bán/mua lại theo R3), Ví & lịch sử (số dư chờ rút, lịch sử đọc thẳng từ event log). Lỗi hợp đồng (`NotOrganizer`, `ResalePriceTooHigh`,...) được dịch sang câu tiếng Việt thân thiện qua `e.shortMessage`, đúng tinh thần Bước 2 của đề (không hiện chuỗi lỗi kỹ thuật).
+
+**Đã kiểm thử thật, không chỉ đọc code:** dựng server tĩnh cục bộ, dùng Playwright điều khiển trình duyệt Edge có sẵn trên máy (không tải được Chromium riêng của Playwright do mạng chặn chứng chỉ TLS tự ký tới `cdn.playwright.dev`) để chụp ảnh và kiểm tra console. Kết quả: cả 4 tab hiển thị đúng trên khung hình điện thoại (420px) lẫn desktop (1280px), chuyển tab mượt, chỉ 1 lỗi console vô hại (`favicon.ico` 404 — trang tĩnh nào cũng vậy), `ProjectCore.abi.json` tự nạp thành công (HTTP 200).
+
+**Chưa kiểm thử được (cần làm thật, không phải lỗi của bản demo):** kết nối ví MetaMask thật và gọi hàm hợp đồng thật — môi trường chạy test không có extension MetaMask và `CONTRACT_ADDRESS` vẫn là placeholder (chưa deploy lại `ProjectCore.sol` bản mới nhất lên Sepolia).
+
+**Phần do nhóm tự quyết định (không phải AI đề xuất):**
+- Chọn tự xây giao diện theo theme riêng thay vì dùng bản tối giản của giảng viên.
+- Xác nhận không cần backend, dựa trên ràng buộc thật của đề (GitHub Pages chỉ host tĩnh) chứ không phải chỉ vì tiện.
+
+**Giới hạn:** đây vẫn là **bản khung/demo**, chưa phải sản phẩm nộp cuối — còn thiếu: deploy lại `ProjectCore.sol` lên Sepolia (địa chỉ cũ từ Lab 9 đã lỗi thời), điền `CONTRACT_ADDRESS` thật, deploy `web/` lên GitHub Pages, test trên điện thoại thật với ví thật, lấy mã giao dịch thật, điền `docs/PRESENTATION_PLAN.md`, rồi mới commit `lab-15: public dapp va presentation plan` + tag `v0.1-demo`.
