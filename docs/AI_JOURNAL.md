@@ -156,3 +156,28 @@ Biên dịch lại bằng `solc 0.8.37` (`npx solc --bin --abi`) không lỗi/wa
 - Xác nhận không cần backend, dựa trên ràng buộc thật của đề (GitHub Pages chỉ host tĩnh) chứ không phải chỉ vì tiện.
 
 **Giới hạn:** đây vẫn là **bản khung/demo**, chưa phải sản phẩm nộp cuối — còn thiếu: deploy lại `ProjectCore.sol` lên Sepolia (địa chỉ cũ từ Lab 9 đã lỗi thời), điền `CONTRACT_ADDRESS` thật, deploy `web/` lên GitHub Pages, test trên điện thoại thật với ví thật, lấy mã giao dịch thật, điền `docs/PRESENTATION_PLAN.md`, rồi mới commit `lab-15: public dapp va presentation plan` + tag `v0.1-demo`.
+
+### Lab 15 — thiết kế lại toàn bộ UI (lần lặp thứ 2)
+
+Nhóm yêu cầu thiết kế lại hoàn toàn theo một bản mô tả chi tiết (phong cách Linear/Luma/Stripe/Eventbrite, "event website trước, blockchain app sau" — tránh gradient/glow/glassmorphism/3D/mọi thứ đều bo tròn/dashboard kiểu crypto). Thay thế toàn bộ `web/index.html` cũ (bản single-file, 4 tab) bằng kiến trúc 3 file:
+
+- `web/styles.css` — design token đầy đủ theo đúng brief: màu (`#2563EB` primary, `#111827`/`#6B7280` text, `#E5E7EB` border...), type scale (H1 48-60px, H2 28-36px), bo góc chỉ 8-12px, shadow rất nhẹ, spacing hệ 8px.
+- `web/app.js` — SPA router dùng hash (`#/`, `#/events`, `#/events/:id`, `#/create`, `#/my-events`, `#/checkout/:eventId/:ticketIds`), 6 trang đúng đặc tả: Trang chủ (hero ảnh thật + 3 lợi ích + sự kiện nổi bật), Sự kiện (grid card), Chi tiết sự kiện (layout 2 cột 62/38%, gallery, tab, hạng vé + số lượng), Tạo sự kiện (wizard 3 bước: Thông tin cơ bản → Cấu hình vé → Triển khai, có bước xem lại trước khi deploy), Vé & Lịch sử (gộp góc nhìn Organizer + góc nhìn người mua vé, vì đề chỉ có 1 mục nav nhưng mô tả 2 vai trò khác nhau), Checkout (3 bước, toàn bộ giá hiển thị bằng **ETH**, không dùng VNĐ theo đúng yêu cầu — vì hệ thống không có oracle quy đổi tiền thật).
+- `web/index.html` — rút gọn còn phần khung (header sticky, nav, mount point `#app-root`, footer).
+
+**Giải quyết khoảng cách giữa "hạng vé" (Standard/Premium/VIP) trong brief và hợp đồng thật:** `ProjectCore.sol` không có khái niệm "tier" — Organizer `mintTicket()` từng vé một với giá tự chọn. Thay vì mock dữ liệu giả, nhóm tận dụng đúng cơ chế đó: trang Chi tiết sự kiện gom các vé **chưa bán** theo `originalPrice` giống nhau thành từng nhóm, xếp theo giá tăng dần rồi gắn nhãn Standard/Premium/VIP — tức "hạng vé" trên giao diện phản ánh đúng dữ liệu thật trên chuỗi, không phải giao diện làm trước rồi hy vọng hợp đồng khớp sau.
+
+**Thêm "chế độ dữ liệu minh họa" (không có trong brief, nhóm tự quyết định thêm):** khi chưa cấu hình `CONTRACT_ADDRESS` thật, `app.js` dùng bộ dữ liệu mẫu cố định (3 sự kiện, có hạng vé, có trạng thái khác nhau: đang bán / đã bán hết / đã kết thúc) thay vì để trống trang. Mục đích: nhóm có thể xem/chụp ảnh/trình bày giao diện hoàn chỉnh trước khi deploy Sepolia thật, mà không cần đợi. Banner cảnh báo "Chưa cấu hình kết nối hợp đồng" vẫn luôn hiện để không ai nhầm đây là dữ liệu thật.
+
+**Ảnh thật cho hero + card sự kiện:** dùng Canva `generate-image` (không phải ảnh có sẵn/stock lấy từ nơi khác) sinh 4 ảnh chụp theo phong cách tài liệu (concert đông người, hội nghị công nghệ, nhạc jazz) lưu vào `web/assets/`, đúng yêu cầu "ảnh sự kiện/concert thật, tránh illustration 3D" của đề.
+
+**Kiểm thử lại toàn bộ bằng Playwright + Edge có sẵn trên máy** (lặp lại 2 vòng — vòng 1 phát hiện 2 lỗi responsive thật trên khung hình điện thoại 390px, đã sửa):
+- Lỗi 1: banner cảnh báo (`display:flex` trực tiếp trên text + `<code>`) bị vỡ chữ từng từ một dòng — nguyên nhân là mọi text node con của flex container tự thành flex item riêng. Sửa bằng cách bỏ `display:flex` khỏi `.banner`.
+- Lỗi 2: thanh nav header vỡ dòng lung tung trên mobile (chữ "Vé & Lịch sử" tách 3 dòng). Sửa bằng cách tách header thành 2 hàng ở `max-width:760px` (hàng 1: logo + nút ví, hàng 2: nav cuộn ngang).
+Sau khi sửa: chụp lại toàn bộ 6 trang (desktop 1440px + mobile 390px) kèm luồng tạo sự kiện 3 bước và luồng chọn hạng VIP → checkout — không còn lỗi responsive, chỉ còn 1 lỗi console vô hại (`favicon.ico` 404).
+
+**Phần do nhóm tự quyết định (không phải AI đề xuất):**
+- Chốt kiến trúc "hạng vé = nhóm vé theo giá" thay vì sửa `ProjectCore.sol` thêm trường tier riêng — vì đây là Lab 15 (chỉ giao diện), không phải lab sửa contract.
+- Quyết định thêm chế độ dữ liệu minh họa dù đề không yêu cầu, vì nhóm cần xem được giao diện hoàn chỉnh trước khi có Sepolia deployment mới.
+
+**Giới hạn còn lại (như cũ):** vẫn chưa deploy lại `ProjectCore.sol` lên Sepolia, chưa điền `CONTRACT_ADDRESS` thật trong `web/app.js`, chưa test với ví MetaMask thật, chưa bật GitHub Pages.
