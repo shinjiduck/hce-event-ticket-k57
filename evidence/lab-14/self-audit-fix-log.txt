@@ -1,0 +1,9 @@
+
+
+  Lab 14 - Tu ra soat: muc 9 (truong hop so 0)
+  [OK] listForResale(ticketId, 0) bi revert dung ZeroResalePrice - da va xong finding Lab 14
+    ✔ listForResale() voi price = 0 phai bi tu choi ZeroResalePrice (681ms)
+
+
+  1 passing (687ms)
+

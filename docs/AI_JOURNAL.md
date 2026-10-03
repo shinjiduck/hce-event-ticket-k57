@@ -120,3 +120,21 @@ Biên dịch lại bằng `solc 0.8.37` (`npx solc --bin --abi`) không lỗi/wa
 - Chọn kiểm thử reentrancy cho `withdrawProceeds()` thay vì chỉ lặp lại các ca "sai người/sai số tiền" đã có từ Lab 11, vì đây là chỗ duy nhất trong `ProjectCore.sol` còn chuyển ETH ra ngoài bằng `call`.
 
 **Giới hạn:** log Hardhat trong `evidence/lab-13/` là bằng chứng kỹ thuật bổ sung do AI chạy được ngay, **không thay thế** yêu cầu "ảnh/ảnh động chụp Remix VM" của đề — phần đó cần Linh/Thảo tự tay làm lại và chụp lại.
+
+## Lab 14
+
+**Công cụ:** Claude (Claude Code)
+
+**Tự rà soát trước (chuẩn bị, không phải rà soát chéo thật):** Lab 14 yêu cầu rà soát chéo giữa 2 nhóm thật trên lớp (giảng viên ghép cặp) — phần đó chưa làm được trước. Đã tự chạy đúng bộ 10 tiêu chí bắt buộc của đề lên `ProjectCore.sol` của chính nhóm trước, theo đúng gợi ý của đề ("Đây cũng là danh mục dùng khi tự rà soát đồ án của mình"). Chi tiết đối chiếu từng mục: `evidence/lab-14/SELF_AUDIT_PREP.md`.
+
+**Phát hiện & đã sửa (mục 9 — trường hợp số 0):** `listForResale()` trước đây không chặn `price == 0` — chủ vé gõ nhầm giá 0 (hoặc frontend sau này không chặn) sẽ khiến bất kỳ ai cũng lấy được vé miễn phí qua `buyResaleTicket()`. Đã thêm `error ZeroResalePrice()`, nhất quán với `mintTicket()`/`createEvent()` đã chặn giá trị 0 từ Lab 10. Biên dịch lại và chạy test xác nhận revert đúng — `evidence/lab-14/lab14-selfaudit.test.js`, log `evidence/lab-14/self-audit-fix-log.txt`. Chạy lại toàn bộ 5 test của Lab 11/13/14 — không có test nào bị ảnh hưởng (regression).
+
+**Quan sát, không phải lỗi mới (đã biết từ Gate Review 1, nhắc lại đúng mục checklist):**
+- Mục 3 (điều kiện thời gian): `startTime` tồn tại nhưng chưa dùng để kiểm tra gì — R7 (hạn bán lại) chưa cài.
+- Mục 4 (phép chia): công thức basis point `(originalPrice * 11000) / 10000` có thể làm tròn xuống với `originalPrice` cực nhỏ (vài wei) — không khai thác được thực tế vì giá vé luôn lớn hơn nhiều.
+
+**Phần do nhóm tự quyết định (không phải AI đề xuất):**
+- Quyết định sửa ngay finding mục 9 (rẻ, rõ ràng, nhất quán với pattern đã có) thay vì để dành chờ nhóm bạn audit — giảm rủi ro bị trừ điểm vì nhóm kia tìm ra trước.
+- Không sửa 2 quan sát mục 3, 4 vì không phải lỗi thật (mục 3 là tính năng chưa làm, có chủ đích; mục 4 không khai thác được ở quy mô giá vé thực tế).
+
+**Giới hạn:** đây là bản tự rà soát nội bộ, **không phải** `docs/AUDIT_REPORT.md` chính thức của Lab 14 — file đó sẽ do nhóm được ghép cặp tạo ra sau khi rà soát chéo trên lớp, và nhóm mình cũng cần làm report tương tự cho nhóm bạn. Commit `lab-14: xu ly ket qua audit cheo` chỉ nên tạo **sau** khi có báo cáo thật từ nhóm bạn.

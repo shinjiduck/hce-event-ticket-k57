@@ -53,6 +53,7 @@ contract ProjectCore {
     error TicketNotYetSold();
     error ResalePriceTooHigh(uint256 attempted, uint256 limit);
     error TicketNotForSale();
+    error ZeroResalePrice();
 
     /// @notice Organizer tao mot su kien moi voi tran so ve co dinh.
     function createEvent(
@@ -136,6 +137,11 @@ contract ProjectCore {
         Ticket storage t = tickets[ticketId];
         if (!t.sold) revert TicketNotYetSold();
         if (msg.sender != t.owner) revert NotTicketOwner();
+        // Lab 14 - tu ra soat (muc 9, truong hop so 0): truoc day khong chan
+        // price == 0, chu ve co the vo tinh "tang khong" ve cho bat ky ai goi
+        // buyResaleTicket() truoc. Nhat quan voi mintTicket()/createEvent() da
+        // chan gia 0 tu Lab 10.
+        if (price == 0) revert ZeroResalePrice();
 
         uint256 maxResalePrice = (t.originalPrice * MAX_RESALE_BPS) / 10_000;
         if (price > maxResalePrice) revert ResalePriceTooHigh(price, maxResalePrice);
