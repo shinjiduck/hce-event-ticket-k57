@@ -570,6 +570,27 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
 .toast-error { background: var(--danger-bg); color: var(--danger-text); border-color: transparent; }
 .toast-info { background: var(--primary-tint); color: var(--primary); border-color: transparent; }
 
+/* ---------- Modal ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-3);
+  z-index: 200;
+}
+.modal-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-4);
+}
+
 /* ---------- Banner ---------- */
 
 .banner {

@@ -161,6 +161,97 @@
     toastTimer = setTimeout(() => { el.hidden = true; }, 4500);
   }
 
+  /// Modal nhap gia (ETH) - thay cho window.prompt() cua trinh duyet (de bi
+  /// bo sot/chan, khong dong bo giao dien). Tra ve chuoi nguoi dung nhap,
+  /// hoac null neu bam Huy/Esc/click ra ngoai.
+  function promptPriceModal({ title, label, hint, confirmText }) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "modal-overlay";
+      overlay.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true">
+          <h3>${escapeHtml(title)}</h3>
+          <div class="field" style="margin-top: var(--sp-3); margin-bottom: 0;">
+            <label for="modal-price-input">${escapeHtml(label)}</label>
+            <input id="modal-price-input" type="number" min="0" step="0.0001" placeholder="VD: 0.02" />
+            ${hint ? `<p class="hint">${escapeHtml(hint)}</p>` : ""}
+          </div>
+          <div class="wizard-actions" style="margin-top: var(--sp-4); padding-top: 0; border-top: none;">
+            <button type="button" class="btn btn-ghost" data-action="cancel">Hủy</button>
+            <button type="button" class="btn btn-primary" data-action="confirm">${escapeHtml(confirmText || "Xác nhận")}</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const input = overlay.querySelector("#modal-price-input");
+      input.focus();
+
+      function close(value) {
+        overlay.remove();
+        resolve(value);
+      }
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
+      overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => close(null));
+      overlay.querySelector('[data-action="confirm"]').addEventListener("click", () => close(input.value || null));
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") close(input.value || null);
+        if (e.key === "Escape") close(null);
+      });
+    });
+  }
+
+  /// Modal phat hanh ve: nhap gia + so luong 1 lan. Hop dong ProjectCore.sol
+  /// chi co mintTicket() phat hanh TUNG ve rieng le (chua co ham phat hang
+  /// loat trong 1 giao dich) - nen "so luong" o day la de UI TU DONG LAP goi
+  /// mintTicket() nhieu lan giup Organizer, khong phai 1 giao dich gop.
+  /// Organizer van can xac nhan tung giao dich trong MetaMask, nhung khong
+  /// phai tu bam lai nut "Phat hanh ve" moi lan.
+  function promptMintModal() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "modal-overlay";
+      overlay.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true">
+          <h3>Phát hành vé</h3>
+          <div class="field-row" style="margin-top: var(--sp-3);">
+            <div class="field" style="margin-bottom: 0;">
+              <label for="modal-mint-price">Giá mỗi vé (ETH)</label>
+              <input id="modal-mint-price" type="number" min="0" step="0.0001" placeholder="VD: 0.02" />
+            </div>
+            <div class="field" style="margin-bottom: 0;">
+              <label for="modal-mint-qty">Số lượng</label>
+              <input id="modal-mint-qty" type="number" min="1" step="1" value="1" />
+            </div>
+          </div>
+          <p class="hint">Hợp đồng chỉ phát hành từng vé một — nếu nhập số lượng &gt; 1, trang sẽ tự gửi lần lượt từng giao dịch, bạn xác nhận trong MetaMask mỗi lần.</p>
+          <div class="wizard-actions" style="margin-top: var(--sp-4); padding-top: 0; border-top: none;">
+            <button type="button" class="btn btn-ghost" data-action="cancel">Hủy</button>
+            <button type="button" class="btn btn-primary" data-action="confirm">Phát hành</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const priceInput = overlay.querySelector("#modal-mint-price");
+      priceInput.focus();
+
+      function close(value) {
+        overlay.remove();
+        resolve(value);
+      }
+      function submit() {
+        const price = priceInput.value;
+        const qty = Math.max(1, Math.floor(Number(overlay.querySelector("#modal-mint-qty").value) || 1));
+        if (!price) return;
+        close({ price, qty });
+      }
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
+      overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => close(null));
+      overlay.querySelector('[data-action="confirm"]').addEventListener("click", submit);
+      overlay.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submit();
+        if (e.key === "Escape") close(null);
+      });
+    });
+  }
+
   async function withBusy(btn, fn, opts) {
     if (!btn) return fn();
     const keepContentOnSuccess = opts && opts.keepContentOnSuccess;
@@ -997,7 +1088,12 @@
       listEl.querySelectorAll("[data-resell]").forEach((btn) => {
         btn.addEventListener("click", async () => {
           const max = (BigInt(btn.dataset.price) * 11000n) / 10000n;
-          const input = window.prompt(`Giá rao bán (ETH), tối đa ${fmtEth(max)} ETH:`);
+          const input = await promptPriceModal({
+            title: "Rao bán lại vé",
+            label: "Giá rao bán (ETH)",
+            hint: `Tối đa ${fmtEth(max)} ETH (110% giá gốc).`,
+            confirmText: "Rao bán",
+          });
           if (!input) return;
           try {
             requireWallet(); requireContract();
@@ -1041,15 +1137,19 @@
   }
 
   async function mintPrompt(eventId) {
-    const price = window.prompt("Giá vé muốn phát hành (ETH), ví dụ 0.02:");
-    if (!price) return;
+    const result = await promptMintModal();
+    if (!result) return;
+    const { price, qty } = result;
     try {
       requireWallet();
       requireContract();
-      const tx = await contract.mintTicket(eventId, ethers.parseEther(price));
-      toast("Đang xác nhận giao dịch…", "info");
-      await tx.wait();
-      toast("Phát hành vé thành công.", "success");
+      const priceWei = ethers.parseEther(price);
+      for (let i = 1; i <= qty; i++) {
+        toast(qty > 1 ? `Đang phát hành vé ${i}/${qty}…` : "Đang xác nhận giao dịch…", "info");
+        const tx = await contract.mintTicket(eventId, priceWei);
+        await tx.wait();
+      }
+      toast(qty > 1 ? `Đã phát hành ${qty} vé thành công.` : "Phát hành vé thành công.", "success");
       eventsCache = null;
       route();
     } catch (err) {
