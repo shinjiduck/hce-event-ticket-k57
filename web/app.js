@@ -155,17 +155,23 @@
     toastTimer = setTimeout(() => { el.hidden = true; }, 4500);
   }
 
-  async function withBusy(btn, fn) {
+  async function withBusy(btn, fn, opts) {
     if (!btn) return fn();
+    const keepContentOnSuccess = opts && opts.keepContentOnSuccess;
     const original = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner' + (btn.classList.contains("btn-secondary") || btn.classList.contains("btn-ghost") ? " spinner-dark" : "") + '"></span> ' + original.replace(/<span class="spinner.*?<\/span>\s*/, "");
     try {
       await fn();
+      btn.disabled = false;
+      // Success: for most buttons, restore the original label (the page/panel
+      // around it has already re-rendered). For buttons whose own handler
+      // permanently changes their content on success (ví dụ nút "Kết nối ví"
+      // -> chip địa chỉ ví), keep that new content instead of overwriting it.
+      if (!keepContentOnSuccess) btn.innerHTML = original;
     } catch (err) {
       console.error(err);
       toast(friendlyError(err), "error");
-    } finally {
       btn.disabled = false;
       btn.innerHTML = original;
     }
@@ -346,7 +352,7 @@
     } else {
       btn.innerHTML = "Kết nối ví";
       btn.className = "btn btn-primary btn-sm";
-      btn.onclick = (e) => withBusy(e.currentTarget, connectWallet);
+      btn.onclick = (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true });
     }
   }
 
@@ -1062,7 +1068,7 @@
   // ---------- Boot ----------
 
   function initNavClicks() {
-    document.getElementById("btn-connect").onclick = (e) => withBusy(e.currentTarget, connectWallet);
+    document.getElementById("btn-connect").onclick = (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true });
   }
 
   window.addEventListener("DOMContentLoaded", async () => {
