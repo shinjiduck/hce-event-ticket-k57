@@ -222,14 +222,7 @@
     return readContract;
   }
 
-  async function connectWallet() {
-    if (!window.ethereum) {
-      toast("Chưa cài MetaMask (hoặc ví tương thích) trên trình duyệt này.", "error");
-      return;
-    }
-    await loadAbi();
-    provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
+  async function setupWalletSession() {
     signer = await provider.getSigner();
     userAddress = await signer.getAddress();
     const net = await provider.getNetwork();
@@ -239,10 +232,39 @@
       contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
       readContract = contract;
     }
+  }
+
+  async function connectWallet() {
+    if (!window.ethereum) {
+      toast("Chưa cài MetaMask (hoặc ví tương thích) trên trình duyệt này.", "error");
+      return;
+    }
+    await loadAbi();
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []); // mo popup MetaMask, nguoi dung bam Connect
+    await setupWalletSession();
 
     renderHeader();
     toast("Đã kết nối ví.", "success");
     route();
+  }
+
+  /// Goi luc trang vua tai xong: neu trang nay da duoc MetaMask cho phep tu
+  /// truoc (cung origin), "eth_accounts" tra ve vi ngay, KHONG hien popup -
+  /// nho vay ket noi duoc tu dong sau moi lan F5 ma khong bat nguoi dung bam
+  /// lai "Ket noi vi". Neu chua tung cho phep, tra ve mang rong, im lang bo qua.
+  async function trySilentReconnect() {
+    if (!window.ethereum) return;
+    try {
+      await loadAbi();
+      provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_accounts", []);
+      if (!accounts || accounts.length === 0) return;
+      await setupWalletSession();
+      renderHeader();
+    } catch (err) {
+      console.warn("Khong tu ket noi lai duoc vi:", err);
+    }
   }
 
   function requireWallet() {
@@ -1085,6 +1107,7 @@
         banner.innerHTML = `Chưa cấu hình kết nối hợp đồng. Điền <code>CONTRACT_ADDRESS</code> ở đầu <code>web/app.js</code> sau khi triển khai <code>ProjectCore.sol</code> lên Sepolia.`;
       }
     }
+    await trySilentReconnect();
     route();
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", () => window.location.reload());
