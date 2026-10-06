@@ -51,3 +51,16 @@ npx solc --bin --abi contracts/project/ProjectCore.sol
 **⚠️ Quan trọng — địa chỉ contract cũ đã lỗi thời:** địa chỉ Sepolia dùng để chụp ảnh bằng chứng ở Lab 9 (`0xb8Cb6Fe71f1Cb5682f27fb738FC2d78DCF09A149`) là bản triển khai **trước khi có** các hàm `listForResale`/`buyResaleTicket`/`withdrawProceeds` (thêm ở Lab 10-11-14). Nếu nối giao diện vào địa chỉ đó, các nút bán lại sẽ gọi vào một hàm không tồn tại trong hợp đồng đã triển khai. **Cần deploy lại `ProjectCore.sol` bản mới nhất lên Sepolia trước Bước 1 của Lab 15**, rồi điền địa chỉ mới vào bảng trên.
 
 **Cấu trúc `web/`:** `index.html` (khung trang) + `styles.css` (design system) + `app.js` (router, logic contract). Điền `CONTRACT_ADDRESS` ở **đầu file `web/app.js`** (không phải `index.html`). Trước khi deploy contract thật, trang tự chuyển sang **chế độ dữ liệu minh họa** (3 sự kiện mẫu) để xem/trình bày giao diện — luôn có banner vàng nhắc chưa cấu hình thật.
+
+### Các bước còn lại để đưa web lên mạng công khai (Lab 15)
+
+1. **Deploy lại contract:** mở Remix, dán `contracts/project/ProjectCore.sol` (bản mới nhất, đã có `listForResale`/`withdrawProceeds`), compile, Deploy & Run chọn "Injected Provider - MetaMask", mạng **Sepolia**, bấm Deploy, xác nhận trong MetaMask. Copy địa chỉ contract vừa deploy.
+2. **Cấu hình:** mở `web/app.js`, dòng đầu file, sửa `CONTRACT_ADDRESS = "0x0000...000"` thành địa chỉ vừa copy. Lưu file, điền luôn vào bảng ánh xạ phía trên.
+3. **Test cục bộ:** chạy `python -m http.server 4173` trong thư mục `web/`, mở `http://localhost:4173`, bấm "Kết nối ví" (MetaMask phải đang ở mạng Sepolia), thử tạo 1 sự kiện thật → phát hành vé → mua vé, xác nhận giao dịch hiện trên [Sepolia Etherscan](https://sepolia.etherscan.io/).
+4. **Đưa lên GitHub Pages:**
+   - Vào repo trên GitHub → **Settings → Pages**.
+   - Mục "Build and deployment" → Source: **Deploy from a branch**.
+   - Branch: `main`, thư mục: **`/web`** → Save.
+   - Đợi vài phút, GitHub cấp link dạng `https://<tên tài khoản>.github.io/<tên kho>/`.
+5. **Test trên điện thoại:** mở link đó bằng trình duyệt có MetaMask mobile (hoặc quét QR từ MetaMask), lặp lại luồng mua vé, lưu lại mã giao dịch (transaction hash) làm bằng chứng nộp bài.
+6. Điền `docs/PRESENTATION_PLAN.md`, commit `lab-15: public dapp va presentation plan`, gắn tag `v0.1-demo`.
