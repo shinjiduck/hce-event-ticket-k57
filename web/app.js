@@ -87,6 +87,12 @@
   let provider, signer, contract, readContract, userAddress, chainId;
   let eventsCache = null; // [{id, name, startTime, maxSupply, ticketsMinted, organizer}]
 
+  // Tang moi lan route() chay. Cac trang bat dong bo luu lai gia tri nay luc
+  // bat dau, roi so sanh lai truoc khi ghi DOM sau moi await - neu nguoi dung
+  // da chuyen trang khac trong luc cho du lieu (vi du RPC cham), gia tri se
+  // lech va trang cu tu bo qua, khong con co gang ghi vao phan tu da bi go bo.
+  let renderToken = 0;
+
   const $root = () => document.getElementById("app-root");
 
   // ---------- Utilities ----------
@@ -345,6 +351,7 @@
 
   const routes = {};
   function route() {
+    renderToken++;
     const hash = window.location.hash.slice(1) || "/";
     const parts = hash.split("/").filter(Boolean);
     renderHeader();
@@ -381,6 +388,7 @@
   // ---------- Page: Home ----------
 
   routes.home = async function () {
+    const myToken = renderToken;
     $root().innerHTML = h`
       <div class="page container">
         <section class="hero">
@@ -425,7 +433,9 @@
     `;
 
     const evts = await fetchAllEvents();
+    if (myToken !== renderToken) return; // nguoi dung da chuyen trang khac
     const list = document.getElementById("home-events");
+    if (!list) return;
     if (evts.length === 0) {
       list.innerHTML = emptyState("Chưa có sự kiện nào", isConfigured() ? "Hãy là người đầu tiên tạo sự kiện." : "Kết nối ví và cấu hình hợp đồng để xem sự kiện.");
       return;
@@ -469,6 +479,7 @@
   // ---------- Page: Events list ----------
 
   routes.events = async function () {
+    const myToken = renderToken;
     $root().innerHTML = h`
       <div class="page container">
         <div class="section-head" style="margin-top: var(--sp-5);">
@@ -478,7 +489,9 @@
       </div>
     `;
     const evts = await fetchAllEvents();
+    if (myToken !== renderToken) return;
     const grid = document.getElementById("events-grid");
+    if (!grid) return;
     grid.innerHTML = evts.length
       ? evts.slice().reverse().map(eventCardHtml).join("")
       : emptyState("Chưa có sự kiện nào", isConfigured() ? "Hãy là người đầu tiên tạo sự kiện." : "Kết nối ví và cấu hình hợp đồng để xem sự kiện.");
@@ -487,6 +500,7 @@
   // ---------- Page: Event detail ----------
 
   routes.eventDetail = async function (idStr) {
+    const myToken = renderToken;
     const id = BigInt(idStr);
     $root().innerHTML = h`
       <div class="page container">
@@ -507,25 +521,34 @@
         if (!evt.organizer || evt.organizer === "0x0000000000000000000000000000000000000000") throw new Error("not-found");
       }
     } catch {
+      if (myToken !== renderToken) return;
       $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Không tìm thấy sự kiện</h3><p>Sự kiện #${idStr} không tồn tại hoặc chưa cấu hình kết nối hợp đồng.</p><a class="btn btn-secondary" href="#/events">← Quay lại danh sách</a></div></div>`;
       return;
     }
+    if (myToken !== renderToken) return;
 
     const tickets = await fetchTicketsForEvent(id);
+    if (myToken !== renderToken) return;
     const status = computeStatus(evt, tickets);
     const tiers = groupTiersByPrice(tickets);
     const meta = getMeta(id);
     const img = meta.image || stockImage(id);
+    // Chi su kien MINH HOA (chua cau hinh contract that) moi dung bo anh mau
+    // de trang tri. Su kien that tren chain chi co dung 1 anh bia nguoi tao
+    // tu upload (meta.image) - KHONG bia dat them anh gallery gia, vi do la
+    // du lieu khong co that, de nguoi xem hieu nham la anh that cua su kien.
+    const isDemo = !isConfigured();
 
     $root().innerHTML = h`
       <div class="page container">
         <div class="detail-layout">
           <div>
             <img class="cover-img" src="${img}" alt="" />
+            ${isDemo ? `
             <div class="gallery">
               <img src="${STOCK_IMAGES[0]}" alt="" /><img src="${STOCK_IMAGES[1]}" alt="" />
               <img src="${STOCK_IMAGES[2]}" alt="" /><img src="${STOCK_IMAGES[3]}" alt="" />
-            </div>
+            </div>` : ""}
 
             <div class="tabs" style="margin-top: var(--sp-5);">
               <button class="tab active" data-tab="intro">Giới thiệu</button>
@@ -804,6 +827,7 @@
   // ---------- Page: My events ----------
 
   routes.myEvents = async function () {
+    const myToken = renderToken;
     $root().innerHTML = h`
       <div class="page container">
         <div class="section-head" style="margin-top: var(--sp-5);">
@@ -865,15 +889,18 @@
     renderMyTickets();
 
     const all = await fetchAllEvents();
+    if (myToken !== renderToken) return;
     const mine = all.filter((e) => e.organizer.toLowerCase() === userAddress.toLowerCase());
     const rows = [];
     for (const evt of mine) {
       const tickets = await fetchTicketsForEvent(evt.id);
+      if (myToken !== renderToken) return; // bo qua not can tiep tuc goi RPC cho trang da roi
       rows.push({ evt, tickets, status: computeStatus(evt, tickets) });
     }
 
     function renderRows(filter) {
       const list = document.getElementById("my-events-list");
+      if (!list) return;
       const map = { upcoming: "Sắp diễn ra", selling: "Đang bán vé", ended: "Đã kết thúc" };
       const filtered = filter === "all" ? rows : rows.filter((r) => r.status.label === map[filter] || (filter === "selling" && r.status.label === "Đã bán hết"));
       if (filtered.length === 0) {
@@ -902,6 +929,7 @@
       });
     }
 
+    if (myToken !== renderToken) return;
     document.querySelectorAll(".chip").forEach((chip) => {
       chip.addEventListener("click", () => {
         document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
@@ -914,13 +942,16 @@
   };
 
   async function renderMyTickets() {
+    const myToken = renderToken;
     const c = await ensureReadContract();
+    if (myToken !== renderToken) return;
     const balEl = document.getElementById("pending-balance");
     const listEl = document.getElementById("my-tickets-list");
     const histEl = document.getElementById("history-list");
-    if (!c || !userAddress) return;
+    if (!c || !userAddress || !balEl || !listEl || !histEl) return;
 
     const pending = await c.pendingWithdrawals(userAddress);
+    if (myToken !== renderToken) return;
     balEl.textContent = fmtEth(pending) + " ETH";
 
     document.getElementById("btn-withdraw").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
@@ -934,9 +965,11 @@
     }));
 
     const ticketCount = await c.nextTicketId();
+    if (myToken !== renderToken) return;
     const owned = [];
     for (let i = 0n; i < ticketCount; i++) {
       const t = await c.tickets(i);
+      if (myToken !== renderToken) return;
       if (t.owner.toLowerCase() === userAddress.toLowerCase()) owned.push(Object.assign({ id: i }, t));
     }
 
@@ -946,6 +979,7 @@
       const rows = [];
       for (const t of owned) {
         const evt = await c.events(t.eventId);
+        if (myToken !== renderToken) return;
         rows.push(`
           <div class="event-row">
             <div class="event-row__main">
@@ -993,6 +1027,7 @@
     let events = [];
     for (const { name, filter } of filters) {
       const logs = await contract.queryFilter(filter, 0, "latest");
+      if (myToken !== renderToken) return;
       events = events.concat(logs.map((l) => ({ name, log: l })));
     }
     events.sort((a, b) => b.log.blockNumber - a.log.blockNumber);
@@ -1025,21 +1060,26 @@
   // ---------- Page: Checkout ----------
 
   routes.checkout = async function (eventIdStr, idsStr) {
+    const myToken = renderToken;
     const eventId = BigInt(eventIdStr);
     const ticketIds = (idsStr || "").split(",").filter(Boolean).map((x) => BigInt(x));
 
     $root().innerHTML = `<div class="page container"><div class="checkout-wrap"><div class="skel" style="height:300px;"></div></div></div>`;
 
     if (!isConfigured()) { await loadAbi(); }
+    if (myToken !== renderToken) return;
     const demo = !isConfigured();
     const evt = demo ? MOCK_EVENTS.find((e) => e.id === eventId) : await (await ensureReadContract()).events(eventId);
+    if (myToken !== renderToken) return;
     const meta = getMeta(eventId);
     if (ticketIds.length === 0) {
       $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Chưa chọn vé</h3><a class="btn btn-secondary" href="#/events/${eventId}">← Quay lại sự kiện</a></div></div>`;
       return;
     }
     const firstTickets = await fetchTicketsForEvent(eventId);
+    if (myToken !== renderToken) return;
     const first = demo ? firstTickets.find((t) => t.id === ticketIds[0]) : await (await ensureReadContract()).tickets(ticketIds[0]);
+    if (myToken !== renderToken) return;
     const unitPrice = first.originalPrice;
     const total = unitPrice * BigInt(ticketIds.length);
 
