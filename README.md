@@ -43,19 +43,19 @@ npx solc --bin --abi contracts/project/ProjectCore.sol
 
 | Thành phần | Giá trị của nhóm |
 |---|---|
-| Địa chỉ contract | ⚠️ *(cần deploy lại — xem ghi chú bên dưới)* |
+| Địa chỉ contract | [`0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`](https://sepolia.etherscan.io/address/0x09967aeeb595236e74BD5F283a9Ff1960e695AF2) (Sepolia) |
 | ABI lấy từ đâu | Remix → tab Solidity Compiler → biên dịch `contracts/project/ProjectCore.sol` → nút **ABI** (copy). Bản lưu sẵn để đối chiếu: [evidence/lab-15/ProjectCore.abi.json](evidence/lab-15/ProjectCore.abi.json) |
 | Hàm đọc không tốn phí (`view`, không cần ký ví) | `nextEventId()`, `nextTicketId()`, `MAX_RESALE_BPS()`, `events(eventId)`, `tickets(ticketId)`, `pendingWithdrawals(address)` |
 | Hàm ghi cần xác nhận ví (gửi transaction, tốn gas) | `createEvent()`, `mintTicket()`, `buyTicket()`, `listForResale()`, `buyResaleTicket()`, `withdrawProceeds()` |
 
-**⚠️ Quan trọng — địa chỉ contract cũ đã lỗi thời:** địa chỉ Sepolia dùng để chụp ảnh bằng chứng ở Lab 9 (`0xb8Cb6Fe71f1Cb5682f27fb738FC2d78DCF09A149`) là bản triển khai **trước khi có** các hàm `listForResale`/`buyResaleTicket`/`withdrawProceeds` (thêm ở Lab 10-11-14). Nếu nối giao diện vào địa chỉ đó, các nút bán lại sẽ gọi vào một hàm không tồn tại trong hợp đồng đã triển khai. **Cần deploy lại `ProjectCore.sol` bản mới nhất lên Sepolia trước Bước 1 của Lab 15**, rồi điền địa chỉ mới vào bảng trên.
+**✅ Đã deploy lại bản mới nhất** (có đủ `listForResale`/`buyResaleTicket`/`withdrawProceeds`) tại địa chỉ trong bảng trên, thay cho địa chỉ cũ từ Lab 9 (`0xb8Cb6Fe71f1Cb5682f27fb738FC2d78DCF09A149`) vốn thiếu các hàm này.
 
 **Cấu trúc `web/`:** `index.html` (khung trang) + `styles.css` (design system) + `app.js` (router, logic contract). Điền `CONTRACT_ADDRESS` ở **đầu file `web/app.js`** (không phải `index.html`). Trước khi deploy contract thật, trang tự chuyển sang **chế độ dữ liệu minh họa** (3 sự kiện mẫu) để xem/trình bày giao diện — luôn có banner vàng nhắc chưa cấu hình thật.
 
 ### Các bước còn lại để đưa web lên mạng công khai (Lab 15)
 
-1. **Deploy lại contract:** mở Remix, dán `contracts/project/ProjectCore.sol` (bản mới nhất, đã có `listForResale`/`withdrawProceeds`), compile, Deploy & Run chọn "Injected Provider - MetaMask", mạng **Sepolia**, bấm Deploy, xác nhận trong MetaMask. Copy địa chỉ contract vừa deploy.
-2. **Cấu hình:** mở `web/app.js`, dòng đầu file, sửa `CONTRACT_ADDRESS = "0x0000...000"` thành địa chỉ vừa copy. Lưu file, điền luôn vào bảng ánh xạ phía trên.
+1. ~~**Deploy lại contract** lên Sepolia~~ ✅ Xong — địa chỉ ở bảng trên.
+2. ~~**Cấu hình** `CONTRACT_ADDRESS` trong `web/app.js`~~ ✅ Xong.
 3. **Test cục bộ:** chạy `python -m http.server 4173` trong thư mục `web/`, mở `http://localhost:4173`, bấm "Kết nối ví" (MetaMask phải đang ở mạng Sepolia), thử tạo 1 sự kiện thật → phát hành vé → mua vé, xác nhận giao dịch hiện trên [Sepolia Etherscan](https://sepolia.etherscan.io/).
 4. **Đưa lên GitHub Pages:**
    - Vào repo trên GitHub → **Settings → Pages**.

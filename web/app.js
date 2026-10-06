@@ -19,7 +19,7 @@
 
   // ---------- Config ----------
 
-  const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: dán địa chỉ Sepolia sau khi deploy
+  const CONTRACT_ADDRESS = "0x09967aeeb595236e74BD5F283a9Ff1960e695AF2"; // ProjectCore.sol da deploy tren Sepolia
   let CONTRACT_ABI = null; // tự nạp từ ./ProjectCore.abi.json
   const SEPOLIA_CHAIN_ID = 11155111n;
 
