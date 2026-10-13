@@ -41,11 +41,11 @@ npx solc --bin --abi contracts/project/ProjectCore.sol
 
 ## Giao diện web (`web/`) — kết nối Sepolia
 
-> ⚠️ **Contract đã thiết kế lại (public mint theo hạng vé + check-in).** Địa chỉ Sepolia cũ (`0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`, Lab 15 bản đầu) **không còn khớp ABI mới** — thiếu `createTier`/`checkIn`, chữ ký `mintTicket`/`createEvent` cũng đổi. Phải deploy lại bản `ProjectCore.sol` mới nhất trước khi dùng web.
+> ✅ **Contract đã thiết kế lại (public mint theo hạng vé + check-in) và đã deploy bản v2.** Địa chỉ Sepolia cũ (`0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`, Lab 15 bản đầu) không còn dùng — thiếu `createTier`/`checkIn`.
 
 | Thành phần | Giá trị của nhóm |
 |---|---|
-| Địa chỉ contract | ⚠️ *(cần deploy lại bản v2 — xem các bước bên dưới)* |
+| Địa chỉ contract | [`0x0f96cafe4C603D706c786C503A5c903090706916`](https://sepolia.etherscan.io/address/0x0f96cafe4C603D706c786C503A5c903090706916) (Sepolia) |
 | ABI lấy từ đâu | Remix → tab Solidity Compiler → biên dịch `contracts/project/ProjectCore.sol` → nút **ABI** (copy). Bản lưu sẵn để đối chiếu: [web/ProjectCore.abi.json](web/ProjectCore.abi.json) |
 | Hàm đọc không tốn phí (`view`, không cần ký ví) | `nextEventId()`, `nextTierId()`, `nextTicketId()`, `MAX_RESALE_BPS()`, `events(id)`, `tiers(id)`, `tickets(id)`, `pendingWithdrawals(address)` |
 | Hàm ghi cần xác nhận ví (gửi transaction, tốn gas) | `createEvent()`, `createTier()` *(Organizer)*, `mintTicket()` *(ai cũng gọi được)*, `listForResale()`, `buyResaleTicket()`, `checkIn()` *(Organizer)*, `withdrawProceeds()` |

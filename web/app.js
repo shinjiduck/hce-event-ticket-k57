@@ -22,7 +22,7 @@
 
   // ---------- Config ----------
 
-  const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: dán địa chỉ Sepolia sau khi deploy bản v2
+  const CONTRACT_ADDRESS = "0x0f96cafe4C603D706c786C503A5c903090706916"; // ProjectCore.sol v2 (public mint + check-in) da deploy tren Sepolia
   let CONTRACT_ABI = null; // tự nạp từ ./ProjectCore.abi.json
   const SEPOLIA_CHAIN_ID = 11155111n;
 
