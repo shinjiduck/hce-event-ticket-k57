@@ -1,0 +1,24 @@
+
+
+  ProjectCore v2 - public mint theo hang ve + check-in
+  [OK] Buyer tu mint ve hang Standard thanh cong, khong can Organizer phat hanh truoc
+    ✔ Ca hop le: AI CUNG tu mint duoc ve (khong can Organizer phat hanh ho) (926ms)
+  [OK] Mint sai gia -> revert IncorrectPayment
+    ✔ Ca vi pham: mint sai gia bi tu choi IncorrectPayment (108ms)
+  [OK] Mint vuot cung Standard (da ban het 2/2) -> revert TierSupplyReached
+    ✔ Ca vi pham: mint vuot tong cung cua hang ve bi tu choi TierSupplyReached
+  [OK] Rao ban + mua lai dung 110% thanh cong, doi chu dung
+  [OK] Rao ban gia 120% -> revert ResalePriceTooHigh
+    ✔ R3+R4: rao ban lai gia <=110% thanh cong, >110% bi tu choi
+  [OK] Nguoi la goi checkIn() -> revert NotOrganizer
+  [OK] Organizer check-in thanh cong, checkedIn = true
+  [OK] Check-in lan 2 cho cung 1 ve -> revert TicketAlreadyCheckedIn
+    ✔ R5: chi Organizer moi check-in duoc, nguoi la bi tu choi NotOrganizer (51ms)
+  [OK] Ve da check-in, chu ve goi listForResale() -> revert TicketCheckedInCannotResell
+    ✔ R6: ve da check-in roi thi khong rao ban lai duoc nua
+  [OK] Organizer doc thu goi lai withdrawProceeds() trong receive() -> khong rut duoc lan 2, dung mo hinh pull-payment Lab 10
+    ✔ Reentrancy: Organizer doc goi lai withdrawProceeds() van khong rut duoc 2 lan
+
+
+  7 passing (1s)
+

@@ -1,17 +1,20 @@
 /* ==========================================================================
-   FairTicket — SPA app
+   FairTicket — SPA app (v2: public mint theo hang ve + check-in)
    Vanilla JS, hash router, no build step, no backend.
    Reads/writes contracts/project/ProjectCore.sol directly via ethers.js.
 
-   Honesty note on data that is NOT on-chain:
-   ProjectCore.sol only stores (name, startTime, maxSupply, organizer) per
-   event and (eventId, owner, originalPrice, sold, resalePrice, forSale) per
-   ticket. It has no fields for description / location / end time / cover
-   image / gallery. Those richer fields are saved in this browser's
-   localStorage only (keyed by contract address + eventId) so the organizer
-   who created the event sees them back; other visitors see a graceful
-   fallback (sample photo, "Chưa có mô tả"). This is a known limitation of a
-   no-backend static site, not a bug — see README.md.
+   Thay doi lon so voi v1:
+   - Event khong con maxSupply/price rieng. Organizer tao Tier (gia + tong
+     cung) cho event, AI CUNG tu mintTicket(tierId) de nhan ve truc tiep -
+     khong con buyTicket(ticketId) tren ve co san.
+   - Them checkIn(ticketId): chi Organizer, 1 lan, khoa resale sau do.
+   - QR ve = ma hoa ticketId (MVP tinh, khong chong chup man hinh chia se -
+     xem ghi chu "Ngoai pham vi" trong docs/SPEC.md).
+
+   Honesty note ve du lieu KHONG nam tren chain:
+   mo ta (description), dia diem, anh bia su kien van chi luu trong
+   localStorage trinh duyet nay (khong co truong tren contract) - xem
+   README.md.
    ========================================================================== */
 
 (function () {
@@ -19,7 +22,7 @@
 
   // ---------- Config ----------
 
-  const CONTRACT_ADDRESS = "0x09967aeeb595236e74BD5F283a9Ff1960e695AF2"; // ProjectCore.sol da deploy tren Sepolia
+  const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: dán địa chỉ Sepolia sau khi deploy bản v2
   let CONTRACT_ABI = null; // tự nạp từ ./ProjectCore.abi.json
   const SEPOLIA_CHAIN_ID = 11155111n;
 
@@ -30,67 +33,67 @@
     "./assets/hero.jpg",
   ];
 
+  const ERROR_MESSAGES = {
+    EventDoesNotExist: "Sự kiện này không tồn tại.",
+    TierDoesNotExist: "Hạng vé này không tồn tại.",
+    TicketDoesNotExist: "Vé này không tồn tại.",
+    NotOrganizer: "Chỉ Organizer của sự kiện mới làm được việc này.",
+    TierSupplyReached: "Hạng vé này đã bán hết.",
+    IncorrectPayment: "Số ETH gửi không đúng với giá niêm yết.",
+    WithdrawFailed: "Rút tiền thất bại, thử lại sau.",
+    InvalidMaxSupply: "Tổng số vé của hạng phải lớn hơn 0.",
+    InvalidPrice: "Giá vé phải lớn hơn 0.",
+    NothingToWithdraw: "Bạn chưa có khoản tiền nào để rút.",
+    NotTicketOwner: "Bạn không phải chủ sở hữu vé này.",
+    ResalePriceTooHigh: "Giá rao bán vượt quá 110% giá gốc, không được phép.",
+    TicketNotForSale: "Vé này hiện không được rao bán.",
+    ZeroResalePrice: "Giá rao bán phải lớn hơn 0.",
+    TicketAlreadyCheckedIn: "Vé này đã được check-in rồi.",
+    TicketCheckedInCannotResell: "Vé đã check-in, không thể rao bán lại.",
+  };
+
   // ---------- Demo data mode ----------
-  // Khi CHƯA cấu hình CONTRACT_ADDRESS/ABI thật, trang dùng dữ liệu minh họa
-  // cố định (không phải chain thật) để nhóm xem/trình bày trọn vẹn giao diện
-  // trước khi deploy. Mọi nơi dùng dữ liệu minh họa đều có badge "Minh họa".
+  // Khi CHUA cau hinh CONTRACT_ADDRESS/ABI that, trang dung du lieu minh hoa
+  // co dinh de nhom xem/trinh bay tron ven giao dien truoc khi deploy.
   const DAY = 86400;
   const now = Math.floor(Date.now() / 1000);
   const MOCK_EVENTS = [
-    { id: 0n, name: "UEH Music Night 2026", startTime: BigInt(now + 20 * DAY), maxSupply: 100n, ticketsMinted: 42n, organizer: "0x4f99DacFdFec762beFe11F98E5bA0a229297a04e" },
-    { id: 1n, name: "Tech Conference Huế 2026", startTime: BigInt(now + 6 * DAY), maxSupply: 50n, ticketsMinted: 50n, organizer: "0x4f99DacFdFec762beFe11F98E5bA0a229297a04e" },
-    { id: 2n, name: "Jazz Night Downtown", startTime: BigInt(now - 3 * DAY), maxSupply: 30n, ticketsMinted: 20n, organizer: "0x1234567890123456789012345678901234567890" },
+    { id: 0n, name: "UEH Music Night 2026", startTime: BigInt(now + 20 * DAY), organizer: "0x4f99DacFdFec762beFe11F98E5bA0a229297a04e", tierCount: 3n },
+    { id: 1n, name: "Tech Conference Huế 2026", startTime: BigInt(now + 6 * DAY), organizer: "0x4f99DacFdFec762beFe11F98E5bA0a229297a04e", tierCount: 1n },
+    { id: 2n, name: "Jazz Night Downtown", startTime: BigInt(now - 3 * DAY), organizer: "0x1234567890123456789012345678901234567890", tierCount: 1n },
   ];
   const MOCK_META = {
     0: { location: "Nhà văn hóa Huế", description: "Đêm nhạc sinh viên UEH quy tụ các ban nhạc indie nổi bật của trường, mở màn mùa lễ hội 2026.", image: "./assets/hero.jpg" },
     1: { location: "Trung tâm Hội nghị Quốc gia", description: "Hội nghị công nghệ thường niên với các diễn giả từ cộng đồng blockchain Việt Nam.", image: "./assets/event-conference.jpg" },
     2: { location: "Downtown Jazz Club", description: "Đêm nhạc jazz thân mật với ban nhạc khách mời quốc tế.", image: "./assets/event-jazz.jpg" },
   };
+  function ethp(s) { return ethers.parseEther(s); }
+  const MOCK_TIERS = [
+    { id: 0n, eventId: 0n, name: "Standard", price: ethp("0.02"), maxSupply: 50n, minted: 38n },
+    { id: 1n, eventId: 0n, name: "Premium", price: ethp("0.035"), maxSupply: 30n, minted: 30n },
+    { id: 2n, eventId: 0n, name: "VIP", price: ethp("0.06"), maxSupply: 10n, minted: 4n },
+    { id: 3n, eventId: 1n, name: "Standard", price: ethp("0.05"), maxSupply: 50n, minted: 50n },
+    { id: 4n, eventId: 2n, name: "Standard", price: ethp("0.03"), maxSupply: 20n, minted: 20n },
+  ];
   function buildMockTickets() {
     const rows = [];
     let id = 0n;
-    const tiers0 = [ethers.parseEther("0.02"), ethers.parseEther("0.035"), ethers.parseEther("0.06")];
-    for (let i = 0; i < 42; i++) {
-      const price = tiers0[i % 3];
-      rows.push({ id: id++, eventId: 0n, owner: MOCK_EVENTS[0].organizer, originalPrice: price, sold: i < 30, resalePrice: 0n, forSale: false });
-    }
-    for (let i = 0; i < 50; i++) {
-      rows.push({ id: id++, eventId: 1n, owner: MOCK_EVENTS[1].organizer, originalPrice: ethers.parseEther("0.05"), sold: true, resalePrice: 0n, forSale: false });
-    }
-    for (let i = 0; i < 20; i++) {
-      rows.push({ id: id++, eventId: 2n, owner: MOCK_EVENTS[2].organizer, originalPrice: ethers.parseEther("0.03"), sold: true, resalePrice: 0n, forSale: false });
+    for (const tier of MOCK_TIERS) {
+      const evt = MOCK_EVENTS.find((e) => e.id === tier.eventId);
+      for (let i = 0n; i < tier.minted; i++) {
+        rows.push({ id: id++, eventId: tier.eventId, tierId: tier.id, owner: evt.organizer, originalPrice: tier.price, resalePrice: 0n, forSale: false, checkedIn: false });
+      }
     }
     return rows;
   }
   let MOCK_TICKETS = null;
 
-  const ERROR_MESSAGES = {
-    EventDoesNotExist: "Sự kiện này không tồn tại.",
-    TicketDoesNotExist: "Vé này không tồn tại.",
-    NotOrganizer: "Chỉ Organizer của sự kiện mới làm được việc này.",
-    MaxSupplyReached: "Sự kiện đã phát hành hết số vé tối đa.",
-    TicketAlreadySold: "Vé này đã có người mua rồi.",
-    IncorrectPayment: "Số ETH gửi không đúng với giá niêm yết.",
-    WithdrawFailed: "Rút tiền thất bại, thử lại sau.",
-    InvalidMaxSupply: "Tổng số vé tối đa phải lớn hơn 0.",
-    InvalidPrice: "Giá vé phải lớn hơn 0.",
-    NothingToWithdraw: "Bạn chưa có khoản tiền nào để rút.",
-    NotTicketOwner: "Bạn không phải chủ sở hữu vé này.",
-    TicketNotYetSold: "Vé này chưa được bán lần đầu, chưa thể rao bán lại.",
-    ResalePriceTooHigh: "Giá rao bán vượt quá 110% giá gốc, không được phép.",
-    TicketNotForSale: "Vé này hiện không được rao bán.",
-    ZeroResalePrice: "Giá rao bán phải lớn hơn 0.",
-  };
-
   // ---------- State ----------
 
   let provider, signer, contract, readContract, userAddress, chainId;
-  let eventsCache = null; // [{id, name, startTime, maxSupply, ticketsMinted, organizer}]
+  let eventsCache = null;
+  let tiersCache = null;
 
-  // Tang moi lan route() chay. Cac trang bat dong bo luu lai gia tri nay luc
-  // bat dau, roi so sanh lai truoc khi ghi DOM sau moi await - neu nguoi dung
-  // da chuyen trang khac trong luc cho du lieu (vi du RPC cham), gia tri se
-  // lech va trang cu tu bo qua, khong con co gang ghi vao phan tu da bi go bo.
   let renderToken = 0;
 
   const $root = () => document.getElementById("app-root");
@@ -113,11 +116,7 @@
   }
 
   function fmtEth(wei) {
-    try {
-      return ethers.formatEther(wei);
-    } catch {
-      return "0";
-    }
+    try { return ethers.formatEther(wei); } catch { return "0"; }
   }
 
   function fmtDate(ts) {
@@ -142,7 +141,7 @@
     }
     if (raw.toLowerCase().includes("user rejected")) return "Bạn đã huỷ xác nhận trong ví.";
     if (raw.toLowerCase().includes("insufficient funds")) return "Ví không đủ ETH để thực hiện giao dịch này.";
-    if (raw.toLowerCase().includes("chưa cấu hình")) return raw;
+    if (raw.toLowerCase().includes("chưa cấu hình") || raw.toLowerCase().includes("chưa kết nối")) return raw;
     return "Giao dịch thất bại: " + raw.slice(0, 160);
   }
 
@@ -161,9 +160,25 @@
     toastTimer = setTimeout(() => { el.hidden = true; }, 4500);
   }
 
-  /// Modal nhap gia (ETH) - thay cho window.prompt() cua trinh duyet (de bi
-  /// bo sot/chan, khong dong bo giao dien). Tra ve chuoi nguoi dung nhap,
-  /// hoac null neu bam Huy/Esc/click ra ngoai.
+  async function withBusy(btn, fn, opts) {
+    if (!btn) return fn();
+    const keepContentOnSuccess = opts && opts.keepContentOnSuccess;
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner' + (btn.classList.contains("btn-secondary") || btn.classList.contains("btn-ghost") ? " spinner-dark" : "") + '"></span> ' + original.replace(/<span class="spinner.*?<\/span>\s*/, "");
+    try {
+      await fn();
+      btn.disabled = false;
+      if (!keepContentOnSuccess) btn.innerHTML = original;
+    } catch (err) {
+      console.error(err);
+      toast(friendlyError(err), "error");
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+
+  /// Modal nhap gia (ETH) - thay cho window.prompt() (de bi bo sot/chan).
   function promptPriceModal({ title, label, hint, confirmText }) {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
@@ -184,11 +199,7 @@
       document.body.appendChild(overlay);
       const input = overlay.querySelector("#modal-price-input");
       input.focus();
-
-      function close(value) {
-        overlay.remove();
-        resolve(value);
-      }
+      function close(value) { overlay.remove(); resolve(value); }
       overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
       overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => close(null));
       overlay.querySelector('[data-action="confirm"]').addEventListener("click", () => close(input.value || null));
@@ -199,48 +210,42 @@
     });
   }
 
-  /// Modal phat hanh ve: nhap gia + so luong 1 lan. Hop dong ProjectCore.sol
-  /// chi co mintTicket() phat hanh TUNG ve rieng le (chua co ham phat hang
-  /// loat trong 1 giao dich) - nen "so luong" o day la de UI TU DONG LAP goi
-  /// mintTicket() nhieu lan giup Organizer, khong phai 1 giao dich gop.
-  /// Organizer van can xac nhan tung giao dich trong MetaMask, nhung khong
-  /// phai tu bam lai nut "Phat hanh ve" moi lan.
-  function promptMintModal() {
+  /// Modal tao hang ve moi (ten + gia + tong cung).
+  function promptTierModal() {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
       overlay.className = "modal-overlay";
       overlay.innerHTML = `
         <div class="modal-card" role="dialog" aria-modal="true">
-          <h3>Phát hành vé</h3>
-          <div class="field-row" style="margin-top: var(--sp-3);">
+          <h3>Tạo hạng vé mới</h3>
+          <div class="field" style="margin-top: var(--sp-3);">
+            <label for="modal-tier-name">Tên hạng vé</label>
+            <input id="modal-tier-name" placeholder="VD: Standard, VIP" />
+          </div>
+          <div class="field-row">
             <div class="field" style="margin-bottom: 0;">
-              <label for="modal-mint-price">Giá mỗi vé (ETH)</label>
-              <input id="modal-mint-price" type="number" min="0" step="0.0001" placeholder="VD: 0.02" />
+              <label for="modal-tier-price">Giá (ETH)</label>
+              <input id="modal-tier-price" type="number" min="0" step="0.0001" placeholder="VD: 0.02" />
             </div>
             <div class="field" style="margin-bottom: 0;">
-              <label for="modal-mint-qty">Số lượng</label>
-              <input id="modal-mint-qty" type="number" min="1" step="1" value="1" />
+              <label for="modal-tier-supply">Tổng số vé</label>
+              <input id="modal-tier-supply" type="number" min="1" step="1" placeholder="VD: 50" />
             </div>
           </div>
-          <p class="hint">Hợp đồng chỉ phát hành từng vé một — nếu nhập số lượng &gt; 1, trang sẽ tự gửi lần lượt từng giao dịch, bạn xác nhận trong MetaMask mỗi lần.</p>
           <div class="wizard-actions" style="margin-top: var(--sp-4); padding-top: 0; border-top: none;">
             <button type="button" class="btn btn-ghost" data-action="cancel">Hủy</button>
-            <button type="button" class="btn btn-primary" data-action="confirm">Phát hành</button>
+            <button type="button" class="btn btn-primary" data-action="confirm">Tạo hạng vé</button>
           </div>
         </div>`;
       document.body.appendChild(overlay);
-      const priceInput = overlay.querySelector("#modal-mint-price");
-      priceInput.focus();
-
-      function close(value) {
-        overlay.remove();
-        resolve(value);
-      }
+      overlay.querySelector("#modal-tier-name").focus();
+      function close(value) { overlay.remove(); resolve(value); }
       function submit() {
-        const price = priceInput.value;
-        const qty = Math.max(1, Math.floor(Number(overlay.querySelector("#modal-mint-qty").value) || 1));
-        if (!price) return;
-        close({ price, qty });
+        const name = overlay.querySelector("#modal-tier-name").value.trim();
+        const price = overlay.querySelector("#modal-tier-price").value;
+        const supply = overlay.querySelector("#modal-tier-supply").value;
+        if (!name || !price || !supply) return;
+        close({ name, price, supply });
       }
       overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
       overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => close(null));
@@ -252,33 +257,21 @@
     });
   }
 
-  async function withBusy(btn, fn, opts) {
-    if (!btn) return fn();
-    const keepContentOnSuccess = opts && opts.keepContentOnSuccess;
-    const original = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner' + (btn.classList.contains("btn-secondary") || btn.classList.contains("btn-ghost") ? " spinner-dark" : "") + '"></span> ' + original.replace(/<span class="spinner.*?<\/span>\s*/, "");
-    try {
-      await fn();
-      btn.disabled = false;
-      // Success: for most buttons, restore the original label (the page/panel
-      // around it has already re-rendered). For buttons whose own handler
-      // permanently changes their content on success (ví dụ nút "Kết nối ví"
-      // -> chip địa chỉ ví), keep that new content instead of overwriting it.
-      if (!keepContentOnSuccess) btn.innerHTML = original;
-    } catch (err) {
-      console.error(err);
-      toast(friendlyError(err), "error");
-      btn.disabled = false;
-      btn.innerHTML = original;
-    }
+  // ---------- QR (hien thi ve) ----------
+
+  /// Ve QR don gian ngay trong canvas, ma hoa 1 chuoi ngan (ticketId).
+  /// Dung thu vien qrcode-generator (nho, khong phu thuoc gi khac).
+  function renderQrInto(container, text) {
+    if (!window.qrcode) { container.textContent = "(Không tải được thư viện QR)"; return; }
+    const qr = window.qrcode(0, "M");
+    qr.addData(text);
+    qr.make();
+    container.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2 });
   }
 
   // ---------- Local metadata (non-chain fields) ----------
 
-  function metaKey() {
-    return "fairticket:meta:" + CONTRACT_ADDRESS.toLowerCase();
-  }
+  function metaKey() { return "fairticket:meta:" + CONTRACT_ADDRESS.toLowerCase(); }
   function getAllMeta() {
     try { return JSON.parse(localStorage.getItem(metaKey()) || "{}"); } catch { return {}; }
   }
@@ -324,7 +317,6 @@
     userAddress = await signer.getAddress();
     const net = await provider.getNetwork();
     chainId = net.chainId;
-
     if (isConfigured()) {
       contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
       readContract = contract;
@@ -338,18 +330,13 @@
     }
     await loadAbi();
     provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []); // mo popup MetaMask, nguoi dung bam Connect
+    await provider.send("eth_requestAccounts", []);
     await setupWalletSession();
-
     renderHeader();
     toast("Đã kết nối ví.", "success");
     route();
   }
 
-  /// Goi luc trang vua tai xong: neu trang nay da duoc MetaMask cho phep tu
-  /// truoc (cung origin), "eth_accounts" tra ve vi ngay, KHONG hien popup -
-  /// nho vay ket noi duoc tu dong sau moi lan F5 ma khong bat nguoi dung bam
-  /// lai "Ket noi vi". Neu chua tung cho phep, tra ve mang rong, im lang bo qua.
   async function trySilentReconnect() {
     if (!window.ethereum) return;
     try {
@@ -387,17 +374,30 @@
     const out = [];
     for (let i = 0n; i < count; i++) {
       const e = await c.events(i);
-      out.push({
-        id: i,
-        name: e.name,
-        startTime: e.startTime,
-        maxSupply: e.maxSupply,
-        ticketsMinted: e.ticketsMinted,
-        organizer: e.organizer,
-      });
+      out.push({ id: i, name: e.name, startTime: e.startTime, organizer: e.organizer, tierCount: e.tierCount });
     }
     eventsCache = out;
     return out;
+  }
+
+  async function fetchAllTiers(force) {
+    if (!isConfigured()) return MOCK_TIERS;
+    const c = await ensureReadContract();
+    if (!c) return [];
+    if (tiersCache && !force) return tiersCache;
+    const count = await c.nextTierId();
+    const out = [];
+    for (let i = 0n; i < count; i++) {
+      const t = await c.tiers(i);
+      out.push({ id: i, eventId: t.eventId, name: t.name, price: t.price, maxSupply: t.maxSupply, minted: t.minted });
+    }
+    tiersCache = out;
+    return out;
+  }
+
+  async function fetchTiersForEvent(eventId) {
+    const all = await fetchAllTiers();
+    return all.filter((t) => t.eventId === eventId);
   }
 
   async function fetchTicketsForEvent(eventId) {
@@ -416,26 +416,14 @@
     return out;
   }
 
-  function computeStatus(evt, tickets) {
-    const now = Math.floor(Date.now() / 1000);
-    if (now >= Number(evt.startTime)) return { label: "Đã kết thúc", cls: "badge-neutral" };
-    const unsold = tickets.filter((t) => !t.sold).length;
-    if (evt.ticketsMinted > 0n && unsold > 0) return { label: "Đang bán vé", cls: "badge-success" };
-    if (evt.ticketsMinted > 0n && unsold === 0) return { label: "Đã bán hết", cls: "badge-warning" };
-    return { label: "Sắp diễn ra", cls: "badge-warning" };
-  }
-
-  function groupTiersByPrice(tickets) {
-    const map = new Map();
-    for (const t of tickets) {
-      if (t.sold) continue;
-      const key = t.originalPrice.toString();
-      if (!map.has(key)) map.set(key, { price: t.originalPrice, ticketIds: [] });
-      map.get(key).ticketIds.push(t.id);
-    }
-    const groups = Array.from(map.values()).sort((a, b) => (a.price < b.price ? -1 : a.price > b.price ? 1 : 0));
-    const names = ["Standard", "Premium", "VIP", "Platinum"];
-    return groups.map((g, i) => Object.assign({ name: names[i] || "Hạng " + (i + 1) }, g));
+  function computeStatus(evt, tiers) {
+    const nowTs = Math.floor(Date.now() / 1000);
+    if (nowTs >= Number(evt.startTime)) return { label: "Đã kết thúc", cls: "badge-neutral" };
+    if (tiers.length === 0) return { label: "Sắp diễn ra", cls: "badge-warning" };
+    const totalSupply = tiers.reduce((s, t) => s + t.maxSupply, 0n);
+    const totalMinted = tiers.reduce((s, t) => s + t.minted, 0n);
+    if (totalMinted < totalSupply) return { label: "Đang bán vé", cls: "badge-success" };
+    return { label: "Đã bán hết", cls: "badge-warning" };
   }
 
   // ---------- Router ----------
@@ -451,7 +439,7 @@
     if (parts[0] === "events") return routes.events();
     if (parts[0] === "create") return routes.create();
     if (parts[0] === "my-events") return routes.myEvents();
-    if (parts[0] === "checkout" && parts[1]) return routes.checkout(parts[1], parts[2]);
+    if (parts[0] === "checkout" && parts[1] && parts[2]) return routes.checkout(parts[1], parts[2], parts[3] || "1");
     return routes.home();
   }
   window.addEventListener("hashchange", route);
@@ -524,7 +512,7 @@
     `;
 
     const evts = await fetchAllEvents();
-    if (myToken !== renderToken) return; // nguoi dung da chuyen trang khac
+    if (myToken !== renderToken) return;
     const list = document.getElementById("home-events");
     if (!list) return;
     if (evts.length === 0) {
@@ -554,7 +542,6 @@
   function eventCardHtml(evt) {
     const meta = getMeta(evt.id);
     const img = meta.image || stockImage(evt.id);
-    const priceLabel = "Xem giá vé";
     return `
       <a class="event-card" href="#/events/${evt.id}">
         <div class="event-card__img-wrap"><img class="event-card__img" src="${img}" alt="" /></div>
@@ -562,7 +549,7 @@
           <div class="event-card__date">${fmtDate(evt.startTime)}</div>
           <div class="event-card__title">${escapeHtml(evt.name)}</div>
           <div class="event-card__meta">${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</div>
-          <div class="event-card__price">${priceLabel}</div>
+          <div class="event-card__price">Xem giá vé</div>
         </div>
       </a>`;
   }
@@ -618,17 +605,13 @@
     }
     if (myToken !== renderToken) return;
 
-    const tickets = await fetchTicketsForEvent(id);
+    const tiers = await fetchTiersForEvent(id);
     if (myToken !== renderToken) return;
-    const status = computeStatus(evt, tickets);
-    const tiers = groupTiersByPrice(tickets);
+    const status = computeStatus(evt, tiers);
     const meta = getMeta(id);
     const img = meta.image || stockImage(id);
-    // Chi su kien MINH HOA (chua cau hinh contract that) moi dung bo anh mau
-    // de trang tri. Su kien that tren chain chi co dung 1 anh bia nguoi tao
-    // tu upload (meta.image) - KHONG bia dat them anh gallery gia, vi do la
-    // du lieu khong co that, de nguoi xem hieu nham la anh that cua su kien.
     const isDemo = !isConfigured();
+    const isOrganizer = userAddress && evt.organizer && userAddress.toLowerCase() === evt.organizer.toLowerCase();
 
     $root().innerHTML = h`
       <div class="page container">
@@ -660,8 +643,10 @@
               </div>
             </div>
             <div id="tab-terms" hidden>
-              <p class="text-secondary">Vé đã mua không hoàn tiền trực tiếp từ Ban tổ chức. Chủ vé có thể rao bán lại trong giới hạn giá cho phép của hệ thống. Mọi giao dịch được ghi nhận công khai trên blockchain.</p>
+              <p class="text-secondary">Vé mint trực tiếp từ hợp đồng, không hoàn tiền. Chủ vé có thể rao bán lại trong giới hạn giá cho phép, trừ khi vé đã được check-in tại sự kiện. Mọi giao dịch được ghi nhận công khai trên blockchain.</p>
             </div>
+
+            ${isOrganizer ? organizerPanelHtml(id, tiers) : ""}
           </div>
 
           <aside class="buy-panel">
@@ -679,57 +664,62 @@
             </div>
 
             <button id="btn-go-checkout" class="btn btn-primary btn-block btn-lg" style="margin-top: var(--sp-3);" ${tiers.length === 0 ? "disabled" : ""}>
-              ${tiers.length === 0 ? "Hết vé" : "Mua vé →"}
+              ${tiers.length === 0 ? "Chưa có hạng vé" : "Mua vé →"}
             </button>
           </aside>
         </div>
       </div>
     `;
 
-    // Tabs
     $root().querySelectorAll(".tab").forEach((btn) => {
       btn.addEventListener("click", () => {
         $root().querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         ["intro", "info", "terms"].forEach((k) => {
-          document.getElementById("tab-" + k).hidden = k !== btn.dataset.tab;
+          const el = document.getElementById("tab-" + k);
+          if (el) el.hidden = k !== btn.dataset.tab;
         });
       });
     });
 
-    // Tier selection state
     let selected = tiers[0] ? { index: 0, qty: 1 } : null;
     wireTierList(tiers, (s) => { selected = s; });
 
     document.getElementById("btn-go-checkout")?.addEventListener("click", () => {
       if (!selected) return;
       const tier = tiers[selected.index];
-      const ids = tier.ticketIds.slice(0, selected.qty).map((x) => x.toString());
-      window.location.hash = "#/checkout/" + id.toString() + "/" + ids.join(",");
+      window.location.hash = "#/checkout/" + id.toString() + "/" + tier.id.toString() + "/" + selected.qty;
     });
+
+    if (isOrganizer) wireOrganizerPanel(id);
   };
 
   function tierListHtml(tiers) {
     if (tiers.length === 0) {
-      return `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Hiện chưa có vé nào còn trống cho sự kiện này.</p>`;
+      return `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Sự kiện này chưa có hạng vé nào.</p>`;
     }
-    return tiers.map((t, i) => `
+    return tiers.map((t, i) => {
+      const remaining = t.maxSupply - t.minted;
+      return `
       <div class="tier-row" data-tier="${i}">
         <div>
-          <div class="tier-row__name">${t.name}</div>
-          <div class="tier-row__sub">còn ${t.ticketIds.length} vé</div>
+          <div class="tier-row__name">${escapeHtml(t.name)}</div>
+          <div class="tier-row__sub">còn ${remaining} / ${t.maxSupply} vé</div>
         </div>
         <div style="display:flex; align-items:center; gap: var(--sp-3);">
           <div class="tier-row__price tabular-nums">${fmtEth(t.price)} ETH</div>
+          ${remaining > 0n ? `
           <div class="qty-control" data-qty-for="${i}" ${i === 0 ? "" : "hidden"}>
             <button type="button" data-qty-minus>−</button>
             <span data-qty-val>1</span>
             <button type="button" data-qty-plus>+</button>
           </div>
-          <input type="radio" name="tier" value="${i}" ${i === 0 ? "checked" : ""} aria-label="Chọn ${t.name}" />
+          <input type="radio" name="tier" value="${i}" ${i === 0 ? "checked" : ""} aria-label="Chọn ${escapeHtml(t.name)}" />
+          ` : `<span class="badge badge-neutral">Hết vé</span>`}
         </div>
       </div>
-    `).join("");
+    `;
+    }).join("");
   }
 
   function wireTierList(tiers, onChange) {
@@ -739,12 +729,13 @@
       radio.addEventListener("change", () => {
         const idx = Number(radio.value);
         root.querySelectorAll("[data-qty-for]").forEach((el) => { el.hidden = Number(el.dataset.qtyFor) !== idx; });
-        onChange({ index: idx, qty: Number(root.querySelector(`[data-qty-for="${idx}"] [data-qty-val]`).textContent) });
+        const valEl = root.querySelector(`[data-qty-for="${idx}"] [data-qty-val]`);
+        onChange({ index: idx, qty: valEl ? Number(valEl.textContent) : 1 });
       });
     });
     root.querySelectorAll("[data-qty-for]").forEach((wrap) => {
       const idx = Number(wrap.dataset.qtyFor);
-      const max = tiers[idx].ticketIds.length;
+      const max = tiers[idx].maxSupply - tiers[idx].minted;
       const valEl = wrap.querySelector("[data-qty-val]");
       wrap.querySelector("[data-qty-minus]").addEventListener("click", () => {
         const v = Math.max(1, Number(valEl.textContent) - 1);
@@ -752,11 +743,68 @@
         onChange({ index: idx, qty: v });
       });
       wrap.querySelector("[data-qty-plus]").addEventListener("click", () => {
-        const v = Math.min(max, Number(valEl.textContent) + 1);
+        const v = Math.min(Number(max), Number(valEl.textContent) + 1);
         valEl.textContent = v;
         onChange({ index: idx, qty: v });
       });
     });
+  }
+
+  function organizerPanelHtml(eventId, tiers) {
+    return `
+      <div class="card" style="padding: var(--sp-4); margin-top: var(--sp-5);">
+        <div class="section-head" style="margin-bottom: var(--sp-3);">
+          <div><h3>Quản lý sự kiện (chỉ Organizer thấy)</h3><p class="text-secondary text-sm">Thêm hạng vé mới hoặc check-in vé tại cửa.</p></div>
+          <button id="btn-add-tier" class="btn btn-secondary btn-sm">+ Thêm hạng vé</button>
+        </div>
+
+        <div class="field" style="margin-top: var(--sp-3);">
+          <label for="checkin-ticket-id">Check-in vé (nhập mã vé từ QR khách xuất trình)</label>
+          <div style="display:flex; gap: var(--sp-2);">
+            <input id="checkin-ticket-id" type="number" min="0" step="1" placeholder="VD: 7" style="flex:1;" />
+            <button id="btn-checkin" class="btn btn-dark">Check-in</button>
+          </div>
+        </div>
+        <div id="checkin-result" style="margin-top: var(--sp-2);"></div>
+      </div>
+    `;
+  }
+
+  function wireOrganizerPanel(eventId) {
+    document.getElementById("btn-add-tier")?.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+      const result = await promptTierModal();
+      if (!result) return;
+      requireWallet();
+      requireContract();
+      requireRightNetwork();
+      const tx = await contract.createTier(eventId, result.name, ethers.parseEther(result.price), BigInt(result.supply));
+      toast("Đang xác nhận giao dịch…", "info");
+      await tx.wait();
+      toast("Đã tạo hạng vé mới.", "success");
+      tiersCache = null;
+      route();
+    }));
+
+    document.getElementById("btn-checkin")?.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+      const idInput = document.getElementById("checkin-ticket-id").value;
+      if (idInput === "") { toast("Nhập mã vé cần check-in.", "error"); return; }
+      requireWallet();
+      requireContract();
+      requireRightNetwork();
+      const ticketId = BigInt(idInput);
+      const c = await ensureReadContract();
+      const t = await c.tickets(ticketId);
+      const resultEl = document.getElementById("checkin-result");
+      if (t.checkedIn) {
+        resultEl.innerHTML = `<div class="banner" style="background:var(--danger-bg); color:var(--danger-text);">Vé #${ticketId} đã được check-in từ trước (chủ vé: <span class="mono">${shortAddr(t.owner)}</span>).</div>`;
+        return;
+      }
+      const tx = await contract.checkIn(ticketId);
+      toast("Đang xác nhận giao dịch…", "info");
+      await tx.wait();
+      resultEl.innerHTML = `<div class="banner" style="background:var(--success-bg); color:var(--success-text);">✓ Check-in thành công vé #${ticketId} — chủ vé: <span class="mono">${shortAddr(t.owner)}</span>.</div>`;
+      toast("Check-in thành công.", "success");
+    }));
   }
 
   // ---------- Page: Create event (wizard) ----------
@@ -846,15 +894,15 @@
         panel.innerHTML = `
           <div class="field-row">
             <div class="field">
-              <label for="f-supply">Tổng số vé tối đa</label>
+              <label for="f-supply">Tổng số vé (hạng Standard)</label>
               <input id="f-supply" type="number" min="1" step="1" placeholder="VD: 100" value="${escapeHtml(data.maxSupply)}" />
             </div>
             <div class="field">
               <label for="f-price">Giá vé (ETH)</label>
               <input id="f-price" type="number" min="0" step="0.0001" placeholder="VD: 0.02" value="${escapeHtml(data.price)}" />
-              <p class="hint">Dùng khi phát hành vé ở bước sau (mỗi lần phát hành có thể đặt giá khác nhau để tạo nhiều hạng vé).</p>
             </div>
           </div>
+          <p class="hint">Đây là hạng vé đầu tiên ("Standard"). Sau khi tạo sự kiện, vào trang quản lý sự kiện để thêm các hạng khác (VD: VIP) nếu muốn.</p>
           <div class="field">
             <label>Giới hạn bán lại (trần giá)</label>
             <input value="Tối đa 110% giá gốc" disabled />
@@ -869,7 +917,8 @@
         document.getElementById("btn-next-2").addEventListener("click", () => {
           data.maxSupply = document.getElementById("f-supply").value;
           data.price = document.getElementById("f-price").value;
-          if (!data.maxSupply || Number(data.maxSupply) < 1) { toast("Nhập tổng số vé tối đa hợp lệ.", "error"); return; }
+          if (!data.maxSupply || Number(data.maxSupply) < 1) { toast("Nhập tổng số vé hợp lệ.", "error"); return; }
+          if (!data.price || Number(data.price) <= 0) { toast("Nhập giá vé hợp lệ.", "error"); return; }
           step = 3; render();
         });
       } else {
@@ -881,14 +930,14 @@
               <div class="review-row"><span class="review-row__label">Tên sự kiện</span><span class="review-row__value">${escapeHtml(data.name)}</span></div>
               <div class="review-row"><span class="review-row__label">Thời gian</span><span class="review-row__value">${data.startTime ? new Date(data.startTime).toLocaleString("vi-VN") : "—"}</span></div>
               <div class="review-row"><span class="review-row__label">Địa điểm</span><span class="review-row__value">${escapeHtml(data.location || "—")}</span></div>
-              <div class="review-row"><span class="review-row__label">Tổng số vé</span><span class="review-row__value">${escapeHtml(data.maxSupply)}</span></div>
-              <div class="review-row"><span class="review-row__label">Giá vé khởi điểm</span><span class="review-row__value">${escapeHtml(data.price || "0")} ETH</span></div>
+              <div class="review-row"><span class="review-row__label">Hạng Standard</span><span class="review-row__value">${escapeHtml(data.maxSupply)} vé × ${escapeHtml(data.price)} ETH</span></div>
               <div class="review-row"><span class="review-row__label">Giới hạn bán lại</span><span class="review-row__value">110%</span></div>
               <div class="review-row"><span class="review-row__label">Organizer wallet</span><span class="review-row__value mono">${userAddress ? shortAddr(userAddress) : "Chưa kết nối ví"}</span></div>
               <div class="review-row"><span class="review-row__label">Network</span><span class="review-row__value">Ethereum Sepolia</span></div>
             </div>
           </div>
           ${!isConfigured() ? '<div class="banner">Chưa cấu hình <code>CONTRACT_ADDRESS</code>/<code>CONTRACT_ABI</code> trong <code>web/app.js</code>.</div>' : ""}
+          <p class="hint" style="margin-top: var(--sp-3);">Bấm Deploy sẽ gửi <strong>2 giao dịch</strong> lần lượt: tạo sự kiện, rồi tạo hạng vé Standard — xác nhận trong MetaMask cả 2 lần.</p>
           <div class="wizard-actions">
             <button id="btn-back-3" class="btn btn-ghost">← Quay lại</button>
             <button id="btn-deploy" class="btn btn-dark btn-lg">Deploy & tạo sự kiện</button>
@@ -899,15 +948,23 @@
           requireWallet();
           requireContract();
           requireRightNetwork();
-          const tx = await contract.createEvent(data.name, startTs, BigInt(data.maxSupply));
-          toast("Đang xác nhận giao dịch…", "info");
-          const receipt = await tx.wait();
-          const log = receipt.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
-          const newId = log ? log.args.eventId : null;
-          if (newId !== null) saveMeta(newId, { description: data.description, location: data.location, image: data.image });
+
+          toast("Đang tạo sự kiện… (giao dịch 1/2)", "info");
+          const tx1 = await contract.createEvent(data.name, startTs);
+          const receipt1 = await tx1.wait();
+          const log1 = receipt1.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
+          const newEventId = log1 ? log1.args.eventId : null;
+          if (newEventId === null) throw new Error("Không đọc được eventId vừa tạo.");
+          saveMeta(newEventId, { description: data.description, location: data.location, image: data.image });
+
+          toast("Đang tạo hạng vé Standard… (giao dịch 2/2)", "info");
+          const tx2 = await contract.createTier(newEventId, "Standard", ethers.parseEther(data.price), BigInt(data.maxSupply));
+          await tx2.wait();
+
           toast("Tạo sự kiện thành công!", "success");
           eventsCache = null;
-          window.location.hash = newId !== null ? "#/events/" + newId.toString() : "#/my-events";
+          tiersCache = null;
+          window.location.hash = "#/events/" + newEventId.toString();
         }));
       }
     }
@@ -984,9 +1041,9 @@
     const mine = all.filter((e) => e.organizer.toLowerCase() === userAddress.toLowerCase());
     const rows = [];
     for (const evt of mine) {
-      const tickets = await fetchTicketsForEvent(evt.id);
-      if (myToken !== renderToken) return; // bo qua not can tiep tuc goi RPC cho trang da roi
-      rows.push({ evt, tickets, status: computeStatus(evt, tickets) });
+      const tiers = await fetchTiersForEvent(evt.id);
+      if (myToken !== renderToken) return;
+      rows.push({ evt, tiers, status: computeStatus(evt, tiers) });
     }
 
     function renderRows(filter) {
@@ -998,26 +1055,23 @@
         list.innerHTML = `<div class="empty-state"><h3>Chưa có sự kiện nào</h3><p>Tạo sự kiện đầu tiên của bạn.</p></div>`;
         return;
       }
-      list.innerHTML = filtered.map(({ evt, status }) => {
+      list.innerHTML = filtered.map(({ evt, tiers, status }) => {
         const meta = getMeta(evt.id);
+        const totalMinted = tiers.reduce((s, t) => s + t.minted, 0n);
+        const totalSupply = tiers.reduce((s, t) => s + t.maxSupply, 0n);
         return `
           <div class="event-row">
             <img class="event-row__thumb" src="${meta.image || stockImage(evt.id)}" alt="" />
             <div class="event-row__main">
               <div class="event-row__title">${escapeHtml(evt.name)}</div>
-              <div class="event-row__meta">${fmtDate(evt.startTime)} · ${escapeHtml(meta.location || "Chưa có địa điểm")} · ${evt.ticketsMinted}/${evt.maxSupply} vé đã phát hành</div>
+              <div class="event-row__meta">${fmtDate(evt.startTime)} · ${escapeHtml(meta.location || "Chưa có địa điểm")} · ${totalMinted}/${totalSupply} vé đã mint</div>
             </div>
             <div class="event-row__actions">
               <span class="badge ${status.cls}">${status.label}</span>
               <a href="#/events/${evt.id}" class="btn btn-secondary btn-sm">Quản lý</a>
-              <button class="btn btn-ghost btn-sm" data-mint="${evt.id}" aria-label="Phát hành thêm vé">Phát hành vé</button>
             </div>
           </div>`;
       }).join("");
-
-      list.querySelectorAll("[data-mint]").forEach((btn) => {
-        btn.addEventListener("click", () => mintPrompt(BigInt(btn.dataset.mint)));
-      });
     }
 
     if (myToken !== renderToken) return;
@@ -1070,21 +1124,28 @@
       const rows = [];
       for (const t of owned) {
         const evt = await c.events(t.eventId);
+        const tier = await c.tiers(t.tierId);
         if (myToken !== renderToken) return;
-        rows.push(`
-          <div class="event-row">
+        rows.push({ t, evt, tier });
+      }
+      listEl.innerHTML = rows.map(({ t, evt, tier }) => `
+          <div class="event-row" style="align-items:flex-start;">
+            <div class="qr-thumb" data-qr="${t.id}" style="width:64px;height:64px;flex-shrink:0;"></div>
             <div class="event-row__main">
-              <div class="event-row__title">${escapeHtml(evt.name)} <span class="text-tertiary">· Vé #${t.id}</span></div>
-              <div class="event-row__meta">Giá gốc ${fmtEth(t.originalPrice)} ETH ${t.forSale ? "· đang rao bán " + fmtEth(t.resalePrice) + " ETH" : ""}</div>
+              <div class="event-row__title">${escapeHtml(evt.name)} <span class="text-tertiary">· ${escapeHtml(tier.name)} · Vé #${t.id}</span></div>
+              <div class="event-row__meta">Giá gốc ${fmtEth(t.originalPrice)} ETH ${t.forSale ? "· đang rao bán " + fmtEth(t.resalePrice) + " ETH" : ""} ${t.checkedIn ? "· đã check-in" : ""}</div>
             </div>
             <div class="event-row__actions">
-              ${t.forSale
-                ? '<span class="badge badge-primary">Đang rao bán</span>'
-                : `<button class="btn btn-secondary btn-sm" data-resell="${t.id}" data-price="${t.originalPrice}">Rao bán lại</button>`}
+              ${t.checkedIn
+                ? '<span class="badge badge-neutral">Đã check-in</span>'
+                : t.forSale
+                  ? '<span class="badge badge-primary">Đang rao bán</span>'
+                  : `<button class="btn btn-secondary btn-sm" data-resell="${t.id}" data-price="${t.originalPrice}">Rao bán lại</button>`}
             </div>
-          </div>`);
-      }
-      listEl.innerHTML = rows.join("");
+          </div>`).join("");
+
+      listEl.querySelectorAll("[data-qr]").forEach((el) => renderQrInto(el, el.dataset.qr));
+
       listEl.querySelectorAll("[data-resell]").forEach((btn) => {
         btn.addEventListener("click", async () => {
           const max = (BigInt(btn.dataset.price) * 11000n) / 10000n;
@@ -1107,9 +1168,8 @@
       });
     }
 
-    // History: events touching this wallet
     const filters = [
-      { name: "Mua vé", filter: contract?.filters?.TicketBought(null, userAddress) },
+      { name: "Mint vé", filter: contract?.filters?.TicketMinted(null, null, null, userAddress) },
       { name: "Nhận tiền bán vé", filter: contract?.filters?.TicketResold(null, userAddress, null) },
       { name: "Mua lại vé", filter: contract?.filters?.TicketResold(null, null, userAddress) },
       { name: "Rao bán vé", filter: contract?.filters?.TicketListedForResale(null, userAddress) },
@@ -1120,15 +1180,15 @@
       histEl.innerHTML = `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Kết nối ví để xem lịch sử.</p>`;
       return;
     }
-    let events = [];
+    let evts = [];
     for (const { name, filter } of filters) {
       const logs = await contract.queryFilter(filter, 0, "latest");
       if (myToken !== renderToken) return;
-      events = events.concat(logs.map((l) => ({ name, log: l })));
+      evts = evts.concat(logs.map((l) => ({ name, log: l })));
     }
-    events.sort((a, b) => b.log.blockNumber - a.log.blockNumber);
-    histEl.innerHTML = events.length
-      ? events.slice(0, 20).map(({ name, log }) => `
+    evts.sort((a, b) => b.log.blockNumber - a.log.blockNumber);
+    histEl.innerHTML = evts.length
+      ? evts.slice(0, 20).map(({ name, log }) => `
           <div class="event-row">
             <div class="event-row__main"><div class="event-row__title">${name}</div></div>
             <a class="mono text-sm" target="_blank" rel="noopener" href="https://sepolia.etherscan.io/tx/${log.transactionHash}">${log.transactionHash.slice(0, 10)}…</a>
@@ -1136,33 +1196,13 @@
       : `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Chưa có giao dịch nào.</p>`;
   }
 
-  async function mintPrompt(eventId) {
-    const result = await promptMintModal();
-    if (!result) return;
-    const { price, qty } = result;
-    try {
-      requireWallet();
-      requireContract();
-      const priceWei = ethers.parseEther(price);
-      for (let i = 1; i <= qty; i++) {
-        toast(qty > 1 ? `Đang phát hành vé ${i}/${qty}…` : "Đang xác nhận giao dịch…", "info");
-        const tx = await contract.mintTicket(eventId, priceWei);
-        await tx.wait();
-      }
-      toast(qty > 1 ? `Đã phát hành ${qty} vé thành công.` : "Phát hành vé thành công.", "success");
-      eventsCache = null;
-      route();
-    } catch (err) {
-      toast(friendlyError(err), "error");
-    }
-  }
-
   // ---------- Page: Checkout ----------
 
-  routes.checkout = async function (eventIdStr, idsStr) {
+  routes.checkout = async function (eventIdStr, tierIdStr, qtyStr) {
     const myToken = renderToken;
     const eventId = BigInt(eventIdStr);
-    const ticketIds = (idsStr || "").split(",").filter(Boolean).map((x) => BigInt(x));
+    const tierId = BigInt(tierIdStr);
+    const qty = Math.max(1, parseInt(qtyStr, 10) || 1);
 
     $root().innerHTML = `<div class="page container"><div class="checkout-wrap"><div class="skel" style="height:300px;"></div></div></div>`;
 
@@ -1171,17 +1211,16 @@
     const demo = !isConfigured();
     const evt = demo ? MOCK_EVENTS.find((e) => e.id === eventId) : await (await ensureReadContract()).events(eventId);
     if (myToken !== renderToken) return;
+    const tier = demo ? MOCK_TIERS.find((t) => t.id === tierId) : await (await ensureReadContract()).tiers(tierId);
+    if (myToken !== renderToken) return;
     const meta = getMeta(eventId);
-    if (ticketIds.length === 0) {
-      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Chưa chọn vé</h3><a class="btn btn-secondary" href="#/events/${eventId}">← Quay lại sự kiện</a></div></div>`;
+
+    if (!evt || !tier) {
+      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Không tìm thấy hạng vé</h3><a class="btn btn-secondary" href="#/events/${eventId}">← Quay lại sự kiện</a></div></div>`;
       return;
     }
-    const firstTickets = await fetchTicketsForEvent(eventId);
-    if (myToken !== renderToken) return;
-    const first = demo ? firstTickets.find((t) => t.id === ticketIds[0]) : await (await ensureReadContract()).tickets(ticketIds[0]);
-    if (myToken !== renderToken) return;
-    const unitPrice = first.originalPrice;
-    const total = unitPrice * BigInt(ticketIds.length);
+
+    const total = tier.price * BigInt(qty);
 
     $root().innerHTML = h`
       <div class="page container">
@@ -1197,14 +1236,15 @@
           </div>
 
           <div class="card" style="padding: var(--sp-4);">
-            <div class="checkout-row"><span>Hạng vé</span><span>Vé #${ticketIds.map(String).join(", #")}</span></div>
-            <div class="checkout-row"><span>Đơn giá</span><span class="tabular-nums">${fmtEth(unitPrice)} ETH</span></div>
-            <div class="checkout-row"><span>Số lượng</span><span class="tabular-nums">${ticketIds.length}</span></div>
+            <div class="checkout-row"><span>Hạng vé</span><span>${escapeHtml(tier.name)}</span></div>
+            <div class="checkout-row"><span>Đơn giá</span><span class="tabular-nums">${fmtEth(tier.price)} ETH</span></div>
+            <div class="checkout-row"><span>Số lượng</span><span class="tabular-nums">${qty}</span></div>
             <div class="checkout-divider"></div>
             <div class="checkout-total"><span>Tổng cộng</span><span class="tabular-nums">${fmtEth(total)} ETH</span></div>
           </div>
 
           ${!isConfigured() ? '<div class="banner">Chưa cấu hình hợp đồng — không thể thanh toán thật.</div>' : ""}
+          ${qty > 1 ? `<p class="hint">Mint ${qty} vé = ${qty} giao dịch riêng, xác nhận trong MetaMask từng lần.</p>` : ""}
 
           <button id="btn-pay" class="btn btn-primary btn-block btn-lg" style="margin-top: var(--sp-4);">Tiếp tục thanh toán →</button>
           <a href="#/events/${eventId}" class="btn btn-ghost btn-block" style="margin-top: var(--sp-2);">← Quay lại</a>
@@ -1216,13 +1256,14 @@
       requireWallet();
       requireContract();
       requireRightNetwork();
-      for (let i = 0; i < ticketIds.length; i++) {
-        toast(`Đang xác nhận vé ${i + 1}/${ticketIds.length}…`, "info");
-        const tx = await contract.buyTicket(ticketIds[i], { value: unitPrice });
+      for (let i = 0; i < qty; i++) {
+        toast(qty > 1 ? `Đang xác nhận vé ${i + 1}/${qty}…` : "Đang xác nhận giao dịch…", "info");
+        const tx = await contract.mintTicket(tierId, { value: tier.price });
         await tx.wait();
       }
-      toast("Mua vé thành công! Xem trong “Vé & lịch sử”.", "success");
+      toast(qty > 1 ? `Đã mint ${qty} vé thành công!` : "Mint vé thành công!", "success");
       eventsCache = null;
+      tiersCache = null;
       window.location.hash = "#/events/" + eventId.toString();
     }));
   };

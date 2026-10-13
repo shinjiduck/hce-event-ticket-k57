@@ -181,3 +181,32 @@ Sau khi sửa: chụp lại toàn bộ 6 trang (desktop 1440px + mobile 390px) k
 - Quyết định thêm chế độ dữ liệu minh họa dù đề không yêu cầu, vì nhóm cần xem được giao diện hoàn chỉnh trước khi có Sepolia deployment mới.
 
 **Giới hạn còn lại (như cũ):** vẫn chưa deploy lại `ProjectCore.sol` lên Sepolia, chưa điền `CONTRACT_ADDRESS` thật trong `web/app.js`, chưa test với ví MetaMask thật, chưa bật GitHub Pages.
+
+## Lab 15 — thiết kế lại hợp đồng (public mint + check-in)
+
+**Công cụ:** Claude (Claude Code)
+
+**Bối cảnh:** sau khi test thật trên web, phát hiện lỗ hổng thiết kế: `mintTicket(eventId, originalPrice)` cũ bắt Organizer tự phát hành **từng vé một** — muốn 100 vé phải xác nhận MetaMask 100 lần. Nhóm quyết định đổi hẳn sang mô hình "public mint" kiểu NFT: Organizer chỉ tạo **hạng vé** (tên + giá + tổng cung), ai cũng tự `mintTicket(tierId)` trực tiếp. Nhân tiện cài luôn `checkIn()` (R5, R6) đã viết đặc tả từ Lab 8 nhưng chưa từng implement, để không phải deploy lại lần nữa.
+
+**Thay đổi contract (`contracts/project/ProjectCore.sol`):**
+- Struct mới `Tier` (eventId, name, price, maxSupply, minted). `EventInfo` bỏ `maxSupply`/`ticketsMinted`, thêm `tierCount`.
+- `Ticket` bỏ trường `sold` (mọi vé tồn tại đều đã "bán" vì sinh ra từ hành vi tự mint), thêm `tierId` và `checkedIn`.
+- Hàm mới: `createTier()` (chỉ Organizer), `checkIn()` (chỉ Organizer, 1 lần, R5).
+- `mintTicket(tierId)` đổi thành `public payable`, không còn tham số `originalPrice` (lấy từ `tier.price`), không còn giới hạn `NotOrganizer`.
+- Bỏ hẳn `buyTicket()` — không còn khái niệm "vé đã mint sẵn nhưng chưa bán", vì mint = mua luôn.
+- `listForResale()`/`buyResaleTicket()` thêm chặn `checkedIn` (R6, lỗi `TicketCheckedInCannotResell`).
+
+**Kiểm thử lại từ đầu bằng Hardhat** (dựng lại môi trường vì scratchpad bị dọn giữa phiên) — 7 ca, tất cả pass: mint công khai thành công, sai giá/hết cung bị chặn đúng lỗi, resale 110%/vi phạm, check-in chỉ Organizer + chỉ 1 lần, khóa resale sau check-in, và **chạy lại đúng kịch bản reentrancy của Lab 13** lên `withdrawProceeds()` để xác nhận hardening cũ (pull-payment) vẫn đứng vững sau khi đổi toàn bộ model dữ liệu. Log: `evidence/lab-15-v2/projectcore-v2-test-log.txt`.
+
+**Viết lại `docs/SPEC.md` (v0.2):** R1 đổi ý nghĩa (chỉ còn là "tạo hạng vé", không còn "mint vé"), thêm R1b ("mint công khai"), R9 chuyển từ `event.maxSupply` sang `tier.maxSupply`, thêm `Tier` vào data model.
+
+**Viết lại gần như toàn bộ `web/app.js`:** cấu trúc event/tier/ticket mới; trang Chi tiết sự kiện đọc tier thật từ chain (không còn suy luận "hạng vé" từ việc gom giá như bản trước — giờ tier là thực thể on-chain có tên hẳn hoi); nút "Mua vé" gọi thẳng `mintTicket()` N lần theo số lượng (không còn chọn ticketId có sẵn); thêm panel "Quản lý sự kiện" (chỉ Organizer thấy) để tạo hạng vé mới và check-in vé; thêm mã QR (thư viện `qrcode-generator` qua CDN, mã hoá `ticketId`) hiển thị trong "Vé của tôi" cho từng vé sở hữu.
+
+**QR check-in — quyết định phạm vi:** chỉ làm QR tĩnh (ticketId) + ô nhập tay cho Organizer, **không làm QR động/ký bằng ví** (chống chụp màn hình chia sẻ) vì tốn công vượt quy mô đồ án môn học — ghi rõ là "ngoài phạm vi" trong `SPEC.md`, nêu hướng nâng cấp trong phần thuyết trình.
+
+**Phần do nhóm tự quyết định (không phải AI đề xuất):**
+- Chọn mô hình public-mint-theo-hạng thay vì chỉ thêm hàm mint hàng loạt cho Organizer (phương án batch mint đơn giản hơn nhưng không giải quyết được gốc vấn đề — vẫn là Organizer phải trả gas phát hành hộ).
+- Chấp nhận phải deploy lại lần nữa (mất dữ liệu sự kiện test cũ) để đổi đúng 1 lần, gộp chung với việc thêm check-in, thay vì deploy nhiều lần nhỏ lẻ.
+- Chọn QR tĩnh (MVP) thay vì QR động, vì đánh giá rủi ro gian lận thấp ở quy mô sự kiện sinh viên.
+
+**Giới hạn:** `CONTRACT_ADDRESS` trong `web/app.js` đã reset về `0x0...0` vì địa chỉ cũ không còn tương thích — **cần deploy lại và test thật với ví MetaMask** trước khi coi là xong Lab 15. R7 (hạn bán lại theo thời gian) vẫn chưa cài.

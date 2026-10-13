@@ -1,146 +1,157 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// @title FairTicket - luong loi: tao su kien, phat hanh ve, mua ve, ban lai co tran gia
-/// @notice Lab 9: luong loi (R1, R2, R9 trong docs/SPEC.md).
+/// @title FairTicket - luong loi: tao su kien, tao hang ve, ai cung tu mint,
+///        ban lai co tran gia, check-in khoa ve.
+/// @notice Lab 9: luong loi ban dau (R1, R2, R9 trong docs/SPEC.md).
 ///         Lab 11: R3 - tran gia ban lai (listForResale/buyResaleTicket).
-///         R4, R7, R8 (quyen ban lai, han resale, cam transfer tu do) va check-in (R5, R6) de danh cho Lab sau.
+///         Thiet ke lai sau Lab 15 - doi tu mo hinh "Organizer phat hanh
+///         tung ve" sang mo hinh "public mint" kieu NFT: Organizer chi tao
+///         hang ve (gia + tong cung), AI CUNG tu goi mintTicket() de nhan ve
+///         truc tiep trong gioi han hang, khong can Organizer phat hanh ho
+///         tung cai mot. Dong thoi them R5 + R6 (check-in va khoa ve sau
+///         check-in). R7, R8 (han resale theo thoi gian, cam transfer tu do
+///         ngoai he thong) van de danh cho lab sau.
 contract ProjectCore {
     uint256 public constant MAX_RESALE_BPS = 11_000; // 110% = 11000 / 10000
 
     struct EventInfo {
         string name;
         uint256 startTime;
-        uint256 maxSupply;
-        uint256 ticketsMinted;
         address organizer;
+        uint256 tierCount;
+    }
+
+    struct Tier {
+        uint256 eventId;
+        string name; // vd "Standard", "VIP" - chi de hien thi, khong dung de so sanh logic
+        uint256 price;
+        uint256 maxSupply;
+        uint256 minted;
     }
 
     struct Ticket {
         uint256 eventId;
+        uint256 tierId;
         address owner;
-        uint256 originalPrice;
-        bool sold;
+        uint256 originalPrice; // = gia cua tier tai thoi diem mint
         uint256 resalePrice;
         bool forSale;
+        bool checkedIn;
     }
 
     uint256 public nextEventId;
+    uint256 public nextTierId;
     uint256 public nextTicketId;
 
     mapping(uint256 => EventInfo) public events;
+    mapping(uint256 => Tier) public tiers;
     mapping(uint256 => Ticket) public tickets;
     mapping(address => uint256) public pendingWithdrawals;
 
-    event EventCreated(uint256 indexed eventId, address indexed organizer, uint256 maxSupply, uint256 startTime);
-    event TicketMinted(uint256 indexed ticketId, uint256 indexed eventId, uint256 originalPrice);
-    event TicketBought(uint256 indexed ticketId, address indexed buyer, uint256 amount);
+    event EventCreated(uint256 indexed eventId, address indexed organizer, uint256 startTime);
+    event TierCreated(uint256 indexed tierId, uint256 indexed eventId, string name, uint256 price, uint256 maxSupply);
+    event TicketMinted(uint256 indexed ticketId, uint256 indexed tierId, uint256 indexed eventId, address buyer, uint256 price);
     event ProceedsWithdrawn(address indexed organizer, uint256 amount);
     event TicketListedForResale(uint256 indexed ticketId, address indexed seller, uint256 resalePrice);
     event TicketResold(uint256 indexed ticketId, address indexed from, address indexed to, uint256 amount);
+    event TicketCheckedIn(uint256 indexed ticketId, address indexed owner);
 
     error EventDoesNotExist();
+    error TierDoesNotExist();
     error TicketDoesNotExist();
     error NotOrganizer();
-    error MaxSupplyReached();
-    error TicketAlreadySold();
+    error TierSupplyReached();
     error IncorrectPayment(uint256 expected, uint256 sent);
     error WithdrawFailed();
     error InvalidMaxSupply();
     error InvalidPrice();
     error NothingToWithdraw();
     error NotTicketOwner();
-    error TicketNotYetSold();
     error ResalePriceTooHigh(uint256 attempted, uint256 limit);
     error TicketNotForSale();
     error ZeroResalePrice();
+    error TicketAlreadyCheckedIn();
+    error TicketCheckedInCannotResell();
 
-    /// @notice Organizer tao mot su kien moi voi tran so ve co dinh.
-    function createEvent(
-        string calldata name,
-        uint256 startTime,
-        uint256 maxSupply
-    ) external returns (uint256 eventId) {
-        // Lab 10 - audit finding: thieu kiem tra maxSupply, truoc day cho phep
-        // tao event khong the ban duoc ve nao (maxSupply = 0).
-        if (maxSupply == 0) revert InvalidMaxSupply();
-
+    /// @notice Ai cung tao duoc su kien, nguoi goi tu dong thanh Organizer.
+    function createEvent(string calldata name, uint256 startTime) external returns (uint256 eventId) {
         eventId = nextEventId++;
         events[eventId] = EventInfo({
             name: name,
             startTime: startTime,
-            maxSupply: maxSupply,
-            ticketsMinted: 0,
-            organizer: msg.sender
+            organizer: msg.sender,
+            tierCount: 0
         });
 
-        emit EventCreated(eventId, msg.sender, maxSupply, startTime);
+        emit EventCreated(eventId, msg.sender, startTime);
     }
 
-    /// @notice R1 + R9: chi Organizer cua event duoc mint, khong vuot maxSupply.
-    function mintTicket(uint256 eventId, uint256 originalPrice) external returns (uint256 ticketId) {
+    /// @notice R9: chi Organizer cua event duoc tao hang ve (gia + tong cung co dinh).
+    /// Moi su kien tao duoc nhieu hang (vd Standard/Premium/VIP), moi hang 1 gia rieng.
+    function createTier(
+        uint256 eventId,
+        string calldata name,
+        uint256 price,
+        uint256 maxSupply
+    ) external returns (uint256 tierId) {
         // 1. Checks
         if (eventId >= nextEventId) revert EventDoesNotExist();
         EventInfo storage evt = events[eventId];
         if (msg.sender != evt.organizer) revert NotOrganizer();
-        if (evt.ticketsMinted >= evt.maxSupply) revert MaxSupplyReached();
-        // Lab 10 - audit finding: thieu kiem tra originalPrice, truoc day
-        // Organizer co the mint ve gia 0 ma khong ai phat hien duoc la loi hay co y.
-        if (originalPrice == 0) revert InvalidPrice();
+        if (price == 0) revert InvalidPrice();
+        if (maxSupply == 0) revert InvalidMaxSupply();
 
         // 2. Effects
-        evt.ticketsMinted++;
-        ticketId = nextTicketId++;
-        tickets[ticketId] = Ticket({
+        tierId = nextTierId++;
+        tiers[tierId] = Tier({
             eventId: eventId,
-            owner: evt.organizer,
-            originalPrice: originalPrice,
-            sold: false,
-            resalePrice: 0,
-            forSale: false
+            name: name,
+            price: price,
+            maxSupply: maxSupply,
+            minted: 0
         });
+        evt.tierCount++;
 
-        emit TicketMinted(ticketId, eventId, originalPrice);
+        emit TierCreated(tierId, eventId, name, price, maxSupply);
     }
 
-    /// @notice R2: mua ve truc tiep tu Organizer, dung gia niem yet, doi chu mot lan.
-    /// Lab 10 - audit finding: ban dau ham nay "day" tien thang cho Organizer bang
-    /// call() ngay trong buyTicket(). Neu dia chi Organizer khong nhan duoc ETH
-    /// (hop dong khong co receive/fallback, hoac co doi tuong choi nhan), call()
-    /// that bai lam ca giao dich revert -> ve cua event do bi khoa vinh vien,
-    /// khong ai mua duoc nua (tu-DoS). Sua bang mo hinh pull-payment: ghi nhan
-    /// so tien Organizer duoc nhan vao pendingWithdrawals, Organizer tu goi
-    /// withdrawProceeds() de rut, tach rieng khoi luong mua ve cua nguoi khac.
-    function buyTicket(uint256 ticketId) external payable {
+    /// @notice R1 (thiet ke moi): AI CUNG tu mint duoc ve, khong rieng Organizer.
+    /// Tra dung gia cua hang ve, het hang (maxSupply) thi khong mint them duoc.
+    function mintTicket(uint256 tierId) external payable returns (uint256 ticketId) {
         // 1. Checks
-        if (ticketId >= nextTicketId) revert TicketDoesNotExist();
-        Ticket storage t = tickets[ticketId];
-        if (t.sold) revert TicketAlreadySold();
-        if (msg.value != t.originalPrice) revert IncorrectPayment(t.originalPrice, msg.value);
+        if (tierId >= nextTierId) revert TierDoesNotExist();
+        Tier storage tier = tiers[tierId];
+        if (tier.minted >= tier.maxSupply) revert TierSupplyReached();
+        if (msg.value != tier.price) revert IncorrectPayment(tier.price, msg.value);
 
-        EventInfo storage evt = events[t.eventId];
-        address organizer = evt.organizer;
+        EventInfo storage evt = events[tier.eventId];
 
-        // 2. Effects - doi chu va ghi nhan tien cho Organizer rut sau
-        t.owner = msg.sender;
-        t.sold = true;
-        pendingWithdrawals[organizer] += msg.value;
-        emit TicketBought(ticketId, msg.sender, msg.value);
+        // 2. Effects
+        tier.minted++;
+        ticketId = nextTicketId++;
+        tickets[ticketId] = Ticket({
+            eventId: tier.eventId,
+            tierId: tierId,
+            owner: msg.sender,
+            originalPrice: tier.price,
+            resalePrice: 0,
+            forSale: false,
+            checkedIn: false
+        });
+        pendingWithdrawals[evt.organizer] += msg.value;
+
+        emit TicketMinted(ticketId, tierId, tier.eventId, msg.sender, tier.price);
     }
 
     /// @notice R3 + R4: chu ve hien tai rao ban lai, gia toi da 110% gia goc.
-    /// Lab 11 - quy tac kinh te: dung basis point (10_000 = 100%) de tinh
-    /// tran gia vi Solidity khong co so thap phan.
+    /// R6: ve da check-in thi khoa, khong rao ban lai duoc nua.
     function listForResale(uint256 ticketId, uint256 price) external {
         // 1. Checks
         if (ticketId >= nextTicketId) revert TicketDoesNotExist();
         Ticket storage t = tickets[ticketId];
-        if (!t.sold) revert TicketNotYetSold();
         if (msg.sender != t.owner) revert NotTicketOwner();
-        // Lab 14 - tu ra soat (muc 9, truong hop so 0): truoc day khong chan
-        // price == 0, chu ve co the vo tinh "tang khong" ve cho bat ky ai goi
-        // buyResaleTicket() truoc. Nhat quan voi mintTicket()/createEvent() da
-        // chan gia 0 tu Lab 10.
+        if (t.checkedIn) revert TicketCheckedInCannotResell();
         if (price == 0) revert ZeroResalePrice();
 
         uint256 maxResalePrice = (t.originalPrice * MAX_RESALE_BPS) / 10_000;
@@ -154,11 +165,13 @@ contract ProjectCore {
     }
 
     /// @notice Mua lai ve dang rao ban, doi chu va tra tien cho chu cu qua pull-payment.
+    /// R6: kiem tra lai checkedIn phong truong hop ve bi check-in sau khi da rao ban.
     function buyResaleTicket(uint256 ticketId) external payable {
         // 1. Checks
         if (ticketId >= nextTicketId) revert TicketDoesNotExist();
         Ticket storage t = tickets[ticketId];
         if (!t.forSale) revert TicketNotForSale();
+        if (t.checkedIn) revert TicketCheckedInCannotResell();
         if (msg.value != t.resalePrice) revert IncorrectPayment(t.resalePrice, msg.value);
 
         address seller = t.owner;
@@ -170,6 +183,22 @@ contract ProjectCore {
         pendingWithdrawals[seller] += msg.value;
 
         emit TicketResold(ticketId, seller, msg.sender, msg.value);
+    }
+
+    /// @notice R5: chi Organizer cua su kien duoc check-in ve thuoc su kien do.
+    /// Moi ve chi check-in duoc dung 1 lan (khong co ham nao dat lai false).
+    function checkIn(uint256 ticketId) external {
+        // 1. Checks
+        if (ticketId >= nextTicketId) revert TicketDoesNotExist();
+        Ticket storage t = tickets[ticketId];
+        EventInfo storage evt = events[t.eventId];
+        if (msg.sender != evt.organizer) revert NotOrganizer();
+        if (t.checkedIn) revert TicketAlreadyCheckedIn();
+
+        // 2. Effects
+        t.checkedIn = true;
+
+        emit TicketCheckedIn(ticketId, t.owner);
     }
 
     /// @notice Organizer tu rut tien ban ve cua minh (pull-payment).
