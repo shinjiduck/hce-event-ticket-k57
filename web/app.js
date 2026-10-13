@@ -462,6 +462,18 @@
       btn.className = "btn btn-primary btn-sm";
       btn.onclick = (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true });
     }
+
+    // Canh bao SOM neu vi dang ket noi nhung sai mang - truoc day chi bao
+    // loi SAU khi nguoi dung da bam Deploy/Mua ve, de nham lan ("lam vay sao
+    // van loi"). Gio hien san banner do tren dau ngay khi phat hien sai mang.
+    const netBanner = document.getElementById("network-banner");
+    if (netBanner) {
+      const wrongNetwork = userAddress && chainId && chainId !== SEPOLIA_CHAIN_ID;
+      netBanner.hidden = !wrongNetwork;
+      if (wrongNetwork) {
+        netBanner.innerHTML = `⚠️ Ví đang ở mạng khác (không phải Sepolia). Mở MetaMask → đổi mạng sang <strong>Sepolia</strong> thì mới tạo sự kiện / mua vé được.`;
+      }
+    }
   }
 
   // ---------- Page: Home ----------
@@ -659,7 +671,10 @@
             </div>
 
             <div class="card" style="padding: var(--sp-3) var(--sp-3) var(--sp-1);">
-              <h3 style="margin-bottom:4px;">Hạng vé</h3>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <h3>Hạng vé</h3>
+                <button id="btn-refresh-tiers" type="button" class="btn btn-ghost btn-sm" aria-label="Tải lại hạng vé">↻ Tải lại</button>
+              </div>
               <div id="tier-list">${tierListHtml(tiers)}</div>
             </div>
 
@@ -690,6 +705,11 @@
       const tier = tiers[selected.index];
       window.location.hash = "#/checkout/" + id.toString() + "/" + tier.id.toString() + "/" + selected.qty;
     });
+
+    document.getElementById("btn-refresh-tiers")?.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+      tiersCache = null;
+      route();
+    }));
 
     if (isOrganizer) wireOrganizerPanel(id);
   };
@@ -779,9 +799,21 @@
       requireRightNetwork();
       const tx = await contract.createTier(eventId, result.name, ethers.parseEther(result.price), BigInt(result.supply));
       toast("Đang xác nhận giao dịch…", "info");
-      await tx.wait();
+      const receipt = await tx.wait();
       toast("Đã tạo hạng vé mới.", "success");
       tiersCache = null;
+      // RPC cong khai doi khi can mot nhip de "nhin thay" block vua xac nhan
+      // qua eth_call tiep theo - thu doc lai tier vua tao (toi da 5 lan, moi
+      // lan cach nhau 1s) truoc khi ve-render, thay vi doan bua 1 khoang tre.
+      const log = receipt.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "TierCreated");
+      const newTierId = log ? log.args.tierId : null;
+      if (newTierId !== null) {
+        for (let i = 0; i < 5; i++) {
+          const t = await contract.tiers(newTierId);
+          if (t.eventId === eventId) break;
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
       route();
     }));
 
@@ -809,11 +841,32 @@
 
   // ---------- Page: Create event (wizard) ----------
 
+  const CREATE_DRAFT_KEY = "fairticket:create-draft";
+
   routes.create = function () {
     let step = 1;
-    const data = { name: "", description: "", startTime: "", endTime: "", location: "", image: "", maxSupply: "", price: "" };
+    let data = { name: "", description: "", startTime: "", endTime: "", location: "", image: "", maxSupply: "", price: "" };
+
+    // Lop an toan thu 2: khoi phuc nhap neu bi F5/mat ket noi mang giua chung
+    // (lop thu 1 la handleWalletChange() khong con ep reload trang nua).
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(CREATE_DRAFT_KEY) || "null");
+      if (saved && saved.data && saved.data.name) {
+        data = Object.assign(data, saved.data);
+        step = saved.step || 1;
+        setTimeout(() => toast("Đã khôi phục thông tin đang điền dở.", "info"), 300);
+      }
+    } catch {}
+
+    function saveDraft() {
+      try { sessionStorage.setItem(CREATE_DRAFT_KEY, JSON.stringify({ step, data })); } catch {}
+    }
+    function clearDraft() {
+      try { sessionStorage.removeItem(CREATE_DRAFT_KEY); } catch {}
+    }
 
     function render() {
+      saveDraft();
       $root().innerHTML = h`
         <div class="page container" style="max-width: 760px;">
           <h2 style="margin-top: var(--sp-5);">Tạo sự kiện mới</h2>
@@ -836,6 +889,20 @@
     function wizardStepHtml(n, label, current) {
       const cls = n < current ? "done" : n === current ? "active" : "";
       return `<div class="wizard-step ${cls}"><div class="wizard-step__dot">${n < current ? "✓" : n}</div><div class="wizard-step__label">${label}</div></div>`;
+    }
+
+    // Lien ket moi o nhap voi `data` + luu nhap NGAY khi go (khong doi bam
+    // "Tiep tuc") - de F5 giua chung van khong mat chu dang go dang.
+    const FIELD_MAP = { "f-name": "name", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-supply": "maxSupply", "f-price": "price" };
+    function bindLiveInputs() {
+      Object.keys(FIELD_MAP).forEach((elId) => {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.addEventListener("input", () => {
+          data[FIELD_MAP[elId]] = el.value;
+          saveDraft();
+        });
+      });
     }
 
     function renderStep() {
@@ -871,10 +938,12 @@
             </div>
           </div>
           <div class="wizard-actions">
-            <a href="#/my-events" class="btn btn-ghost">Hủy</a>
+            <a href="#/my-events" class="btn btn-ghost" id="btn-cancel-wizard">Hủy</a>
             <button id="btn-next-1" class="btn btn-primary">Tiếp tục →</button>
           </div>
         `;
+        bindLiveInputs();
+        document.getElementById("btn-cancel-wizard").addEventListener("click", clearDraft);
         document.getElementById("btn-next-1").addEventListener("click", () => {
           data.name = document.getElementById("f-name").value.trim();
           data.description = document.getElementById("f-desc").value.trim();
@@ -913,6 +982,7 @@
             <button id="btn-next-2" class="btn btn-primary">Tiếp tục →</button>
           </div>
         `;
+        bindLiveInputs();
         document.getElementById("btn-back-2").addEventListener("click", () => { step = 1; render(); });
         document.getElementById("btn-next-2").addEventListener("click", () => {
           data.maxSupply = document.getElementById("f-supply").value;
@@ -962,6 +1032,7 @@
           await tx2.wait();
 
           toast("Tạo sự kiện thành công!", "success");
+          clearDraft();
           eventsCache = null;
           tiersCache = null;
           window.location.hash = "#/events/" + newEventId.toString();
@@ -1027,6 +1098,22 @@
         document.getElementById("panel-tickets").hidden = btn.dataset.subtab !== "tickets";
       });
     });
+
+    // Dang ky click nut Rut tien DUY NHAT 1 LAN o day (luc HTML vua duoc tao).
+    // Truoc day dang ky ben trong renderMyTickets() - ham nay tu goi lai chinh
+    // no sau moi lan rut/rao ban thanh cong de refresh UI, nen moi lan goi lai
+    // la gan THEM 1 listener nua vao cung nut (nut khong bi thay moi) - bam
+    // 1 cai thi goi withdrawProceeds() 2-3 lan chong nhau, lan sau bi revert
+    // NothingToWithdraw() vi lan dau da rut het roi -> hien loi gay nham lan.
+    document.getElementById("btn-withdraw").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+      requireWallet();
+      requireContract();
+      const tx = await contract.withdrawProceeds();
+      toast("Đang xác nhận giao dịch…", "info");
+      await tx.wait();
+      toast("Đã rút tiền về ví.", "success");
+      await renderMyTickets();
+    }));
 
     if (!userAddress) {
       document.getElementById("my-events-list").innerHTML = `<div class="empty-state"><h3>Chưa kết nối ví</h3><p>Kết nối ví để xem sự kiện bạn đã tạo.</p></div>`;
@@ -1098,16 +1185,6 @@
     const pending = await c.pendingWithdrawals(userAddress);
     if (myToken !== renderToken) return;
     balEl.textContent = fmtEth(pending) + " ETH";
-
-    document.getElementById("btn-withdraw").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
-      requireWallet();
-      requireContract();
-      const tx = await contract.withdrawProceeds();
-      toast("Đang xác nhận giao dịch…", "info");
-      await tx.wait();
-      toast("Đã rút tiền về ví.", "success");
-      await renderMyTickets();
-    }));
 
     const ticketCount = await c.nextTicketId();
     if (myToken !== renderToken) return;
@@ -1291,8 +1368,43 @@
     await trySilentReconnect();
     route();
     if (window.ethereum) {
-      window.ethereum.on("accountsChanged", () => window.location.reload());
-      window.ethereum.on("chainChanged", () => window.location.reload());
+      window.ethereum.on("accountsChanged", handleWalletChange);
+      window.ethereum.on("chainChanged", handleWalletChange);
     }
   });
+
+  /// Doi ví/đổi mạng trong MetaMask truoc day ep window.location.reload() -
+  /// xoa sach moi du lieu dang nhap do (VD giua chung wizard Tao su kien).
+  /// Gio chi cap nhat lai provider/signer/contract tai cho, khong tai trang.
+  /// Rieng khi dang o wizard "Tao su kien" thi KHONG re-render lai trang
+  /// (de khong mat du lieu dang go), chi bao cho nguoi dung biet da cap nhat.
+  async function handleWalletChange() {
+    if (!window.ethereum) return;
+    try {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      readContract = null;
+      eventsCache = null;
+      tiersCache = null;
+      const accounts = await provider.send("eth_accounts", []);
+      if (!accounts || accounts.length === 0) {
+        userAddress = null;
+        signer = null;
+        contract = null;
+        renderHeader();
+        return;
+      }
+      await setupWalletSession();
+      renderHeader();
+
+      const hash = window.location.hash.slice(1) || "/";
+      const base = hash.split("/").filter(Boolean)[0] || "";
+      if (base === "create") {
+        toast("Đã cập nhật ví/mạng — tiếp tục điền thông tin, không bị mất.", "info");
+      } else {
+        route();
+      }
+    } catch (err) {
+      console.warn("Lỗi khi cập nhật ví/mạng:", err);
+    }
+  }
 })();
