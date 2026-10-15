@@ -1,6 +1,6 @@
 /* ==========================================================================
    FairTicket — SPA app (v2: public mint theo hang ve + check-in)
-   Vanilla JS, hash router, no build step, no backend.
+   Vanilla JS, hash router, no build step.
    Reads/writes contracts/project/ProjectCore.sol directly via ethers.js.
 
    Thay doi lon so voi v1:
@@ -12,9 +12,12 @@
      xem ghi chu "Ngoai pham vi" trong docs/SPEC.md).
 
    Honesty note ve du lieu KHONG nam tren chain:
-   mo ta (description), dia diem, anh bia su kien van chi luu trong
-   localStorage trinh duyet nay (khong co truong tren contract) - xem
-   README.md.
+   mo ta (description), dia diem, anh bia su kien khong co truong tren
+   contract (de tiet kiem gas) - duoc cache trong localStorage trinh duyet
+   nay VA dong bo qua ./api/metadata.js (Vercel Function + Vercel Blob) de
+   hien thi dung tren moi thiet bi/trinh duyet. Ghi (POST) doi hoi ky vi -
+   server xac minh chu ky khop voi organizer cua su kien tren chain, khong
+   dung tai khoan/mat khau truyen thong. Xem README.md.
    ========================================================================== */
 
 (function () {
@@ -287,6 +290,60 @@
     localStorage.setItem(metaKey(), JSON.stringify(all));
   }
 
+  // localStorage la theo-trinh-duyet nen metadata (anh/mo ta/dia diem) tao
+  // tren may nay se "bien mat" khi xem bang may/trinh duyet khac. Dong bo
+  // 1 lan/su kien/lan tai trang qua ./api/metadata.js (Vercel Blob) de du
+  // lieu hien thi dung cho moi nguoi, khong chi nguoi tao.
+  const metaSynced = new Set();
+
+  async function syncMeta(eventId) {
+    const key = String(eventId);
+    if (metaSynced.has(key)) return false;
+    metaSynced.add(key);
+    try {
+      const res = await fetch("/api/metadata?eventId=" + key);
+      if (!res.ok) return false;
+      const remote = await res.json();
+      if (!remote || (!remote.description && !remote.location && !remote.image)) return false;
+      const before = JSON.stringify(getAllMeta()[key] || {});
+      saveMeta(eventId, remote);
+      return JSON.stringify(getAllMeta()[key]) !== before;
+    } catch (err) {
+      console.warn("Không đồng bộ được metadata cho #" + key, err);
+      return false;
+    }
+  }
+
+  // Goi khi danh sach su kien da render xong (optimistic, dung cache cu);
+  // neu co du lieu moi cho bat ky su kien nao, goi onChanged() de ve lai.
+  function syncMetaThenRefresh(eventIds, onChanged) {
+    const ids = eventIds.filter((id) => !metaSynced.has(String(id)));
+    if (ids.length === 0) return;
+    Promise.all(ids.map(syncMeta)).then((results) => {
+      if (results.some(Boolean)) onChanged();
+    });
+  }
+
+  async function publishMetaToServer(eventId, data) {
+    if (!signer) return;
+    try {
+      const timestamp = Date.now();
+      // Phai khop CHINH XAC voi buildMessage() trong web/api/metadata.js -
+      // server tu dung lai message tu (eventId, timestamp), khong tin
+      // noi dung message do client gui len.
+      const message = "FairTicket: cập nhật metadata sự kiện #" + eventId + " lúc " + timestamp;
+      const signature = await signer.signMessage(message);
+      await fetch("/api/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: Number(eventId), data, timestamp, signature }),
+      });
+      metaSynced.add(String(eventId)); // da la nguon moi nhat, khong can tu doc lai
+    } catch (err) {
+      console.warn("Không đồng bộ được metadata lên server (vẫn lưu được trên máy này):", err);
+    }
+  }
+
   // ---------- Chain access ----------
 
   async function loadAbi() {
@@ -533,6 +590,10 @@
     }
     const featured = evts.slice(-4).reverse();
     list.innerHTML = featured.map(eventCardHtml).join("");
+    syncMetaThenRefresh(featured.map((e) => e.id), () => {
+      if (myToken !== renderToken) return;
+      list.innerHTML = featured.map(eventCardHtml).join("");
+    });
   };
 
   function skeletonCards(n) {
@@ -582,9 +643,16 @@
     if (myToken !== renderToken) return;
     const grid = document.getElementById("events-grid");
     if (!grid) return;
-    grid.innerHTML = evts.length
-      ? evts.slice().reverse().map(eventCardHtml).join("")
+    const sorted = evts.slice().reverse();
+    grid.innerHTML = sorted.length
+      ? sorted.map(eventCardHtml).join("")
       : emptyState("Chưa có sự kiện nào", isConfigured() ? "Hãy là người đầu tiên tạo sự kiện." : "Kết nối ví và cấu hình hợp đồng để xem sự kiện.");
+    if (sorted.length) {
+      syncMetaThenRefresh(sorted.map((e) => e.id), () => {
+        if (myToken !== renderToken) return;
+        grid.innerHTML = sorted.map(eventCardHtml).join("");
+      });
+    }
   };
 
   // ---------- Page: Event detail ----------
@@ -712,6 +780,8 @@
     }));
 
     if (isOrganizer) wireOrganizerPanel(id);
+
+    syncMetaThenRefresh([id], () => { if (myToken === renderToken) route(); });
   };
 
   function tierListHtml(tiers) {
@@ -1025,7 +1095,9 @@
           const log1 = receipt1.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
           const newEventId = log1 ? log1.args.eventId : null;
           if (newEventId === null) throw new Error("Không đọc được eventId vừa tạo.");
-          saveMeta(newEventId, { description: data.description, location: data.location, image: data.image });
+          const newMeta = { description: data.description, location: data.location, image: data.image };
+          saveMeta(newEventId, newMeta);
+          publishMetaToServer(newEventId, newMeta); // khong chan luong deploy neu loi mang
 
           toast("Đang tạo hạng vé Standard… (giao dịch 2/2)", "info");
           const tx2 = await contract.createTier(newEventId, "Standard", ethers.parseEther(data.price), BigInt(data.maxSupply));
@@ -1171,6 +1243,12 @@
     });
 
     renderRows("all");
+
+    syncMetaThenRefresh(mine.map((e) => e.id), () => {
+      if (myToken !== renderToken) return;
+      const activeChip = document.querySelector(".chip.active");
+      renderRows(activeChip ? activeChip.dataset.f : "all");
+    });
   };
 
   async function renderMyTickets() {
@@ -1343,6 +1421,8 @@
       tiersCache = null;
       window.location.hash = "#/events/" + eventId.toString();
     }));
+
+    syncMetaThenRefresh([eventId], () => { if (myToken === renderToken) route(); });
   };
 
   // ---------- Boot ----------

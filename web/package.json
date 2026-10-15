@@ -1,0 +1,9 @@
+{
+  "name": "fairticket-web",
+  "private": true,
+  "description": "Static frontend (web/) + Vercel serverless API cho metadata su kien (anh/mo ta/dia diem), luu qua Vercel Blob.",
+  "dependencies": {
+    "@vercel/blob": "^2.8.2",
+    "ethers": "^6.17.0"
+  }
+}
