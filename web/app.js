@@ -1260,29 +1260,56 @@
     const histEl = document.getElementById("history-list");
     if (!c || !userAddress || !balEl || !listEl || !histEl) return;
 
-    const pending = await c.pendingWithdrawals(userAddress);
-    if (myToken !== renderToken) return;
-    balEl.textContent = fmtEth(pending) + " ETH";
-
-    const ticketCount = await c.nextTicketId();
-    if (myToken !== renderToken) return;
-    const owned = [];
-    for (let i = 0n; i < ticketCount; i++) {
-      const t = await c.tickets(i);
+    // 2 khoi ben duoi (danh sach ve, lich su giao dich) chay doc lap va
+    // deu co try/catch rieng: 1 khoi loi khong duoc keo khoi kia (va ca
+    // trang) dung yen mai o "Dang tai..." ma khong bao loi gi (bug thuc
+    // te phat hien khi test - RPC cong khai/MetaMask loi giua chung ma
+    // truoc day khong bat duoc).
+    try {
+      const pending = await c.pendingWithdrawals(userAddress);
       if (myToken !== renderToken) return;
-      if (t.owner.toLowerCase() === userAddress.toLowerCase()) owned.push(Object.assign({ id: i }, t));
+      balEl.textContent = fmtEth(pending) + " ETH";
+
+      const ticketCount = await c.nextTicketId();
+      if (myToken !== renderToken) return;
+      // Doc song song (khong await tuan tu tung ve mot) - voi contract
+      // dung chung ca lop, so ve co the kha nhieu, doc tuan tu se rat
+      // cham va de bi "ngo nhan" la treo.
+      const ids = Array.from({ length: Number(ticketCount) }, (_, i) => BigInt(i));
+      const allTickets = await Promise.all(ids.map((id) => c.tickets(id)));
+      if (myToken !== renderToken) return;
+      const owned = allTickets
+        .map((t, i) => Object.assign({ id: ids[i] }, t))
+        .filter((t) => t.owner.toLowerCase() === userAddress.toLowerCase());
+
+      await renderOwnedTickets(owned, listEl);
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error("Không tải được vé của tôi:", err);
+      listEl.innerHTML = `<div class="empty-state"><h3>Không tải được danh sách vé</h3><p>Có thể do mạng/RPC chập chờn. Thử lại nhé.</p><button id="btn-retry-tickets" class="btn btn-secondary btn-sm">Thử lại</button></div>`;
+      document.getElementById("btn-retry-tickets")?.addEventListener("click", () => renderMyTickets());
     }
 
+    try {
+      await renderTicketHistory(histEl, myToken);
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error("Không tải được lịch sử giao dịch:", err);
+      histEl.innerHTML = `<div class="empty-state"><h3>Không tải được lịch sử</h3><p>Có thể do mạng/RPC chập chờn. Thử lại nhé.</p><button id="btn-retry-history" class="btn btn-secondary btn-sm">Thử lại</button></div>`;
+      document.getElementById("btn-retry-history")?.addEventListener("click", () => renderMyTickets());
+    }
+  }
+
+  async function renderOwnedTickets(owned, listEl) {
     if (owned.length === 0) {
       listEl.innerHTML = `<div class="empty-state"><h3>Chưa sở hữu vé nào</h3><p>Mua vé ở trang Sự kiện để thấy vé tại đây.</p></div>`;
     } else {
-      const rows = [];
-      for (const t of owned) {
+      const c = await ensureReadContract();
+      const rows = await Promise.all(owned.map(async (t) => {
         const evt = await c.events(t.eventId);
         const tier = await c.tiers(t.tierId);
-        if (myToken !== renderToken) return;
-        rows.push({ t, evt, tier });
-      }
+        return { t, evt, tier };
+      }));
       listEl.innerHTML = rows.map(({ t, evt, tier }) => `
           <div class="event-row" style="align-items:flex-start;">
             <div class="qr-thumb" data-qr="${t.id}" style="width:64px;height:64px;flex-shrink:0;"></div>
@@ -1322,7 +1349,16 @@
         });
       });
     }
+  }
 
+  // RPC cong khai/MetaMask thuong gioi han pham vi block cho 1 lan
+  // eth_getLogs (vd toi da ~10.000-50.000 block) - truoc day quet "tu
+  // block 0" se bi RPC tu choi, loi do khong duoc bat nen ca trang dung
+  // yen vinh vien o "Dang tai...". Contract nay chi moi deploy gan day
+  // nen chi can quet ~7 ngay gan nhat (~50.000 block tren Sepolia) la du.
+  const HISTORY_LOOKBACK_BLOCKS = 50_000;
+
+  async function renderTicketHistory(histEl, myToken) {
     const filters = [
       { name: "Mint vé", filter: contract?.filters?.TicketMinted(null, null, null, userAddress) },
       { name: "Nhận tiền bán vé", filter: contract?.filters?.TicketResold(null, userAddress, null) },
@@ -1335,9 +1371,12 @@
       histEl.innerHTML = `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Kết nối ví để xem lịch sử.</p>`;
       return;
     }
+    const latest = await provider.getBlockNumber();
+    if (myToken !== renderToken) return;
+    const fromBlock = Math.max(0, latest - HISTORY_LOOKBACK_BLOCKS);
     let evts = [];
     for (const { name, filter } of filters) {
-      const logs = await contract.queryFilter(filter, 0, "latest");
+      const logs = await contract.queryFilter(filter, fromBlock, "latest");
       if (myToken !== renderToken) return;
       evts = evts.concat(logs.map((l) => ({ name, log: l })));
     }
