@@ -1278,8 +1278,24 @@
       const ids = Array.from({ length: Number(ticketCount) }, (_, i) => BigInt(i));
       const allTickets = await Promise.all(ids.map((id) => c.tickets(id)));
       if (myToken !== renderToken) return;
+      // Khong dung Object.assign({}, t) de "sao chep" t (ket qua tra ve tu
+      // ethers v6 la mot Result - Proxy, cac truong ten (owner, eventId...)
+      // chi truy cap duoc qua getter cua Proxy, KHONG phai own-enumerable
+      // property) - Object.assign se chi copy duoc cac index so (0,1,2...)
+      // va lam mat het truong ten, khien t.owner undefined ngay sau do (bug
+      // thuc te phat hien khi test: "Cannot read properties of undefined
+      // (reading 'toLowerCase')"). Phai doc tung truong ten ra object thuong.
       const owned = allTickets
-        .map((t, i) => Object.assign({ id: ids[i] }, t))
+        .map((t, i) => ({
+          id: ids[i],
+          eventId: t.eventId,
+          tierId: t.tierId,
+          owner: t.owner,
+          originalPrice: t.originalPrice,
+          resalePrice: t.resalePrice,
+          forSale: t.forSale,
+          checkedIn: t.checkedIn,
+        }))
         .filter((t) => t.owner.toLowerCase() === userAddress.toLowerCase());
 
       await renderOwnedTickets(owned, listEl);
@@ -1359,27 +1375,43 @@
   const HISTORY_LOOKBACK_BLOCKS = 50_000;
 
   async function renderTicketHistory(histEl, myToken) {
-    const filters = [
-      { name: "Mint vé", filter: contract?.filters?.TicketMinted(null, null, null, userAddress) },
-      { name: "Nhận tiền bán vé", filter: contract?.filters?.TicketResold(null, userAddress, null) },
-      { name: "Mua lại vé", filter: contract?.filters?.TicketResold(null, null, userAddress) },
-      { name: "Rao bán vé", filter: contract?.filters?.TicketListedForResale(null, userAddress) },
-      { name: "Rút tiền", filter: contract?.filters?.ProceedsWithdrawn(userAddress) },
-    ].filter((f) => f.filter);
-
     if (!contract) {
       histEl.innerHTML = `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Kết nối ví để xem lịch sử.</p>`;
       return;
     }
+
+    // TicketMinted khai bao "buyer" KHONG indexed (xem event trong
+    // ProjectCore.sol) nen khong loc duoc qua topic nhu may event con lai -
+    // bug thuc te phat hien khi test: ethers nem loi "cannot filter
+    // non-indexed parameters". Phai lay het log Mint trong khoang block roi
+    // tu loc lai bang JS theo args.buyer.
+    const indexedFilters = [
+      { name: "Bán lại vé (nhận tiền)", filter: contract.filters.TicketResold(null, userAddress, null) },
+      { name: "Mua lại vé", filter: contract.filters.TicketResold(null, null, userAddress) },
+      { name: "Rao bán vé", filter: contract.filters.TicketListedForResale(null, userAddress) },
+      { name: "Rút tiền", filter: contract.filters.ProceedsWithdrawn(userAddress) },
+      { name: "Check-in vé", filter: contract.filters.TicketCheckedIn(null, userAddress) },
+    ];
+
     const latest = await provider.getBlockNumber();
     if (myToken !== renderToken) return;
     const fromBlock = Math.max(0, latest - HISTORY_LOOKBACK_BLOCKS);
+
     let evts = [];
-    for (const { name, filter } of filters) {
+    for (const { name, filter } of indexedFilters) {
       const logs = await contract.queryFilter(filter, fromBlock, "latest");
       if (myToken !== renderToken) return;
       evts = evts.concat(logs.map((l) => ({ name, log: l })));
     }
+
+    const mintLogs = await contract.queryFilter(contract.filters.TicketMinted(), fromBlock, "latest");
+    if (myToken !== renderToken) return;
+    evts = evts.concat(
+      mintLogs
+        .filter((l) => l.args.buyer.toLowerCase() === userAddress.toLowerCase())
+        .map((l) => ({ name: "Mint vé", log: l }))
+    );
+
     evts.sort((a, b) => b.log.blockNumber - a.log.blockNumber);
     histEl.innerHTML = evts.length
       ? evts.slice(0, 20).map(({ name, log }) => `
