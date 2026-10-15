@@ -260,6 +260,36 @@
     });
   }
 
+  /// Modal xem chi tiet 1 ve: QR to de quet tai cong + day du thong tin
+  /// (ten su kien, hang ve, gia, trang thai) - truoc day chi co o thu nho
+  /// 64x64 trong danh sach, khong du de dua man hinh cho ban to chuc quet.
+  function showTicketDetailModal(t, evt, tier) {
+    const meta = getMeta(t.eventId);
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.innerHTML = `
+      <div class="modal-card" role="dialog" aria-modal="true" style="text-align:center;">
+        <div class="qr-thumb" id="modal-qr" style="width:220px;height:220px;margin:0 auto var(--sp-3);"></div>
+        <h3>${escapeHtml(evt.name)}</h3>
+        <p class="text-secondary text-sm" style="margin-top:4px;">${escapeHtml(tier.name)} · Vé #${t.id}</p>
+        <div class="info-list" style="text-align:left; margin-top: var(--sp-3);">
+          <div class="info-row"><div class="info-row__label">Thời gian</div><div class="info-row__value">${fmtDateTime(evt.startTime)}</div></div>
+          <div class="info-row"><div class="info-row__label">Địa điểm</div><div class="info-row__value">${escapeHtml(meta.location || "Cập nhật sau")}</div></div>
+          <div class="info-row"><div class="info-row__label">Giá gốc</div><div class="info-row__value">${fmtEth(t.originalPrice)} ETH</div></div>
+          <div class="info-row"><div class="info-row__label">Trạng thái</div><div class="info-row__value">${t.checkedIn ? "Đã check-in" : t.forSale ? "Đang rao bán · " + fmtEth(t.resalePrice) + " ETH" : "Chưa check-in"}</div></div>
+        </div>
+        <div class="wizard-actions" style="margin-top: var(--sp-4); padding-top: 0; border-top: none;">
+          <button type="button" class="btn btn-primary btn-block" data-action="close">Đóng</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    renderQrInto(overlay.querySelector("#modal-qr"), String(t.id));
+    function close() { overlay.remove(); }
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('[data-action="close"]').addEventListener("click", close);
+    overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  }
+
   // ---------- QR (hien thi ve) ----------
 
   /// Ve QR don gian ngay trong canvas, ma hoa 1 chuoi ngan (ticketId).
@@ -1328,12 +1358,13 @@
       }));
       listEl.innerHTML = rows.map(({ t, evt, tier }) => `
           <div class="event-row" style="align-items:flex-start;">
-            <div class="qr-thumb" data-qr="${t.id}" style="width:64px;height:64px;flex-shrink:0;"></div>
+            <div class="qr-thumb" data-qr="${t.id}" data-view="${t.id}" style="width:64px;height:64px;flex-shrink:0;cursor:pointer;" title="Xem vé"></div>
             <div class="event-row__main">
               <div class="event-row__title">${escapeHtml(evt.name)} <span class="text-tertiary">· ${escapeHtml(tier.name)} · Vé #${t.id}</span></div>
               <div class="event-row__meta">Giá gốc ${fmtEth(t.originalPrice)} ETH ${t.forSale ? "· đang rao bán " + fmtEth(t.resalePrice) + " ETH" : ""} ${t.checkedIn ? "· đã check-in" : ""}</div>
             </div>
             <div class="event-row__actions">
+              <button class="btn btn-ghost btn-sm" data-view="${t.id}">Xem vé</button>
               ${t.checkedIn
                 ? '<span class="badge badge-neutral">Đã check-in</span>'
                 : t.forSale
@@ -1343,6 +1374,13 @@
           </div>`).join("");
 
       listEl.querySelectorAll("[data-qr]").forEach((el) => renderQrInto(el, el.dataset.qr));
+
+      listEl.querySelectorAll("[data-view]").forEach((el) => {
+        el.addEventListener("click", () => {
+          const row = rows.find((r) => r.t.id.toString() === el.dataset.view);
+          if (row) showTicketDetailModal(row.t, row.evt, row.tier);
+        });
+      });
 
       listEl.querySelectorAll("[data-resell]").forEach((btn) => {
         btn.addEventListener("click", async () => {
