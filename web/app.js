@@ -182,7 +182,7 @@
   }
 
   function fmtEth(wei) {
-    try { return ethers.formatEther(wei); } catch { return "0"; }
+    try { return ethers.formatEther(wei).replace(/\.0$/, ""); } catch { return "0"; }
   }
 
   // Rut gon de doc: toi da `dp` chu so thap phan; qua nho thi ghi "< 0.000001".
@@ -339,6 +339,9 @@
   function showTicketDetailModal(t, evt, tier) {
     const meta = getMeta(t.eventId);
     const st = ticketState(t, evt);
+    // Check-in dien ra SAU gio bat dau nen van cho tao ma khi su kien da bat dau.
+    const canMakeCode = !t.checkedIn && sameAddr(userAddress, t.owner);
+    let codeTimer = null;
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
     overlay.innerHTML = `
@@ -352,7 +355,11 @@
             <p class="text-sm" style="margin-top:6px;">${evt ? fmtCardDate(evt.startTime) : ""}<br />${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</p>
           </div>
         </div>
-        <p class="hint-sm">Xuất trình mã này tại cửa. Ban tổ chức sẽ đối chiếu chủ vé trên blockchain với ví bạn đang mở — đừng gửi ảnh mã QR cho người khác.</p>
+        ${canMakeCode ? `
+        <div class="checkin-code" id="tm-code-box">
+          <button type="button" class="btn btn-accent btn-block" id="tm-make-code">Tạo mã check-in (ký bằng ví, miễn phí)</button>
+          <p class="hint-sm" id="tm-code-hint">Mã vào cửa có chữ ký của ví chủ vé và tự hết hạn sau 5 phút — ảnh chụp lại hay mã gửi cho người khác đều không dùng được. Mã đang hiển thị phía trên chỉ là số vé để tra cứu.</p>
+        </div>` : `<p class="hint-sm">${t.checkedIn ? "Vé đã được check-in — không thể dùng lại." : "Mở trang này bằng ví đang giữ vé để tạo mã check-in."}</p>`}
         <div class="info-list" style="margin-top: var(--sp-3);">
           <div class="info-row"><div class="info-row__label">Chủ sở hữu</div><div class="info-row__value"><span class="mono">${shortAddr(t.owner)}</span> <span class="text-sm text-secondary" id="tm-owner-check">· đang xác minh…</span></div></div>
           <div class="info-row"><div class="info-row__label">Giá gốc</div><div class="info-row__value tabular-nums">${fmtEth(t.originalPrice)} ETH</div></div>
@@ -372,10 +379,36 @@
     overlay.querySelectorAll("[data-copy]").forEach(bindCopy);
     const closeBtn = overlay.querySelector('[data-action="close"]');
     closeBtn.focus();
-    function close() { overlay.remove(); }
+    function close() { clearInterval(codeTimer); overlay.remove(); }
     overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
     closeBtn.addEventListener("click", close);
     overlay.querySelector('[data-action="goto"]').addEventListener("click", close);
+
+    const makeBtn = overlay.querySelector("#tm-make-code");
+    makeBtn?.addEventListener("click", () => withBusy(makeBtn, async () => {
+      requireWallet();
+      const { code, expiresAt } = await createCheckinCode(t.id);
+      const qrEl = overlay.querySelector("#modal-qr");
+      qrEl.classList.add("is-dynamic");
+      qrEl.classList.remove("is-expired");
+      qrEl.dataset.code = code;
+      renderQrInto(qrEl, code);
+      makeBtn.textContent = "Tạo mã mới";
+      clearInterval(codeTimer);
+      const hint = overlay.querySelector("#tm-code-hint");
+      const tick = () => {
+        const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+        if (left === 0) {
+          clearInterval(codeTimer);
+          qrEl.classList.add("is-expired");
+          hint.innerHTML = "<strong>Mã đã hết hạn.</strong> Bấm “Tạo mã mới” khi tới lượt check-in.";
+          return;
+        }
+        hint.innerHTML = `<strong>Mã check-in hợp lệ còn ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}.</strong> Đưa màn hình này cho nhân viên quét.`;
+      };
+      tick();
+      codeTimer = setInterval(tick, 1000);
+    }, { keepContentOnSuccess: true }));
     overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 
     (async () => {
@@ -706,16 +739,19 @@
   function route() {
     renderToken++;
     closeWalletMenu();
+    stopScanner();
     const { parts, query } = parseHash();
     renderHeader();
     window.scrollTo(0, 0);
     if (parts.length === 0) return routes.home();
     if (parts[0] === "events" && parts[1]) return routes.eventDetail(parts[1]);
     if (parts[0] === "events") return routes.events(query);
-    if (parts[0] === "resale") return routes.resale();
+    if (parts[0] === "resale") return routes.resale(query);
     if (parts[0] === "create") return routes.create();
     if (parts[0] === "my-events") return routes.myEvents("organizer");
     if (parts[0] === "my-tickets") return routes.myEvents("tickets");
+    if (parts[0] === "organizer") return routes.myEvents("organizer");
+    if (parts[0] === "check-in") return routes.checkin(query);
     if (parts[0] === "checkout" && parts[1] && parts[2]) return routes.checkout(parts[1], parts[2], parts[3] || "1");
     return routes.home();
   }
@@ -768,6 +804,7 @@
       ${wrongNetwork ? `<button type="button" class="menu-item" data-action="switch">${icon("wallet")} Chuyển sang Sepolia</button>` : ""}
       <a href="#/my-tickets" role="menuitem">${icon("ticket")} Vé của tôi</a>
       <a href="#/my-events" role="menuitem">${icon("calendar")} Sự kiện của tôi</a>
+      <a href="#/check-in" role="menuitem">${icon("shield")} Check-in tại cửa</a>
       <a href="${ETHERSCAN}/address/${userAddress}" target="_blank" rel="noopener" role="menuitem">${icon("external")} Xem ví trên Etherscan</a>
       <button type="button" class="menu-item menu-item--danger" data-action="disconnect" role="menuitem">${icon("logout")} Ngắt kết nối</button>`;
   }
@@ -1137,6 +1174,10 @@
     const evtMap = new Map(evts.map((e) => [String(e.id), e]));
     const tierMap = new Map(tiers.map((t) => [String(t.id), t]));
     el.innerHTML = shown.map((l) => resaleCardHtml(l, evtMap.get(String(l.eventId)), tierMap.get(String(l.tierId)))).join("");
+    wireResaleBuy(el, shown, evtMap, tierMap);
+  }
+
+  function wireResaleBuy(el, shown, evtMap, tierMap) {
     el.querySelectorAll("[data-buy-resale]").forEach((btn) => {
       btn.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
         const id = BigInt(btn.dataset.buyResale);
@@ -1146,7 +1187,7 @@
     });
   }
 
-  function resaleCardHtml(l, evt, tier) {
+  function resaleCardHtml(l, evt, tier, resoldCount) {
     const meta = getMeta(l.eventId);
     const diffBps = l.originalPrice > 0n ? Number(((l.resalePrice - l.originalPrice) * 10000n) / l.originalPrice) : 0;
     const pct = (diffBps / 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
@@ -1159,6 +1200,7 @@
           <div>
             <div class="resale-card__title">${escapeHtml(evt ? evt.name : "Sự kiện #" + l.eventId)}</div>
             <div class="resale-card__sub">${escapeHtml(tier ? tier.name : "Hạng #" + l.tierId)} · Vé #${l.id}${evt ? " · " + fmtDate(evt.startTime) : ""}</div>
+            ${resoldCount !== undefined ? `<div class="resale-card__sub">${resoldCount === 0 ? "Chưa từng đổi chủ" : `Đã đổi chủ ${resoldCount} lần`}</div>` : ""}
           </div>
           <div class="price-compare">
             <div class="price-compare__row"><span>Giá gốc</span><span class="tabular-nums">${fmtEth(l.originalPrice)} ETH</span></div>
@@ -1232,30 +1274,109 @@
     route();
   }
 
-  routes.resale = async function () {
+  routes.resale = async function (query) {
     const myToken = renderToken;
+    const state = {
+      ev: /^\d+$/.test(query.get("event") || "") ? query.get("event") : "",
+      sort: ["new", "price", "diff"].includes(query.get("sort")) ? query.get("sort") : "new",
+      past: query.get("past") === "1",
+    };
     $root().innerHTML = h`
       <div class="page container">
         <div class="section-head" style="margin-top: var(--sp-5);">
-          <div><h1 class="h2">Vé bán lại</h1><p>Mọi vé dưới đây đang được rao bán lại trên hợp đồng ProjectCore.</p></div>
+          <div><h1 class="h2">Vé bán lại</h1><p>Vé người dùng đang rao bán lại — trạng thái đọc trực tiếp từ hợp đồng ProjectCore.</p></div>
         </div>
         ${resaleRuleBanner()}
+        <div class="events-toolbar">
+          <select id="rs-event" aria-label="Lọc theo sự kiện"><option value="">Tất cả sự kiện</option></select>
+          <select id="rs-sort" aria-label="Sắp xếp">
+            <option value="new">Mới rao bán</option>
+            <option value="price">Giá thấp đến cao</option>
+            <option value="diff">Chênh lệch so với giá gốc thấp nhất</option>
+          </select>
+          <label class="toggle-label"><input type="checkbox" id="rs-past" ${state.past ? "checked" : ""} /> Hiện vé của sự kiện đã diễn ra</label>
+        </div>
+        <div class="result-count" id="rs-count" aria-live="polite"></div>
         <div id="resale-grid" class="grid-4">${skeletonCards(8)}</div>
       </div>
     `;
-    let evts, tiers;
+    document.getElementById("rs-sort").value = state.sort;
+
+    let evts, tiers, listings;
     try {
-      [evts, tiers] = await Promise.all([fetchAllEvents(), fetchAllTiers()]);
+      [evts, tiers, listings] = await Promise.all([fetchAllEvents(), fetchAllTiers(), fetchResaleListings()]);
     } catch (err) {
       if (myToken !== renderToken) return;
       console.error(err);
-      document.getElementById("resale-grid").innerHTML = errorStateHtml("Không tải được dữ liệu", "Mạng/RPC đang chập chờn.");
+      document.getElementById("resale-grid").innerHTML = errorStateHtml("Không tải được vé bán lại", "Mạng/RPC đang chập chờn.");
       wireRetry();
       return;
     }
     if (myToken !== renderToken) return;
-    await loadResaleInto("resale-grid", myToken, evts, tiers);
-    syncMetaThenRefresh(evts.map((e) => e.id), () => { if (myToken === renderToken) loadResaleInto("resale-grid", myToken, evts, tiers); });
+    const evtMap = new Map(evts.map((e) => [String(e.id), e]));
+    const tierMap = new Map(tiers.map((t) => [String(t.id), t]));
+    let resoldCounts = null;
+
+    const evSelect = document.getElementById("rs-event");
+    const evIds = [...new Set(listings.map((l) => String(l.eventId)))];
+    evSelect.innerHTML = `<option value="">Tất cả sự kiện</option>` + evIds.map((id) => `<option value="${id}">${escapeHtml(evtMap.get(id) ? evtMap.get(id).name : "Sự kiện #" + id)}</option>`).join("");
+    evSelect.value = evIds.includes(state.ev) ? state.ev : "";
+
+    function syncUrl() {
+      const p = new URLSearchParams();
+      if (state.ev) p.set("event", state.ev);
+      if (state.sort !== "new") p.set("sort", state.sort);
+      if (state.past) p.set("past", "1");
+      const qs = p.toString();
+      history.replaceState(null, "", "#/resale" + (qs ? "?" + qs : ""));
+    }
+    const diffBps = (l) => (l.resalePrice - l.originalPrice) * 10000n / (l.originalPrice || 1n);
+
+    function apply() {
+      if (myToken !== renderToken) return;
+      const nowTs = Math.floor(Date.now() / 1000);
+      const list = listings.filter((l) => {
+        const evt = evtMap.get(String(l.eventId));
+        if (state.ev && String(l.eventId) !== state.ev) return false;
+        if (!state.past && evt && Number(evt.startTime) <= nowTs) return false;
+        return true;
+      });
+      if (state.sort === "new") list.sort((a, b) => Number(b.id - a.id));
+      if (state.sort === "price") list.sort((a, b) => (a.resalePrice < b.resalePrice ? -1 : a.resalePrice > b.resalePrice ? 1 : 0));
+      if (state.sort === "diff") list.sort((a, b) => { const x = diffBps(a), y = diffBps(b); return x < y ? -1 : x > y ? 1 : 0; });
+      const countEl = document.getElementById("rs-count");
+      if (list.length) {
+        const min = list.reduce((m, l) => (l.resalePrice < m ? l.resalePrice : m), list[0].resalePrice);
+        countEl.textContent = `${list.length} vé đang rao bán · giá thấp nhất ${fmtEth(min)} ETH`;
+      } else countEl.textContent = "";
+      const grid = document.getElementById("resale-grid");
+      if (!list.length) {
+        grid.innerHTML = listings.length
+          ? emptyState("Không có vé phù hợp bộ lọc", state.past ? "Thử chọn sự kiện khác." : "Có thể vé đang rao bán thuộc sự kiện đã diễn ra — bật “Hiện vé của sự kiện đã diễn ra” để xem.")
+          : emptyState("Chưa có vé nào đang được rao bán lại", "Khi chủ vé rao bán, vé sẽ xuất hiện tại đây với giá không vượt 110% giá gốc.", `<a class="btn btn-secondary btn-sm" href="#/my-tickets" style="margin-top:16px;">Rao bán vé của tôi</a>`);
+        return;
+      }
+      grid.innerHTML = list.map((l) => resaleCardHtml(l, evtMap.get(String(l.eventId)), tierMap.get(String(l.tierId)), resoldCounts ? (resoldCounts.get(String(l.id)) || 0) : undefined)).join("");
+      wireResaleBuy(grid, list, evtMap, tierMap);
+    }
+
+    evSelect.addEventListener("change", () => { state.ev = evSelect.value; syncUrl(); apply(); });
+    document.getElementById("rs-sort").addEventListener("change", (e) => { state.sort = e.target.value; syncUrl(); apply(); });
+    document.getElementById("rs-past").addEventListener("change", (e) => { state.past = e.target.checked; syncUrl(); apply(); });
+    apply();
+    syncMetaThenRefresh(evts.map((e) => e.id), apply);
+
+    // So lan doi chu cua tung ve (tu log TicketResold) - tai sau, khong chan hien thi.
+    if (listings.length) {
+      fetchAllContractLogs().then((logs) => {
+        resoldCounts = new Map();
+        logs.filter((x) => x.name === "TicketResold").forEach((x) => {
+          const k = String(x.args.ticketId);
+          resoldCounts.set(k, (resoldCounts.get(k) || 0) + 1);
+        });
+        apply();
+      }).catch((err) => console.warn("Không tải được lịch sử đổi chủ:", err));
+    }
   };
 
   // ---------- Page: Events list (khám phá) ----------
@@ -1638,12 +1759,8 @@
 
         <div class="checkin-box">
           <h3>Check-in tại cửa</h3>
-          <p class="text-sm text-secondary">Nhập số vé (in dưới mã QR khách xuất trình). Hệ thống kiểm tra vé thuộc đúng sự kiện này và chưa dùng, rồi mới gửi giao dịch.</p>
-          <div class="checkin-row">
-            <input id="checkin-ticket-id" type="number" min="0" step="1" inputmode="numeric" placeholder="VD: 7" aria-label="Số vé cần check-in" />
-            <button id="btn-checkin" type="button" class="btn btn-dark">Kiểm tra vé</button>
-          </div>
-          <div id="checkin-result" aria-live="polite"></div>
+          <p class="text-sm text-secondary">Quét mã check-in có chữ ký của khách (hết hạn sau 5 phút) — chặn được ảnh chụp màn hình cũ và mã của người khác.</p>
+          <a class="btn btn-dark" href="#/check-in?event=${eventId}" style="margin-top: var(--sp-3);">Mở màn hình check-in</a>
         </div>
       </section>
     `;
@@ -1764,41 +1881,6 @@
         }
       }
       route();
-    }));
-
-    // Check-in 2 buoc: (1) doc ve tu chain va kiem tra -> (2) organizer xac nhan
-    // moi gui giao dich. Hop dong chi kiem tra "nguoi goi la organizer cua su
-    // kien chua ve" - neu organizer co nhieu su kien, khong co buoc (1) thi co
-    // the check-in nham (va lam hong) ve cua su kien KHAC.
-    const resultEl = document.getElementById("checkin-result");
-    const banner = (kind, html) => `<div class="checkin-result checkin-result--${kind}">${html}</div>`;
-    document.getElementById("btn-checkin")?.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
-      const raw = document.getElementById("checkin-ticket-id").value.trim();
-      if (!/^\d+$/.test(raw)) { resultEl.innerHTML = banner("bad", "Nhập số vé hợp lệ (chỉ gồm chữ số)."); return; }
-      requireWallet();
-      requireContract();
-      requireRightNetwork();
-      const ticketId = BigInt(raw);
-      const c = await ensureReadContract();
-      if (ticketId >= await c.nextTicketId()) { resultEl.innerHTML = banner("bad", `Vé #${ticketId} không tồn tại.`); return; }
-      const t = await c.tickets(ticketId);
-      if (t.eventId !== eventId) { resultEl.innerHTML = banner("bad", `Vé #${ticketId} <strong>không thuộc sự kiện này</strong> (thuộc sự kiện #${t.eventId}). Không check-in.`); return; }
-      if (t.checkedIn) { resultEl.innerHTML = banner("bad", `Vé #${ticketId} <strong>đã được check-in trước đó</strong>. Chủ vé: <span class="mono">${shortAddr(t.owner)}</span>.`); return; }
-      const tier = (await fetchTiersForEvent(eventId)).find((x) => x.id === t.tierId);
-      resultEl.innerHTML = banner("ok", `
-        <div><strong>Vé #${ticketId} hợp lệ</strong> · ${escapeHtml(tier ? tier.name : "Hạng #" + t.tierId)}</div>
-        <div class="text-sm">Chủ vé hiện tại: <span class="mono">${shortAddr(t.owner)}</span>${t.forSale ? " · đang rao bán (check-in sẽ khoá việc bán lại)" : ""}</div>
-        <div class="text-sm" style="margin-top:6px;">Đối chiếu ví này với ví khách đang mở trên điện thoại trước khi xác nhận.</div>
-        <button type="button" class="btn btn-dark btn-sm" id="btn-checkin-confirm" style="margin-top:10px;">Xác nhận check-in</button>`);
-      document.getElementById("btn-checkin-confirm").addEventListener("click", (ev) => withBusy(ev.currentTarget, async () => {
-        const tx = await contract.checkIn(ticketId);
-        toast("Đang chờ blockchain xác nhận…", "info");
-        const receipt = await tx.wait();
-        if (!receipt || receipt.status !== 1) throw userError("Check-in thất bại trên blockchain.");
-        resultEl.innerHTML = banner("ok", `✓ Đã check-in vé #${ticketId} — chủ vé <span class="mono">${shortAddr(t.owner)}</span>. <a class="link" href="${ETHERSCAN}/tx/${receipt.hash}" target="_blank" rel="noopener">Xem giao dịch</a>`);
-        document.getElementById("checkin-ticket-id").value = "";
-        toast("Check-in thành công.", "success");
-      }));
     }));
   }
 
@@ -2070,15 +2152,7 @@
         </div>
 
         <div id="panel-organizer" ${onTickets ? "hidden" : ""}>
-          <div class="filter-row">
-            <button class="chip active" data-f="all">Tất cả</button>
-            <button class="chip" data-f="upcoming">Sắp diễn ra</button>
-            <button class="chip" data-f="selling">Đang bán vé</button>
-            <button class="chip" data-f="ended">Đã kết thúc</button>
-          </div>
-          <div class="card" id="my-events-list" style="padding: var(--sp-2) var(--sp-3);">
-            <p class="text-secondary" style="padding: var(--sp-4) 0;">Đang tải…</p>
-          </div>
+          <div id="org-dashboard"><div class="kpi-grid">${'<div class="stat skel" style="height:92px;"></div>'.repeat(4)}</div></div>
         </div>
       </div>
     `;
@@ -2117,7 +2191,7 @@
     if (!userAddress) {
       const need = (what) => `<div class="empty-state card" style="grid-column:1/-1;"><h3>Kết nối ví để xem ${what}</h3><p>Vé và sự kiện gắn với địa chỉ ví của bạn trên blockchain.</p><button type="button" class="btn btn-primary" data-connect style="margin-top:16px;">Kết nối ví</button></div>`;
       document.getElementById("my-tickets-list").innerHTML = need("vé của bạn");
-      document.getElementById("my-events-list").innerHTML = need("sự kiện bạn tổ chức");
+      document.getElementById("org-dashboard").innerHTML = need("sự kiện bạn tổ chức");
       document.getElementById("history-list").innerHTML = `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Kết nối ví để xem lịch sử.</p>`;
       document.getElementById("balance-card").hidden = true;
       document.getElementById("ticket-filters").hidden = true;
@@ -2126,70 +2200,7 @@
     }
 
     renderMyTickets();
-
-    let all;
-    try {
-      all = await fetchAllEvents();
-    } catch (err) {
-      if (myToken !== renderToken) return;
-      console.error(err);
-      document.getElementById("my-events-list").innerHTML = errorStateHtml("Không tải được sự kiện", "Mạng/RPC đang chập chờn.");
-      wireRetry();
-      return;
-    }
-    if (myToken !== renderToken) return;
-    const mine = all.filter((e) => e.organizer.toLowerCase() === userAddress.toLowerCase());
-    const rows = [];
-    for (const evt of mine) {
-      const tiers = await fetchTiersForEvent(evt.id);
-      if (myToken !== renderToken) return;
-      rows.push({ evt, tiers, status: computeStatus(evt, tiers) });
-    }
-
-    function renderRows(filter) {
-      const list = document.getElementById("my-events-list");
-      if (!list) return;
-      const map = { upcoming: "Sắp diễn ra", selling: "Đang bán vé", ended: "Đã kết thúc" };
-      const filtered = filter === "all" ? rows : rows.filter((r) => r.status.label === map[filter] || (filter === "selling" && r.status.label === "Đã bán hết"));
-      if (filtered.length === 0) {
-        list.innerHTML = `<div class="empty-state"><h3>Chưa có sự kiện nào</h3><p>Tạo sự kiện đầu tiên của bạn.</p></div>`;
-        return;
-      }
-      list.innerHTML = filtered.map(({ evt, tiers, status }) => {
-        const meta = getMeta(evt.id);
-        const totalMinted = tiers.reduce((s, t) => s + t.minted, 0n);
-        const totalSupply = tiers.reduce((s, t) => s + t.maxSupply, 0n);
-        return `
-          <div class="event-row">
-            <img class="event-row__thumb" src="${eventImage(meta, evt.id)}" alt="" />
-            <div class="event-row__main">
-              <div class="event-row__title">${escapeHtml(evt.name)}</div>
-              <div class="event-row__meta">${fmtDate(evt.startTime)} · ${escapeHtml(meta.location || "Chưa có địa điểm")} · ${totalMinted}/${totalSupply} vé đã bán</div>
-            </div>
-            <div class="event-row__actions">
-              <span class="badge ${status.cls}">${status.label}</span>
-              <a href="#/events/${evt.id}#sec-organizer" class="btn btn-secondary btn-sm" data-manage="${evt.id}">Quản lý</a>
-            </div>
-          </div>`;
-      }).join("");
-    }
-
-    if (myToken !== renderToken) return;
-    $root().querySelectorAll("#panel-organizer .chip").forEach((chip) => {
-      chip.addEventListener("click", () => {
-        $root().querySelectorAll("#panel-organizer .chip").forEach((c) => c.classList.remove("active"));
-        chip.classList.add("active");
-        renderRows(chip.dataset.f);
-      });
-    });
-
-    renderRows("all");
-
-    syncMetaThenRefresh(mine.map((e) => e.id), () => {
-      if (myToken !== renderToken) return;
-      const activeChip = $root().querySelector("#panel-organizer .chip.active");
-      renderRows(activeChip ? activeChip.dataset.f : "all");
-    });
+    renderOrganizerDashboard(myToken);
   };
 
   function skeletonTickets(n) {
@@ -2201,7 +2212,7 @@
     const ended = evt && Number(evt.startTime) <= Math.floor(Date.now() / 1000);
     if (t.checkedIn) return { key: "used", label: "Đã check-in", cls: "badge-neutral" };
     if (t.forSale) return { key: "selling", label: "Đang rao bán", cls: "badge-warning" };
-    if (ended) return { key: "past", label: "Đã diễn ra", cls: "badge-neutral" };
+    if (ended) return { key: "past", label: "Sự kiện đã bắt đầu", cls: "badge-neutral" };
     return { key: "upcoming", label: "Hợp lệ", cls: "badge-success" };
   }
 
@@ -2457,6 +2468,390 @@
         <a class="mono text-sm link" target="_blank" rel="noopener" href="${ETHERSCAN}/tx/${log.transactionHash}">${log.transactionHash.slice(0, 10)}… ${icon("external")}</a>
       </div>`;
   }
+
+  // ---------- Organizer dashboard ----------
+
+  async function renderOrganizerDashboard(myToken) {
+    const root = document.getElementById("org-dashboard");
+    if (!root) return;
+    let evts, tiers, pending;
+    try {
+      const c = await ensureReadContract();
+      [evts, tiers, pending] = await Promise.all([fetchAllEvents(), fetchAllTiers(), c.pendingWithdrawals(userAddress)]);
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error(err);
+      root.innerHTML = errorStateHtml("Không tải được dữ liệu", "Mạng/RPC đang chập chờn.");
+      wireRetry();
+      return;
+    }
+    if (myToken !== renderToken) return;
+    const byEvent = tiersByEvent(tiers);
+    const mine = evts.filter((e) => sameAddr(e.organizer, userAddress)).sort((a, b) => Number(b.id - a.id));
+    if (mine.length === 0) {
+      root.innerHTML = emptyState("Bạn chưa tổ chức sự kiện nào", "Ví này chưa tạo sự kiện trên FairTicket.", `<a class="btn btn-primary" href="#/create" style="margin-top:16px;">Tạo sự kiện đầu tiên</a>`);
+      return;
+    }
+    const rows = mine.map((e) => {
+      const ts = byEvent.get(String(e.id)) || [];
+      const s = salesSummary(e, ts);
+      const revenue = ts.reduce((sum, t) => sum + t.minted * t.price, 0n);
+      const status = s.ended ? { key: "ended", label: "Đã diễn ra", cls: "badge-neutral" }
+        : !s.hasTiers ? { key: "draft", label: "Chưa mở bán", cls: "badge-neutral" }
+        : s.soldOut ? { key: "selling", label: "Hết vé", cls: "badge-danger" }
+        : { key: "selling", label: "Đang bán", cls: "badge-success" };
+      return { e, ts, s, revenue, status };
+    });
+    const sum = (f) => rows.reduce((acc, r) => acc + f(r), 0n);
+    const kpi = {
+      events: rows.length,
+      selling: rows.filter((r) => r.status.key === "selling").length,
+      minted: sum((r) => r.s.minted),
+      supply: sum((r) => r.s.supply),
+      revenue: sum((r) => r.revenue),
+    };
+
+    root.innerHTML = `
+      <div class="kpi-grid">
+        <div class="stat"><div class="stat__label">Sự kiện</div><div class="stat__value tabular-nums">${kpi.events}</div><div class="stat__sub">${kpi.selling} đang bán</div></div>
+        <div class="stat"><div class="stat__label">Vé đã bán</div><div class="stat__value tabular-nums">${kpi.minted} / ${kpi.supply}</div><div class="stat__sub">còn ${kpi.supply - kpi.minted} vé</div></div>
+        <div class="stat"><div class="stat__label">Doanh thu bán lần đầu</div><div class="stat__value tabular-nums">${fmtEth(kpi.revenue)} ETH</div><div class="stat__sub">vé đã bán × giá hạng</div></div>
+        <div class="stat"><div class="stat__label">Tiền chờ rút của ví</div><div class="stat__value tabular-nums">${fmtEth(pending)} ETH</div><div class="stat__sub"><a class="link" href="#/my-tickets">Rút tiền</a></div></div>
+      </div>
+
+      <div class="section-head" style="margin: var(--sp-5) 0 var(--sp-3);">
+        <div><h2 class="h3">Sự kiện của bạn</h2></div>
+        <div class="filter-row" style="margin:0;" id="org-filters">
+          <button class="chip active" data-of="all">Tất cả</button>
+          <button class="chip" data-of="selling">Đang bán</button>
+          <button class="chip" data-of="draft">Chưa mở bán</button>
+          <button class="chip" data-of="ended">Đã diễn ra</button>
+        </div>
+      </div>
+      <div class="card org-table-wrap"><table class="org-table" id="org-table">
+        <thead><tr><th>ID</th><th>Sự kiện</th><th>Ngày</th><th>Trạng thái</th><th>Đã bán</th><th>Doanh thu</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+
+      <h2 class="h3" style="margin: var(--sp-5) 0 var(--sp-3);">Hoạt động gần đây</h2>
+      <div class="card" id="org-activity" style="padding: var(--sp-2) var(--sp-3);"><p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Đang tải…</p></div>
+    `;
+
+    function drawTable(filter) {
+      const tbody = root.querySelector("#org-table tbody");
+      const shown = rows.filter((r) => filter === "all" || r.status.key === filter);
+      tbody.innerHTML = shown.length ? shown.map(({ e, s, revenue, status }) => {
+        const pct = s.supply > 0n ? Number((s.minted * 100n) / s.supply) : 0;
+        return `
+          <tr>
+            <td class="mono" data-label="ID">#${e.id}</td>
+            <td data-label="Sự kiện"><a class="link org-table__name" href="#/events/${e.id}">${escapeHtml(e.name)}</a></td>
+            <td data-label="Ngày">${fmtDate(e.startTime)}</td>
+            <td data-label="Trạng thái"><span class="badge ${status.cls}">${status.label}</span></td>
+            <td data-label="Đã bán"><span class="tabular-nums">${s.minted}/${s.supply}</span><span class="supply-bar"><span style="width:${pct}%"></span></span></td>
+            <td data-label="Doanh thu" class="tabular-nums">${fmtEth(revenue)} ETH</td>
+            <td class="org-table__actions">
+              <a class="btn btn-secondary btn-sm" href="#/events/${e.id}">Quản lý</a>
+              ${s.hasTiers ? `<a class="btn btn-dark btn-sm" href="#/check-in?event=${e.id}">Check-in</a>` : ""}
+            </td>
+          </tr>`;
+      }).join("") : `<tr><td colspan="7" class="text-secondary" style="text-align:center;padding:24px;">Không có sự kiện ở mục này.</td></tr>`;
+    }
+    root.querySelectorAll("#org-filters .chip").forEach((chip) => chip.addEventListener("click", () => {
+      root.querySelectorAll("#org-filters .chip").forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      drawTable(chip.dataset.of);
+    }));
+    drawTable("all");
+
+    // Hoat dong: log cua cac su kien cua toi. Log ve (check-in/ban lai) chi
+    // co ticketId -> suy ra su kien qua log TicketMinted(ticketId, ..., eventId).
+    try {
+      const logs = await fetchAllContractLogs();
+      if (myToken !== renderToken) return;
+      const myIds = new Set(mine.map((e) => String(e.id)));
+      const ticketEvent = new Map();
+      logs.filter((l) => l.name === "TicketMinted").forEach((l) => ticketEvent.set(String(l.args.ticketId), String(l.args.eventId)));
+      const evName = (id) => { const e = mine.find((x) => String(x.id) === id); return e ? e.name : "#" + id; };
+      const items = logs.map((l) => {
+        const a = l.args;
+        const evId = a.eventId !== undefined ? String(a.eventId) : a.ticketId !== undefined ? ticketEvent.get(String(a.ticketId)) : null;
+        if (!evId || !myIds.has(evId)) return null;
+        const map = {
+          EventCreated: "Tạo sự kiện",
+          TierCreated: `Thêm hạng vé “${escapeHtml(a.name)}”`,
+          TicketMinted: `Bán vé #${a.ticketId} · ${fmtEth(a.price)} ETH`,
+          TicketListedForResale: `Vé #${a.ticketId} được rao bán lại · ${fmtEth(a.resalePrice)} ETH`,
+          TicketResold: `Vé #${a.ticketId} đổi chủ · ${fmtEth(a.amount)} ETH`,
+          TicketCheckedIn: `Check-in vé #${a.ticketId}`,
+        };
+        if (!map[l.name]) return null;
+        return { text: map[l.name], ev: evName(evId), l };
+      }).filter(Boolean).sort((x, y) => y.l.blockNumber - x.l.blockNumber || y.l.index - x.l.index).slice(0, 15);
+      const act = root.querySelector("#org-activity");
+      act.innerHTML = items.length ? items.map(({ text, ev, l }) => `
+        <div class="event-row">
+          <div class="event-row__main"><div class="event-row__title">${text}</div><div class="event-row__meta">${escapeHtml(ev)} · khối ${l.blockNumber}</div></div>
+          <a class="mono text-sm link" target="_blank" rel="noopener" href="${ETHERSCAN}/tx/${l.transactionHash}">${l.transactionHash.slice(0, 10)}… ${icon("external")}</a>
+        </div>`).join("") : `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Chưa có hoạt động nào.</p>`;
+    } catch (err) {
+      console.warn("Không tải được hoạt động:", err);
+      const act = root.querySelector("#org-activity");
+      if (act) act.innerHTML = `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Không tải được hoạt động (mạng/RPC).</p>`;
+    }
+  }
+
+  // ---------- Check-in (ve ky so, co thoi han) ----------
+
+  // QR dong: "FT1:<ticketId>:<timestampMs>:<signature>". Chu ve ky thong diep
+  // ben duoi bang vi (mien phi). Ben kiem ve khoi phuc dia chi da ky va so voi
+  // CHU VE HIEN TAI tren chain -> anh chup QR cua nguoi khac / QR cu het han
+  // khong dung duoc. Hop dong van la lop chan cuoi (check-in 1 lan, chi organizer).
+  const CHECKIN_TTL_MS = 5 * 60 * 1000;
+  function checkinMessage(ticketId, ts) {
+    return `FairTicket check-in: vé #${ticketId} lúc ${ts}`;
+  }
+
+  async function createCheckinCode(ticketId) {
+    if (!signer) throw userError("Kết nối ví chủ vé để tạo mã check-in.");
+    const ts = Date.now();
+    const sig = await signer.signMessage(checkinMessage(ticketId, ts));
+    return { code: `FT1:${ticketId}:${ts}:${sig}`, expiresAt: ts + CHECKIN_TTL_MS };
+  }
+
+  // Tra ve ket qua kiem tra (khong gui giao dich). raw: ma QR dong hoac so ve.
+  async function verifyCheckinInput(raw, eventId) {
+    const text = String(raw || "").trim();
+    let ticketId, signed = null;
+    const m = /^FT1:(\d+):(\d+):(0x[0-9a-fA-F]{130})$/.exec(text);
+    if (m) {
+      ticketId = BigInt(m[1]);
+      const ts = Number(m[2]);
+      let signerAddr = null;
+      try { signerAddr = ethers.verifyMessage(checkinMessage(ticketId, ts), m[3]); } catch {}
+      signed = { ts, signer: signerAddr, ageMs: Date.now() - ts };
+    } else if (/^\d+$/.test(text)) {
+      ticketId = BigInt(text);
+    } else {
+      return { ok: false, error: "Mã không hợp lệ — cần mã QR check-in của FairTicket hoặc số vé." };
+    }
+    const c = await ensureReadContract();
+    if (ticketId >= await c.nextTicketId()) return { ok: false, ticketId, error: `Vé #${ticketId} không tồn tại.` };
+    const raw2 = await c.tickets(ticketId);
+    const t = { id: ticketId, eventId: raw2.eventId, tierId: raw2.tierId, owner: raw2.owner, checkedIn: raw2.checkedIn, forSale: raw2.forSale };
+    if (t.eventId !== eventId) return { ok: false, ticketId, t, error: `Vé #${ticketId} không thuộc sự kiện này (thuộc sự kiện #${t.eventId}).` };
+    if (t.checkedIn) return { ok: false, ticketId, t, error: `Vé #${ticketId} đã được check-in trước đó.` };
+    if (signed) {
+      if (!signed.signer) return { ok: false, ticketId, t, error: "Chữ ký trong mã QR không hợp lệ." };
+      if (signed.ageMs > CHECKIN_TTL_MS) return { ok: false, ticketId, t, error: "Mã QR đã hết hạn — nhờ khách bấm “Tạo mã check-in” lại." };
+      if (signed.ageMs < -2 * 60 * 1000) return { ok: false, ticketId, t, error: "Thời gian trong mã QR không hợp lệ (đồng hồ thiết bị lệch)." };
+      if (!sameAddr(signed.signer, t.owner)) return { ok: false, ticketId, t, error: "Mã QR không do chủ vé hiện tại ký (vé có thể đã đổi chủ hoặc đây là ảnh chụp lại)." };
+    }
+    const tier = (await fetchAllTiers()).find((x) => x.id === t.tierId);
+    return { ok: true, ticketId, t, tier, signed };
+  }
+
+  let scanStream = null;
+  function stopScanner() {
+    if (scanStream) { scanStream.getTracks().forEach((tr) => tr.stop()); scanStream = null; }
+  }
+
+  let jsQrPromise = null;
+  function loadJsQr() {
+    if (window.jsQR) return Promise.resolve(window.jsQR);
+    if (!jsQrPromise) {
+      jsQrPromise = new Promise((resolve, reject) => {
+        const sc = document.createElement("script");
+        sc.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+        sc.onload = () => resolve(window.jsQR);
+        sc.onerror = () => { jsQrPromise = null; reject(userError("Không tải được bộ đọc mã QR.")); };
+        document.head.appendChild(sc);
+      });
+    }
+    return jsQrPromise;
+  }
+
+  routes.checkin = async function (query) {
+    const myToken = renderToken;
+    $root().innerHTML = `<div class="page container"><div class="skel" style="height:320px;margin-top:var(--sp-5);"></div></div>`;
+    if (!userAddress) {
+      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Kết nối ví Organizer</h3><p>Chỉ ví đã tạo sự kiện mới check-in được vé của sự kiện đó.</p><button type="button" class="btn btn-primary" id="ci-connect" style="margin-top:16px;">Kết nối ví</button></div></div>`;
+      document.getElementById("ci-connect").addEventListener("click", (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true }));
+      return;
+    }
+    let evts;
+    try { evts = await fetchAllEvents(); } catch (err) {
+      if (myToken !== renderToken) return;
+      $root().innerHTML = `<div class="page container">${errorStateHtml("Không tải được sự kiện", "Mạng/RPC đang chập chờn.")}</div>`;
+      wireRetry();
+      return;
+    }
+    if (myToken !== renderToken) return;
+    const mine = evts.filter((e) => sameAddr(e.organizer, userAddress)).sort((a, b) => Number(a.startTime) - Number(b.startTime));
+    if (!mine.length) {
+      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Ví này chưa tổ chức sự kiện nào</h3><p>Màn hình check-in chỉ dành cho Organizer.</p><a class="btn btn-primary" href="#/create" style="margin-top:16px;">Tạo sự kiện</a></div></div>`;
+      return;
+    }
+    const wanted = query.get("event");
+    const nowTs = Math.floor(Date.now() / 1000);
+    const selected = mine.find((e) => String(e.id) === wanted) || mine.find((e) => Number(e.startTime) > nowTs - 86400) || mine[0];
+    let eventId = selected.id;
+    const doneThisSession = [];
+
+    $root().innerHTML = h`
+      <div class="page container checkin-page">
+        <div class="section-head" style="margin-top: var(--sp-5);">
+          <div><h1 class="h2">Check-in tại cửa</h1><p>Quét mã check-in trên điện thoại của khách. Hệ thống kiểm tra trên blockchain trước khi bạn xác nhận.</p></div>
+        </div>
+        <div class="field" style="max-width:480px;">
+          <label for="ci-event">Sự kiện đang check-in</label>
+          <select id="ci-event">${mine.map((e) => `<option value="${e.id}" ${e.id === eventId ? "selected" : ""}>#${e.id} · ${escapeHtml(e.name)} — ${fmtDate(e.startTime)}</option>`).join("")}</select>
+        </div>
+        <div class="checkin-grid">
+          <section class="card checkout-card">
+            <h2 class="h3">Quét mã QR</h2>
+            <div class="scanner" id="ci-scanner">
+              <video id="ci-video" playsinline muted hidden></video>
+              <div class="scanner__placeholder" id="ci-placeholder">${icon("ticket", "icon")}<span>Camera đang tắt</span></div>
+            </div>
+            <div class="organizer-actions">
+              <button type="button" class="btn btn-dark" id="ci-cam">Bật camera</button>
+              <label class="btn btn-secondary" for="ci-file">Tải ảnh mã QR</label>
+              <input type="file" id="ci-file" accept="image/*" hidden />
+            </div>
+            <div class="field" style="margin: var(--sp-4) 0 0;">
+              <label for="ci-manual">Hoặc dán mã / nhập số vé</label>
+              <div class="checkin-row" style="margin-top:0;">
+                <input id="ci-manual" placeholder="FT1:… hoặc số vé" autocomplete="off" />
+                <button type="button" class="btn btn-secondary" id="ci-check">Kiểm tra</button>
+              </div>
+            </div>
+          </section>
+          <section class="card checkout-card">
+            <h2 class="h3">Kết quả</h2>
+            <div id="ci-result" aria-live="polite"><p class="text-secondary text-sm" style="margin-top:8px;">Chưa quét vé nào.</p></div>
+            <h3 class="h3" style="font-size:15px;margin-top:var(--sp-4);">Đã check-in trong phiên này</h3>
+            <ul class="checkin-log" id="ci-log"><li class="text-secondary">—</li></ul>
+          </section>
+        </div>
+      </div>
+    `;
+
+    const resultEl = document.getElementById("ci-result");
+    const video = document.getElementById("ci-video");
+    let scanning = false;
+    let busy = false;
+
+    document.getElementById("ci-event").addEventListener("change", (e) => {
+      eventId = BigInt(e.target.value);
+      history.replaceState(null, "", "#/check-in?event=" + eventId);
+      resultEl.innerHTML = `<p class="text-secondary text-sm" style="margin-top:8px;">Chưa quét vé nào.</p>`;
+    });
+
+    function show(kind, html) { resultEl.innerHTML = `<div class="checkin-result checkin-result--${kind}">${html}</div>`; }
+
+    async function handleInput(raw) {
+      if (busy) return;
+      busy = true;
+      show("info", "Đang kiểm tra trên blockchain…");
+      try {
+        requireRightNetwork();
+        const r = await verifyCheckinInput(raw, eventId);
+        if (myToken !== renderToken) return;
+        if (!r.ok) { show("bad", `<strong>Không hợp lệ.</strong> ${escapeHtml(r.error)}`); return; }
+        const sigLine = r.signed
+          ? `<div class="text-sm">✓ Chữ ký của chủ vé hợp lệ · mã tạo ${Math.max(0, Math.round(r.signed.ageMs / 1000))} giây trước</div>`
+          : `<div class="text-sm"><strong>Không có chữ ký</strong> — chỉ nhập số vé. Hãy đối chiếu ví <span class="mono">${shortAddr(r.t.owner)}</span> trên điện thoại khách trước khi xác nhận.</div>`;
+        show(r.signed ? "ok" : "warn", `
+          <div style="font-size:16px;"><strong>Vé #${r.ticketId}</strong> · ${escapeHtml(r.tier ? r.tier.name : "Hạng #" + r.t.tierId)}</div>
+          <div class="text-sm">Chủ vé: <span class="mono">${shortAddr(r.t.owner)}</span>${r.t.forSale ? " · đang rao bán (check-in sẽ khoá việc bán lại)" : ""}</div>
+          ${sigLine}
+          <button type="button" class="btn btn-dark" id="ci-confirm" style="margin-top:12px;">Xác nhận check-in</button>`);
+        document.getElementById("ci-confirm").addEventListener("click", (ev) => withBusy(ev.currentTarget, async () => {
+          requireContract();
+          requireRightNetwork();
+          toast("Xác nhận giao dịch trong ví…", "info");
+          const tx = await contract.checkIn(r.ticketId);
+          toast("Đã gửi — đang chờ blockchain xác nhận…", "info");
+          const receipt = await tx.wait();
+          if (!receipt || receipt.status !== 1) throw userError("Check-in thất bại trên blockchain.");
+          show("ok", `<div style="font-size:16px;"><strong>✓ Đã check-in vé #${r.ticketId}</strong></div><div class="text-sm">Chủ vé <span class="mono">${shortAddr(r.t.owner)}</span> · <a class="link" href="${ETHERSCAN}/tx/${receipt.hash}" target="_blank" rel="noopener">xem giao dịch</a></div>`);
+          doneThisSession.unshift({ id: r.ticketId, owner: r.t.owner, at: new Date() });
+          document.getElementById("ci-log").innerHTML = doneThisSession.map((d) => `<li><span class="mono">Vé #${d.id}</span> · ${shortAddr(d.owner)} · ${d.at.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</li>`).join("");
+          document.getElementById("ci-manual").value = "";
+          toast("Check-in thành công.", "success");
+        }));
+      } catch (err) {
+        console.error(err);
+        show("bad", escapeHtml(friendlyError(err)));
+      } finally {
+        busy = false;
+      }
+    }
+
+    document.getElementById("ci-check").addEventListener("click", () => handleInput(document.getElementById("ci-manual").value));
+    document.getElementById("ci-manual").addEventListener("keydown", (e) => { if (e.key === "Enter") handleInput(e.target.value); });
+
+    document.getElementById("ci-file").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      e.target.value = "";
+      if (!file) return;
+      try {
+        const jsQR = await loadJsQr();
+        const bmp = await createImageBitmap(file);
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, 1200 / Math.max(bmp.width, bmp.height));
+        canvas.width = Math.round(bmp.width * scale);
+        canvas.height = Math.round(bmp.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        const found = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+        if (!found) { show("bad", "Không tìm thấy mã QR trong ảnh."); return; }
+        document.getElementById("ci-manual").value = found.data;
+        handleInput(found.data);
+      } catch (err) {
+        show("bad", escapeHtml(friendlyError(err)));
+      }
+    });
+
+    const camBtn = document.getElementById("ci-cam");
+    camBtn.addEventListener("click", async () => {
+      if (scanning) { scanning = false; stopScanner(); video.hidden = true; document.getElementById("ci-placeholder").hidden = false; camBtn.textContent = "Bật camera"; return; }
+      try {
+        const jsQR = await loadJsQr();
+        if (!navigator.mediaDevices?.getUserMedia) throw userError("Trình duyệt không hỗ trợ camera — dùng “Tải ảnh mã QR” hoặc nhập số vé.");
+        scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = scanStream;
+        await video.play();
+        video.hidden = false;
+        document.getElementById("ci-placeholder").hidden = true;
+        camBtn.textContent = "Tắt camera";
+        scanning = true;
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        let last = "";
+        const tick = () => {
+          if (!scanning || myToken !== renderToken || !document.body.contains(video)) { stopScanner(); return; }
+          if (video.readyState >= 2 && !busy) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            const found = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+            if (found && found.data !== last) {
+              last = found.data;
+              document.getElementById("ci-manual").value = found.data;
+              handleInput(found.data);
+            }
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      } catch (err) {
+        const msg = err?.name === "NotAllowedError" ? "Bạn chưa cho phép dùng camera." : friendlyError(err);
+        show("bad", escapeHtml(msg));
+      }
+    });
+  };
 
   // ---------- Page: Checkout ----------
 
