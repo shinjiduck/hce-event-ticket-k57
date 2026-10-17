@@ -1,8 +1,15 @@
 # Build/compile output (regenerated from contracts/, not source)
 artifacts/
 .deps/
+*.abi
+*.bin
 
 # Secrets - KHONG bao gio commit (token Vercel Blob, API key...)
 .env
 .env.*
 !.env.example
+
+# Backups
+*.local_backup
+*.bak
+
