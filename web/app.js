@@ -185,6 +185,14 @@
     try { return ethers.formatEther(wei); } catch { return "0"; }
   }
 
+  // Rut gon de doc: toi da `dp` chu so thap phan; qua nho thi ghi "< 0.000001".
+  function fmtEthShort(wei, dp) {
+    const d = dp || 6;
+    const n = Number(ethers.formatEther(wei));
+    if (n > 0 && n < Math.pow(10, -d)) return "< " + Math.pow(10, -d).toFixed(d);
+    return String(Number(n.toFixed(d)));
+  }
+
   function fmtDate(ts) {
     const d = new Date(Number(ts) * 1000);
     return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -202,7 +210,8 @@
 
   function friendlyError(err) {
     if (err?.userFacing) return err.message;
-    if (err?.code === "ACTION_REJECTED" || err?.code === 4001) return "Bạn đã từ chối giao dịch trong ví.";
+    if (err?.code === "ACTION_REJECTED" || err?.code === 4001 || err?.info?.error?.code === 4001) return "Bạn đã từ chối giao dịch trong ví.";
+    if (err?.revert?.name && ERROR_MESSAGES[err.revert.name]) return ERROR_MESSAGES[err.revert.name];
     const raw = err?.shortMessage || err?.reason || err?.message || String(err);
     for (const name of Object.keys(ERROR_MESSAGES)) {
       if (raw.includes(name)) return ERROR_MESSAGES[name];
@@ -325,34 +334,72 @@
     });
   }
 
-  /// Modal xem chi tiet 1 ve: QR to de quet tai cong + day du thong tin
-  /// (ten su kien, hang ve, gia, trang thai) - truoc day chi co o thu nho
-  /// 64x64 trong danh sach, khong du de dua man hinh cho ban to chuc quet.
+  /// Modal ve dien tu: QR to de xuat trinh tai cong + thong tin xac minh
+  /// (CA, so ve, chu so huu doc lai tu chain) + lich su rieng cua ve nay.
   function showTicketDetailModal(t, evt, tier) {
     const meta = getMeta(t.eventId);
+    const st = ticketState(t, evt);
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
     overlay.innerHTML = `
-      <div class="modal-card" role="dialog" aria-modal="true" style="text-align:center;">
-        <div class="qr-thumb" id="modal-qr" style="width:220px;height:220px;margin:0 auto var(--sp-3);"></div>
-        <h3>${escapeHtml(evt.name)}</h3>
-        <p class="text-secondary text-sm" style="margin-top:4px;">${escapeHtml(tier.name)} · Vé #${t.id}</p>
-        <div class="info-list" style="text-align:left; margin-top: var(--sp-3);">
-          <div class="info-row"><div class="info-row__label">Thời gian</div><div class="info-row__value">${fmtDateTime(evt.startTime)}</div></div>
-          <div class="info-row"><div class="info-row__label">Địa điểm</div><div class="info-row__value">${escapeHtml(meta.location || "Cập nhật sau")}</div></div>
-          <div class="info-row"><div class="info-row__label">Giá gốc</div><div class="info-row__value">${fmtEth(t.originalPrice)} ETH</div></div>
-          <div class="info-row"><div class="info-row__label">Trạng thái</div><div class="info-row__value">${t.checkedIn ? "Đã check-in" : t.forSale ? "Đang rao bán · " + fmtEth(t.resalePrice) + " ETH" : "Chưa check-in"}</div></div>
+      <div class="modal-card modal-card--wide ticket-modal" role="dialog" aria-modal="true" aria-labelledby="tm-title">
+        <div class="ticket-modal__head">
+          <div class="qr-thumb" id="modal-qr"></div>
+          <div class="ticket-modal__info">
+            <span class="badge ${st.cls}">${st.label}</span>
+            <h3 id="tm-title">${escapeHtml(evt ? evt.name : "Sự kiện #" + t.eventId)}</h3>
+            <p class="text-sm text-secondary">${escapeHtml(tier ? tier.name : "Hạng #" + t.tierId)} · <span class="mono">Vé #${t.id}</span></p>
+            <p class="text-sm" style="margin-top:6px;">${evt ? fmtCardDate(evt.startTime) : ""}<br />${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</p>
+          </div>
         </div>
+        <p class="hint-sm">Xuất trình mã này tại cửa. Ban tổ chức sẽ đối chiếu chủ vé trên blockchain với ví bạn đang mở — đừng gửi ảnh mã QR cho người khác.</p>
+        <div class="info-list" style="margin-top: var(--sp-3);">
+          <div class="info-row"><div class="info-row__label">Chủ sở hữu</div><div class="info-row__value"><span class="mono">${shortAddr(t.owner)}</span> <span class="text-sm text-secondary" id="tm-owner-check">· đang xác minh…</span></div></div>
+          <div class="info-row"><div class="info-row__label">Giá gốc</div><div class="info-row__value tabular-nums">${fmtEth(t.originalPrice)} ETH</div></div>
+          ${t.forSale ? `<div class="info-row"><div class="info-row__label">Đang rao bán</div><div class="info-row__value tabular-nums">${fmtEth(t.resalePrice)} ETH</div></div>` : ""}
+          <div class="info-row"><div class="info-row__label">Hợp đồng (CA)</div><div class="info-row__value"><a class="mono link" href="${ETHERSCAN}/address/${CONTRACT_ADDRESS}" target="_blank" rel="noopener">${shortAddr(CONTRACT_ADDRESS)}</a> <button type="button" class="copy-btn" data-copy="${CONTRACT_ADDRESS}">Sao chép</button></div></div>
+          <div class="info-row"><div class="info-row__label">Mã định danh</div><div class="info-row__value mono">Event #${t.eventId} · Tier #${t.tierId} · Ticket #${t.id}</div></div>
+        </div>
+        <h4 class="ticket-modal__subhead">Lịch sử của vé</h4>
+        <div id="tm-history" class="text-sm text-secondary">Đang tải…</div>
         <div class="wizard-actions" style="margin-top: var(--sp-4); padding-top: 0; border-top: none;">
-          <button type="button" class="btn btn-primary btn-block" data-action="close">Đóng</button>
+          <a class="btn btn-ghost" href="#/events/${t.eventId}" data-action="goto">Trang sự kiện</a>
+          <button type="button" class="btn btn-primary" data-action="close">Đóng</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
     renderQrInto(overlay.querySelector("#modal-qr"), String(t.id));
+    overlay.querySelectorAll("[data-copy]").forEach(bindCopy);
+    const closeBtn = overlay.querySelector('[data-action="close"]');
+    closeBtn.focus();
     function close() { overlay.remove(); }
     overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-    overlay.querySelector('[data-action="close"]').addEventListener("click", close);
+    closeBtn.addEventListener("click", close);
+    overlay.querySelector('[data-action="goto"]').addEventListener("click", close);
     overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+
+    (async () => {
+      try {
+        const c = await ensureReadContract();
+        const fresh = await c.tickets(t.id);
+        const el = overlay.querySelector("#tm-owner-check");
+        if (el) el.textContent = fresh.owner.toLowerCase() === t.owner.toLowerCase() ? "· đã xác minh trên chain lúc " + new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "· chủ vé đã thay đổi, tải lại trang";
+        const names = { TicketMinted: "Phát hành (mua lần đầu)", TicketListedForResale: "Rao bán lại", TicketResold: "Đổi chủ (mua lại)", TicketCheckedIn: "Check-in tại cửa" };
+        const rows = (await fetchAllContractLogs())
+          .filter((x) => names[x.name] && x.args.ticketId === t.id)
+          .map((x) => ({ x, name: names[x.name] }))
+          .sort((a, b) => a.x.blockNumber - b.x.blockNumber || a.x.index - b.x.index);
+        const box = overlay.querySelector("#tm-history");
+        if (!box) return;
+        box.innerHTML = rows.length
+          ? `<ol class="ticket-timeline">${rows.map(({ x, name }) => `<li><span>${name}</span><a class="mono link" href="${ETHERSCAN}/tx/${x.transactionHash}" target="_blank" rel="noopener">${x.transactionHash.slice(0, 10)}…</a></li>`).join("")}</ol>`
+          : "Chưa có giao dịch nào của vé này.";
+      } catch (err) {
+        console.warn("Không tải được lịch sử vé:", err);
+        const box = overlay.querySelector("#tm-history");
+        if (box) box.textContent = "Không tải được lịch sử (mạng/RPC). Thử mở lại sau.";
+      }
+    })();
   }
 
   // ---------- QR (hien thi ve) ----------
@@ -1991,13 +2038,35 @@
     $root().innerHTML = h`
       <div class="page container">
         <div class="section-head" style="margin-top: var(--sp-5);">
-          <div><h1 class="h2">${onTickets ? "Vé của tôi" : "Sự kiện của tôi"}</h1><p>Sự kiện bạn tổ chức và vé bạn sở hữu, tất cả đọc trực tiếp từ blockchain.</p></div>
+          <div><h1 class="h2">${onTickets ? "Vé của tôi" : "Sự kiện của tôi"}</h1><p>Vé bạn sở hữu và sự kiện bạn tổ chức — đọc trực tiếp từ blockchain.</p></div>
           <a href="#/create" class="btn btn-primary">+ Tạo sự kiện mới</a>
         </div>
 
         <div class="tabs">
-          <button class="tab${onTickets ? "" : " active"}" data-subtab="organizer">Sự kiện của tôi</button>
           <button class="tab${onTickets ? " active" : ""}" data-subtab="tickets">Vé của tôi</button>
+          <button class="tab${onTickets ? "" : " active"}" data-subtab="organizer">Sự kiện của tôi</button>
+        </div>
+
+        <div id="panel-tickets" ${onTickets ? "" : "hidden"}>
+          <div class="balance-card" id="balance-card">
+            <div>
+              <div class="text-sm text-secondary">Tiền chờ rút (từ bán vé và bán lại vé)</div>
+              <div id="pending-balance" class="balance-card__value tabular-nums">— ETH</div>
+            </div>
+            <button id="btn-withdraw" class="btn btn-dark" disabled>Rút tiền về ví</button>
+          </div>
+          <div class="filter-row" id="ticket-filters" role="tablist" aria-label="Lọc vé">
+            <button class="chip active" data-tf="upcoming" role="tab">Sắp diễn ra</button>
+            <button class="chip" data-tf="used" role="tab">Đã sử dụng</button>
+            <button class="chip" data-tf="selling" role="tab">Đang bán lại</button>
+            <button class="chip" data-tf="all" role="tab">Tất cả</button>
+          </div>
+          <div id="my-tickets-list" class="ticket-grid">${skeletonTickets(3)}</div>
+          <h2 class="h3" style="margin: var(--sp-6) 0 var(--sp-2);">Lịch sử giao dịch</h2>
+          <p class="text-sm text-secondary" style="margin-bottom: var(--sp-3);">Mọi giao dịch của ví này với hợp đồng FairTicket, đọc từ blockchain.</p>
+          <div class="card" id="history-list" style="padding: var(--sp-2) var(--sp-3);">
+            <p class="text-secondary" style="padding: var(--sp-4) 0;">Đang tải…</p>
+          </div>
         </div>
 
         <div id="panel-organizer" ${onTickets ? "hidden" : ""}>
@@ -2011,29 +2080,12 @@
             <p class="text-secondary" style="padding: var(--sp-4) 0;">Đang tải…</p>
           </div>
         </div>
-
-        <div id="panel-tickets" ${onTickets ? "" : "hidden"}>
-          <div class="card" style="padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-4); display:flex; align-items:center; justify-content:space-between; gap: var(--sp-3); flex-wrap: wrap;">
-            <div>
-              <div class="text-sm text-secondary">Tiền chờ rút (tiền bán vé, kể cả bán lại)</div>
-              <div id="pending-balance" class="h3 tabular-nums" style="margin-top:4px;">— ETH</div>
-            </div>
-            <button id="btn-withdraw" class="btn btn-dark">Rút tiền về ví</button>
-          </div>
-          <div class="card" id="my-tickets-list" style="padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-4);">
-            <p class="text-secondary" style="padding: var(--sp-4) 0;">Đang tải…</p>
-          </div>
-          <h3 style="margin-bottom: var(--sp-2);">Lịch sử giao dịch</h3>
-          <div class="card" id="history-list" style="padding: var(--sp-2) var(--sp-3);">
-            <p class="text-secondary" style="padding: var(--sp-4) 0;">Đang tải…</p>
-          </div>
-        </div>
       </div>
     `;
 
-    $root().querySelectorAll('[data-subtab]').forEach((btn) => {
+    $root().querySelectorAll("[data-subtab]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        $root().querySelectorAll('[data-subtab]').forEach((b) => b.classList.remove("active"));
+        $root().querySelectorAll("[data-subtab]").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         const tickets = btn.dataset.subtab === "tickets";
         document.getElementById("panel-organizer").hidden = tickets;
@@ -2047,28 +2099,44 @@
     // Dang ky click nut Rut tien DUY NHAT 1 LAN o day (luc HTML vua duoc tao).
     // Truoc day dang ky ben trong renderMyTickets() - ham nay tu goi lai chinh
     // no sau moi lan rut/rao ban thanh cong de refresh UI, nen moi lan goi lai
-    // la gan THEM 1 listener nua vao cung nut (nut khong bi thay moi) - bam
-    // 1 cai thi goi withdrawProceeds() 2-3 lan chong nhau, lan sau bi revert
-    // NothingToWithdraw() vi lan dau da rut het roi -> hien loi gay nham lan.
+    // la gan THEM 1 listener nua vao cung nut - bam 1 cai thi goi
+    // withdrawProceeds() 2-3 lan chong nhau.
     document.getElementById("btn-withdraw").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
       requireWallet();
       requireContract();
+      requireRightNetwork();
+      toast("Vui lòng xác nhận giao dịch trong ví…", "info");
       const tx = await contract.withdrawProceeds();
-      toast("Đang xác nhận giao dịch…", "info");
-      await tx.wait();
+      toast("Đã gửi — đang chờ blockchain xác nhận…", "info");
+      const receipt = await tx.wait();
+      if (!receipt || receipt.status !== 1) throw userError("Rút tiền thất bại trên blockchain.");
       toast("Đã rút tiền về ví.", "success");
       await renderMyTickets();
     }));
 
     if (!userAddress) {
-      document.getElementById("my-events-list").innerHTML = `<div class="empty-state"><h3>Chưa kết nối ví</h3><p>Kết nối ví để xem sự kiện bạn đã tạo.</p></div>`;
-      document.getElementById("my-tickets-list").innerHTML = `<div class="empty-state"><h3>Chưa kết nối ví</h3><p>Kết nối ví để xem vé bạn sở hữu.</p></div>`;
+      const need = (what) => `<div class="empty-state card" style="grid-column:1/-1;"><h3>Kết nối ví để xem ${what}</h3><p>Vé và sự kiện gắn với địa chỉ ví của bạn trên blockchain.</p><button type="button" class="btn btn-primary" data-connect style="margin-top:16px;">Kết nối ví</button></div>`;
+      document.getElementById("my-tickets-list").innerHTML = need("vé của bạn");
+      document.getElementById("my-events-list").innerHTML = need("sự kiện bạn tổ chức");
+      document.getElementById("history-list").innerHTML = `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Kết nối ví để xem lịch sử.</p>`;
+      document.getElementById("balance-card").hidden = true;
+      document.getElementById("ticket-filters").hidden = true;
+      $root().querySelectorAll("[data-connect]").forEach((b) => b.addEventListener("click", (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true })));
       return;
     }
 
     renderMyTickets();
 
-    const all = await fetchAllEvents();
+    let all;
+    try {
+      all = await fetchAllEvents();
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error(err);
+      document.getElementById("my-events-list").innerHTML = errorStateHtml("Không tải được sự kiện", "Mạng/RPC đang chập chờn.");
+      wireRetry();
+      return;
+    }
     if (myToken !== renderToken) return;
     const mine = all.filter((e) => e.organizer.toLowerCase() === userAddress.toLowerCase());
     const rows = [];
@@ -2096,20 +2164,20 @@
             <img class="event-row__thumb" src="${eventImage(meta, evt.id)}" alt="" />
             <div class="event-row__main">
               <div class="event-row__title">${escapeHtml(evt.name)}</div>
-              <div class="event-row__meta">${fmtDate(evt.startTime)} · ${escapeHtml(meta.location || "Chưa có địa điểm")} · ${totalMinted}/${totalSupply} vé đã mint</div>
+              <div class="event-row__meta">${fmtDate(evt.startTime)} · ${escapeHtml(meta.location || "Chưa có địa điểm")} · ${totalMinted}/${totalSupply} vé đã bán</div>
             </div>
             <div class="event-row__actions">
               <span class="badge ${status.cls}">${status.label}</span>
-              <a href="#/events/${evt.id}" class="btn btn-secondary btn-sm">Quản lý</a>
+              <a href="#/events/${evt.id}#sec-organizer" class="btn btn-secondary btn-sm" data-manage="${evt.id}">Quản lý</a>
             </div>
           </div>`;
       }).join("");
     }
 
     if (myToken !== renderToken) return;
-    document.querySelectorAll(".chip").forEach((chip) => {
+    $root().querySelectorAll("#panel-organizer .chip").forEach((chip) => {
       chip.addEventListener("click", () => {
-        document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        $root().querySelectorAll("#panel-organizer .chip").forEach((c) => c.classList.remove("active"));
         chip.classList.add("active");
         renderRows(chip.dataset.f);
       });
@@ -2119,10 +2187,23 @@
 
     syncMetaThenRefresh(mine.map((e) => e.id), () => {
       if (myToken !== renderToken) return;
-      const activeChip = document.querySelector(".chip.active");
+      const activeChip = $root().querySelector("#panel-organizer .chip.active");
       renderRows(activeChip ? activeChip.dataset.f : "all");
     });
   };
+
+  function skeletonTickets(n) {
+    return Array.from({ length: n }).map(() => `<div class="ticket-card" aria-hidden="true"><div class="skel" style="aspect-ratio:16/7;border-radius:0;"></div><div style="padding:16px;"><div class="skel" style="height:16px;width:70%;margin-bottom:8px;"></div><div class="skel" style="height:12px;width:50%;"></div></div></div>`).join("");
+  }
+
+  // Phan loai ve theo trang thai THAT tren chain (khong phai cache).
+  function ticketState(t, evt) {
+    const ended = evt && Number(evt.startTime) <= Math.floor(Date.now() / 1000);
+    if (t.checkedIn) return { key: "used", label: "Đã check-in", cls: "badge-neutral" };
+    if (t.forSale) return { key: "selling", label: "Đang rao bán", cls: "badge-warning" };
+    if (ended) return { key: "past", label: "Đã diễn ra", cls: "badge-neutral" };
+    return { key: "upcoming", label: "Hợp lệ", cls: "badge-success" };
+  }
 
   async function renderMyTickets() {
     const myToken = renderToken;
@@ -2134,48 +2215,41 @@
     if (!c || !userAddress || !balEl || !listEl || !histEl) return;
 
     // 2 khoi ben duoi (danh sach ve, lich su giao dich) chay doc lap va
-    // deu co try/catch rieng: 1 khoi loi khong duoc keo khoi kia (va ca
-    // trang) dung yen mai o "Dang tai..." ma khong bao loi gi (bug thuc
-    // te phat hien khi test - RPC cong khai/MetaMask loi giua chung ma
-    // truoc day khong bat duoc).
+    // deu co try/catch rieng: 1 khoi loi khong keo khoi kia (va ca trang)
+    // dung yen mai o "Dang tai..." ma khong bao loi gi.
     try {
-      const pending = await c.pendingWithdrawals(userAddress);
+      const [pending, ticketCount, evts, tiers] = await Promise.all([
+        c.pendingWithdrawals(userAddress), c.nextTicketId(), fetchAllEvents(), fetchAllTiers(),
+      ]);
       if (myToken !== renderToken) return;
       balEl.textContent = fmtEth(pending) + " ETH";
+      const wBtn = document.getElementById("btn-withdraw");
+      wBtn.disabled = pending === 0n;
+      wBtn.title = pending === 0n ? "Chưa có khoản nào để rút" : "";
+      document.getElementById("balance-card").classList.toggle("has-funds", pending > 0n);
 
-      const ticketCount = await c.nextTicketId();
-      if (myToken !== renderToken) return;
-      // Doc song song (khong await tuan tu tung ve mot) - voi contract
-      // dung chung ca lop, so ve co the kha nhieu, doc tuan tu se rat
-      // cham va de bi "ngo nhan" la treo.
-      const ids = Array.from({ length: Number(ticketCount) }, (_, i) => BigInt(i));
+      const ids = range(ticketCount);
       const allTickets = await Promise.all(ids.map((id) => c.tickets(id)));
       if (myToken !== renderToken) return;
-      // Khong dung Object.assign({}, t) de "sao chep" t (ket qua tra ve tu
-      // ethers v6 la mot Result - Proxy, cac truong ten (owner, eventId...)
-      // chi truy cap duoc qua getter cua Proxy, KHONG phai own-enumerable
-      // property) - Object.assign se chi copy duoc cac index so (0,1,2...)
-      // va lam mat het truong ten, khien t.owner undefined ngay sau do (bug
-      // thuc te phat hien khi test: "Cannot read properties of undefined
-      // (reading 'toLowerCase')"). Phai doc tung truong ten ra object thuong.
+      // Khong dung Object.assign({}, t): Result cua ethers v6 la Proxy, cac
+      // truong ten (owner, eventId...) khong phai own-enumerable property -
+      // Object.assign lam mat het, t.owner thanh undefined. Doc tung truong.
       const owned = allTickets
         .map((t, i) => ({
-          id: ids[i],
-          eventId: t.eventId,
-          tierId: t.tierId,
-          owner: t.owner,
-          originalPrice: t.originalPrice,
-          resalePrice: t.resalePrice,
-          forSale: t.forSale,
-          checkedIn: t.checkedIn,
+          id: ids[i], eventId: t.eventId, tierId: t.tierId, owner: t.owner,
+          originalPrice: t.originalPrice, resalePrice: t.resalePrice, forSale: t.forSale, checkedIn: t.checkedIn,
         }))
         .filter((t) => t.owner.toLowerCase() === userAddress.toLowerCase());
 
-      await renderOwnedTickets(owned, listEl);
+      const evtMap = new Map(evts.map((e) => [String(e.id), e]));
+      const tierMap = new Map(tiers.map((t) => [String(t.id), t]));
+      const rows = owned.map((t) => ({ t, evt: evtMap.get(String(t.eventId)), tier: tierMap.get(String(t.tierId)) }));
+      renderOwnedTickets(rows, listEl);
+      syncMetaThenRefresh(rows.map((r) => r.t.eventId), () => { if (myToken === renderToken) renderOwnedTickets(rows, listEl); });
     } catch (err) {
       if (myToken !== renderToken) return;
       console.error("Không tải được vé của tôi:", err);
-      listEl.innerHTML = `<div class="empty-state"><h3>Không tải được danh sách vé</h3><p>Có thể do mạng/RPC chập chờn. Thử lại nhé.</p><button id="btn-retry-tickets" class="btn btn-secondary btn-sm">Thử lại</button></div>`;
+      listEl.innerHTML = `<div class="empty-state card" style="grid-column:1/-1;"><h3>Không tải được danh sách vé</h3><p>Có thể do mạng/RPC chập chờn.</p><button id="btn-retry-tickets" class="btn btn-secondary btn-sm" style="margin-top:16px;">Thử lại</button></div>`;
       document.getElementById("btn-retry-tickets")?.addEventListener("click", () => renderMyTickets());
     }
 
@@ -2184,146 +2258,247 @@
     } catch (err) {
       if (myToken !== renderToken) return;
       console.error("Không tải được lịch sử giao dịch:", err);
-      histEl.innerHTML = `<div class="empty-state"><h3>Không tải được lịch sử</h3><p>Có thể do mạng/RPC chập chờn. Thử lại nhé.</p><button id="btn-retry-history" class="btn btn-secondary btn-sm">Thử lại</button></div>`;
+      histEl.innerHTML = `<div class="empty-state"><h3>Không tải được lịch sử</h3><p>Có thể do mạng/RPC chập chờn.</p><button id="btn-retry-history" class="btn btn-secondary btn-sm" style="margin-top:16px;">Thử lại</button></div>`;
       document.getElementById("btn-retry-history")?.addEventListener("click", () => renderMyTickets());
     }
   }
 
-  async function renderOwnedTickets(owned, listEl) {
-    if (owned.length === 0) {
-      listEl.innerHTML = `<div class="empty-state"><h3>Chưa sở hữu vé nào</h3><p>Mua vé ở trang Sự kiện để thấy vé tại đây.</p></div>`;
-    } else {
-      const c = await ensureReadContract();
-      const rows = await Promise.all(owned.map(async (t) => {
-        const evt = await c.events(t.eventId);
-        const tier = await c.tiers(t.tierId);
-        return { t, evt, tier };
-      }));
-      listEl.innerHTML = rows.map(({ t, evt, tier }) => `
-          <div class="event-row" style="align-items:flex-start;">
-            <div class="qr-thumb" data-qr="${t.id}" data-view="${t.id}" style="width:64px;height:64px;flex-shrink:0;cursor:pointer;" title="Xem vé"></div>
-            <div class="event-row__main">
-              <div class="event-row__title">${escapeHtml(evt.name)} <span class="text-tertiary">· ${escapeHtml(tier.name)} · Vé #${t.id}</span></div>
-              <div class="event-row__meta">Giá gốc ${fmtEth(t.originalPrice)} ETH ${t.forSale ? "· đang rao bán " + fmtEth(t.resalePrice) + " ETH" : ""} ${t.checkedIn ? "· đã check-in" : ""}</div>
-            </div>
-            <div class="event-row__actions">
-              <button class="btn btn-ghost btn-sm" data-view="${t.id}">Xem vé</button>
-              ${t.checkedIn
-                ? '<span class="badge badge-neutral">Đã check-in</span>'
-                : t.forSale
-                  ? '<span class="badge badge-primary">Đang rao bán</span>'
-                  : `<button class="btn btn-secondary btn-sm" data-resell="${t.id}" data-price="${t.originalPrice}">Rao bán lại</button>`}
-            </div>
-          </div>`).join("");
+  function renderOwnedTickets(rows, listEl) {
+    const filters = document.getElementById("ticket-filters");
+    const counts = { upcoming: 0, used: 0, selling: 0, all: rows.length };
+    rows.forEach((r) => { const k = ticketState(r.t, r.evt).key; if (counts[k] !== undefined) counts[k]++; });
+    const labels = { upcoming: "Sắp diễn ra", used: "Đã sử dụng", selling: "Đang bán lại", all: "Tất cả" };
+    filters.querySelectorAll("[data-tf]").forEach((b) => { b.textContent = `${labels[b.dataset.tf]} (${counts[b.dataset.tf]})`; });
 
+    function draw() {
+      const active = filters.querySelector(".chip.active").dataset.tf;
+      const shown = rows
+        .filter((r) => active === "all" || ticketState(r.t, r.evt).key === active)
+        .sort((a, b) => Number((a.evt?.startTime || 0n) - (b.evt?.startTime || 0n)));
+      if (rows.length === 0) {
+        listEl.innerHTML = emptyState("Bạn chưa có vé nào", "Vé bạn mua sẽ xuất hiện tại đây, gắn với địa chỉ ví này.", `<a class="btn btn-primary" href="#/events" style="margin-top:16px;">Khám phá sự kiện</a>`);
+        return;
+      }
+      if (shown.length === 0) {
+        listEl.innerHTML = emptyState("Không có vé nào ở mục này", "Chọn mục “Tất cả” để xem toàn bộ vé của bạn.");
+        return;
+      }
+      listEl.innerHTML = shown.map(ticketCardHtml).join("");
       listEl.querySelectorAll("[data-qr]").forEach((el) => renderQrInto(el, el.dataset.qr));
-
-      listEl.querySelectorAll("[data-view]").forEach((el) => {
-        el.addEventListener("click", () => {
-          const row = rows.find((r) => r.t.id.toString() === el.dataset.view);
-          if (row) showTicketDetailModal(row.t, row.evt, row.tier);
-        });
-      });
-
-      listEl.querySelectorAll("[data-resell]").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const max = (BigInt(btn.dataset.price) * 11000n) / 10000n;
-          const input = await promptPriceModal({
-            title: "Rao bán lại vé",
-            label: "Giá rao bán (ETH)",
-            hint: `Tối đa ${fmtEth(max)} ETH (110% giá gốc).`,
-            confirmText: "Rao bán",
-          });
-          if (!input) return;
-          try {
-            requireWallet(); requireContract();
-            const tx = await contract.listForResale(BigInt(btn.dataset.resell), ethers.parseEther(input));
-            toast("Đang xác nhận giao dịch…", "info");
-            await tx.wait();
-            toast("Đã rao bán vé.", "success");
-            renderMyTickets();
-          } catch (err) { toast(friendlyError(err), "error"); }
-        });
-      });
+      listEl.querySelectorAll("[data-view]").forEach((el) => el.addEventListener("click", () => {
+        const row = rows.find((r) => r.t.id.toString() === el.dataset.view);
+        if (row) showTicketDetailModal(row.t, row.evt, row.tier);
+      }));
+      listEl.querySelectorAll("[data-resell]").forEach((btn) => btn.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+        const row = rows.find((r) => r.t.id.toString() === btn.dataset.resell);
+        await resellFlow(row);
+      })));
     }
+
+    filters.querySelectorAll("[data-tf]").forEach((b) => {
+      b.onclick = () => {
+        filters.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        b.classList.add("active");
+        draw();
+      };
+    });
+    // Mac dinh mo muc co ve (khong de nguoi dung thay "trong" khi ho van co ve).
+    const activeKey = filters.querySelector(".chip.active").dataset.tf;
+    if (counts[activeKey] === 0 && rows.length > 0) {
+      const firstNonEmpty = ["upcoming", "selling", "used", "all"].find((k) => counts[k] > 0);
+      filters.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c.dataset.tf === firstNonEmpty));
+    }
+    draw();
   }
 
-  // RPC cong khai/MetaMask thuong gioi han pham vi block cho 1 lan
-  // eth_getLogs (vd toi da ~10.000-50.000 block) - truoc day quet "tu
-  // block 0" se bi RPC tu choi, loi do khong duoc bat nen ca trang dung
-  // yen vinh vien o "Dang tai...". Contract nay chi moi deploy gan day
-  // nen chi can quet ~7 ngay gan nhat (~50.000 block tren Sepolia) la du.
-  const HISTORY_LOOKBACK_BLOCKS = 50_000;
+  function ticketCardHtml({ t, evt, tier }) {
+    const meta = getMeta(t.eventId);
+    const st = ticketState(t, evt);
+    const canResell = st.key === "upcoming" || st.key === "selling";
+    return `
+      <article class="ticket-card${st.key === "used" || st.key === "past" ? " is-muted" : ""}">
+        <div class="ticket-card__media">
+          <img src="${eventImage(meta, t.eventId)}" alt="" loading="lazy" />
+          <span class="badge ${st.cls} ticket-card__status">${st.label}</span>
+        </div>
+        <div class="ticket-card__body">
+          <div class="event-card__date">${evt ? fmtCardDate(evt.startTime) : ""}</div>
+          <h3 class="ticket-card__title">${escapeHtml(evt ? evt.name : "Sự kiện #" + t.eventId)}</h3>
+          <div class="event-card__meta">${icon("pin")}<span>${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</span></div>
+          <div class="ticket-card__tier"><span>${escapeHtml(tier ? tier.name : "Hạng #" + t.tierId)}</span><span class="mono">Vé #${t.id}</span></div>
+          ${t.forSale ? `<div class="text-sm" style="margin-top:6px;">Đang rao bán: <strong class="tabular-nums">${fmtEth(t.resalePrice)} ETH</strong></div>` : ""}
+        </div>
+        <div class="ticket-card__perf" aria-hidden="true"></div>
+        <div class="ticket-card__foot">
+          <button type="button" class="qr-thumb ticket-card__qr" data-qr="${t.id}" data-view="${t.id}" aria-label="Xem vé #${t.id}"></button>
+          <div class="ticket-card__actions">
+            <button type="button" class="btn btn-primary btn-sm" data-view="${t.id}">Xem vé</button>
+            ${canResell ? `<button type="button" class="btn btn-secondary btn-sm" data-resell="${t.id}">${t.forSale ? "Đổi giá bán" : "Rao bán lại"}</button>` : ""}
+          </div>
+        </div>
+      </article>`;
+  }
+
+  // Rao ban / doi gia: kiem tra gia o client (>0, <= 110%) truoc khi gui; hop
+  // dong van la lop chan cuoi cung (ResalePriceTooHigh).
+  async function resellFlow(row) {
+    const { t } = row;
+    const max = (t.originalPrice * 11000n) / 10000n;
+    const input = await promptPriceModal({
+      title: t.forSale ? "Đổi giá rao bán" : "Rao bán lại vé",
+      label: "Giá rao bán (ETH)",
+      hint: `Giá gốc ${fmtEth(t.originalPrice)} ETH · tối đa ${fmtEth(max)} ETH (110%). Lưu ý: hợp đồng hiện không có chức năng gỡ rao bán — vé sẽ thuộc về người đầu tiên trả đúng giá. Bạn vẫn đổi giá được.`,
+      confirmText: t.forSale ? "Cập nhật giá" : "Rao bán",
+    });
+    if (!input) return;
+    let price;
+    try { price = ethers.parseEther(String(input).trim()); } catch { throw userError("Giá không hợp lệ."); }
+    if (price <= 0n) throw userError("Giá rao bán phải lớn hơn 0.");
+    if (price > max) throw userError(`Giá vượt quá 110% giá gốc (tối đa ${fmtEth(max)} ETH).`);
+    requireWallet(); requireContract(); requireRightNetwork();
+    toast("Vui lòng xác nhận giao dịch trong ví…", "info");
+    const tx = await contract.listForResale(t.id, price);
+    toast("Đã gửi — đang chờ blockchain xác nhận…", "info");
+    const receipt = await tx.wait();
+    if (!receipt || receipt.status !== 1) throw userError("Rao bán thất bại trên blockchain.");
+    toast(t.forSale ? "Đã cập nhật giá rao bán." : "Đã rao bán vé.", "success");
+    renderMyTickets();
+  }
+
+  // Lich su (event log): RPC publicnode chi giu log ~2-3 ngay ("pruned history
+  // unavailable"), MetaMask tuy nha cung cap. Doc qua Tenderly (giu du lich su,
+  // cho phep CORS - da kiem tra), quet tu khoi chua log dau tien cua hop dong
+  // (EventCreated #0), chia khuc de khong vuot gioi han khi chain dai ra.
+  const LOGS_RPC_URL = "https://sepolia.gateway.tenderly.co";
+  const FIRST_LOG_BLOCK = 11904408;
+  const LOG_CHUNK = 100_000;
+  let logsProvider = null;
+  function getLogsProvider() {
+    if (!logsProvider) {
+      const net = ethers.Network.from(SEPOLIA_CHAIN_ID);
+      logsProvider = new ethers.JsonRpcProvider(LOGS_RPC_URL, net, { staticNetwork: net });
+    }
+    return logsProvider;
+  }
+  // Hop dong it log -> lay TOAN BO log cua hop dong (1 request/khuc thay vi
+  // 1 request/loai su kien - tranh bi gioi han tan suat 429), giai ma 1 lan
+  // roi loc bang JS. Cache 30s va gop cac lan goi dong thoi.
+  let logsCache = null;
+  function fetchAllContractLogs(force) {
+    if (!force && logsCache && Date.now() - logsCache.at < 30000) return logsCache.promise;
+    const promise = (async () => {
+      await loadAbi();
+      const iface = new ethers.Interface(CONTRACT_ABI);
+      const scan = async (prov) => {
+        const latest = await prov.getBlockNumber();
+        const raw = [];
+        for (let from = FIRST_LOG_BLOCK; from <= latest; from += LOG_CHUNK) {
+          raw.push(...await prov.getLogs({ address: CONTRACT_ADDRESS, fromBlock: from, toBlock: Math.min(from + LOG_CHUNK - 1, latest) }));
+        }
+        return raw;
+      };
+      let raw;
+      try {
+        raw = await scan(getLogsProvider());
+      } catch (err) {
+        console.warn("RPC lịch sử lỗi, thử qua ví:", err);
+        if (!(provider && userAddress && chainId === SEPOLIA_CHAIN_ID)) throw err;
+        raw = await scan(provider);
+      }
+      return raw.map((l) => {
+        let parsed = null;
+        try { parsed = iface.parseLog(l); } catch {}
+        return parsed && { name: parsed.name, args: parsed.args, blockNumber: l.blockNumber, index: l.index, transactionHash: l.transactionHash };
+      }).filter(Boolean);
+    })();
+    logsCache = { at: Date.now(), promise };
+    promise.catch(() => { if (logsCache && logsCache.promise === promise) logsCache = null; });
+    return promise;
+  }
+  const sameAddr = (a, b) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
   async function renderTicketHistory(histEl, myToken) {
-    if (!contract) {
-      histEl.innerHTML = `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Kết nối ví để xem lịch sử.</p>`;
-      return;
-    }
-
-    // TicketMinted khai bao "buyer" KHONG indexed (xem event trong
-    // ProjectCore.sol) nen khong loc duoc qua topic nhu may event con lai -
-    // bug thuc te phat hien khi test: ethers nem loi "cannot filter
-    // non-indexed parameters". Phai lay het log Mint trong khoang block roi
-    // tu loc lai bang JS theo args.buyer.
-    const indexedFilters = [
-      { name: "Bán lại vé (nhận tiền)", filter: contract.filters.TicketResold(null, userAddress, null) },
-      { name: "Mua lại vé", filter: contract.filters.TicketResold(null, null, userAddress) },
-      { name: "Rao bán vé", filter: contract.filters.TicketListedForResale(null, userAddress) },
-      { name: "Rút tiền", filter: contract.filters.ProceedsWithdrawn(userAddress) },
-      { name: "Check-in vé", filter: contract.filters.TicketCheckedIn(null, userAddress) },
-    ];
-
-    const latest = await provider.getBlockNumber();
+    const me = userAddress;
+    const logs = await fetchAllContractLogs(true);
     if (myToken !== renderToken) return;
-    const fromBlock = Math.max(0, latest - HISTORY_LOOKBACK_BLOCKS);
-
-    let evts = [];
-    for (const { name, filter } of indexedFilters) {
-      const logs = await contract.queryFilter(filter, fromBlock, "latest");
-      if (myToken !== renderToken) return;
-      evts = evts.concat(logs.map((l) => ({ name, log: l })));
-    }
-
-    const mintLogs = await contract.queryFilter(contract.filters.TicketMinted(), fromBlock, "latest");
-    if (myToken !== renderToken) return;
-    evts = evts.concat(
-      mintLogs
-        .filter((l) => l.args.buyer.toLowerCase() === userAddress.toLowerCase())
-        .map((l) => ({ name: "Mint vé", log: l }))
-    );
-
-    evts.sort((a, b) => b.log.blockNumber - a.log.blockNumber);
+    const label = (l) => {
+      const a = l.args;
+      // TicketMinted: "buyer" khong indexed trong hop dong -> loc bang JS o day.
+      if (l.name === "TicketMinted" && sameAddr(a.buyer, me)) return "Mua vé";
+      if (l.name === "TicketResold" && sameAddr(a.from, me)) return "Bán lại vé (nhận tiền)";
+      if (l.name === "TicketResold" && sameAddr(a.to, me)) return "Mua lại vé";
+      if (l.name === "TicketListedForResale" && sameAddr(a.seller, me)) return "Rao bán vé";
+      if (l.name === "ProceedsWithdrawn" && sameAddr(a.organizer, me)) return "Rút tiền";
+      if (l.name === "TicketCheckedIn" && sameAddr(a.owner, me)) return "Check-in vé";
+      if (l.name === "EventCreated" && sameAddr(a.organizer, me)) return "Tạo sự kiện";
+      return null;
+    };
+    const evts = logs.map((log) => ({ name: label(log), log })).filter((x) => x.name);
+    evts.sort((a, b) => b.log.blockNumber - a.log.blockNumber || b.log.index - a.log.index);
     histEl.innerHTML = evts.length
-      ? evts.slice(0, 20).map(({ name, log }) => `
-          <div class="event-row">
-            <div class="event-row__main"><div class="event-row__title">${name}</div></div>
-            <a class="mono text-sm" target="_blank" rel="noopener" href="https://sepolia.etherscan.io/tx/${log.transactionHash}">${log.transactionHash.slice(0, 10)}…</a>
-          </div>`).join("")
-      : `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Chưa có giao dịch nào.</p>`;
+      ? evts.slice(0, 30).map(({ name, log }) => historyRowHtml(name, log)).join("")
+      : `<p class="text-secondary text-sm" style="padding: var(--sp-3) 0;">Ví này chưa có giao dịch nào với FairTicket.</p>`;
+  }
+
+  function historyRowHtml(name, log) {
+    const a = log.args || {};
+    const detail = [];
+    if (a.ticketId !== undefined) detail.push("Vé #" + a.ticketId);
+    else if (a.eventId !== undefined) detail.push("Sự kiện #" + a.eventId);
+    if (a.price !== undefined) detail.push(fmtEth(a.price) + " ETH");
+    if (a.amount !== undefined) detail.push(fmtEth(a.amount) + " ETH");
+    if (a.resalePrice !== undefined) detail.push(fmtEth(a.resalePrice) + " ETH");
+    return `
+      <div class="event-row">
+        <div class="event-row__main">
+          <div class="event-row__title">${name}</div>
+          <div class="event-row__meta">${detail.join(" · ")} · khối ${log.blockNumber}</div>
+        </div>
+        <a class="mono text-sm link" target="_blank" rel="noopener" href="${ETHERSCAN}/tx/${log.transactionHash}">${log.transactionHash.slice(0, 10)}… ${icon("external")}</a>
+      </div>`;
   }
 
   // ---------- Page: Checkout ----------
 
+  // Dang co giao dich mua do dang chay -> khong ve lai trang (mat tien do) va
+  // khong cho bat dau luot mua thu 2 chong len.
+  let purchaseInFlight = false;
+  window.addEventListener("beforeunload", (e) => {
+    if (purchaseInFlight) { e.preventDefault(); e.returnValue = ""; }
+  });
+
   routes.checkout = async function (eventIdStr, tierIdStr, qtyStr) {
     const myToken = renderToken;
+    if (!/^\d+$/.test(eventIdStr) || !/^\d+$/.test(tierIdStr)) return renderNotFound(eventIdStr);
     const eventId = BigInt(eventIdStr);
     const tierId = BigInt(tierIdStr);
-    const qty = Math.max(1, parseInt(qtyStr, 10) || 1);
+    const qty = Math.min(10, Math.max(1, parseInt(qtyStr, 10) || 1));
 
-    $root().innerHTML = `<div class="page container"><div class="checkout-wrap"><div class="skel" style="height:300px;"></div></div></div>`;
+    $root().innerHTML = `<div class="page container"><div class="checkout-layout"><div class="skel" style="height:360px;"></div><div class="skel" style="height:300px;"></div></div></div>`;
 
-    if (!isConfigured()) { await loadAbi(); }
+    let evt, tier;
+    try {
+      if (!isConfigured()) { await loadAbi(); }
+      if (!isConfigured()) {
+        evt = MOCK_EVENTS.find((e) => e.id === eventId);
+        tier = MOCK_TIERS.find((t) => t.id === tierId);
+      } else {
+        const c = await ensureReadContract();
+        const [e, t, nTier] = await Promise.all([c.events(eventId), c.tiers(tierId), c.nextTierId()]);
+        if (e.organizer !== ethers.ZeroAddress) evt = { id: eventId, name: e.name, startTime: e.startTime, organizer: e.organizer };
+        if (tierId < nTier) tier = { id: tierId, eventId: t.eventId, name: t.name, price: t.price, maxSupply: t.maxSupply, minted: t.minted };
+      }
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error(err);
+      $root().innerHTML = `<div class="page container">${errorStateHtml("Không tải được thông tin vé", "Mạng/RPC đang chập chờn.")}</div>`;
+      wireRetry();
+      return;
+    }
     if (myToken !== renderToken) return;
-    const demo = !isConfigured();
-    const evt = demo ? MOCK_EVENTS.find((e) => e.id === eventId) : await (await ensureReadContract()).events(eventId);
-    if (myToken !== renderToken) return;
-    const tier = demo ? MOCK_TIERS.find((t) => t.id === tierId) : await (await ensureReadContract()).tiers(tierId);
-    if (myToken !== renderToken) return;
-    const meta = getMeta(eventId);
 
-    if (!evt || !tier) {
-      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Không tìm thấy hạng vé</h3><a class="btn btn-secondary" href="#/events/${eventId}">← Quay lại sự kiện</a></div></div>`;
+    if (!evt || !tier || tier.eventId !== eventId) {
+      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Không tìm thấy hạng vé</h3><p>Hạng vé không tồn tại hoặc không thuộc sự kiện này.</p><a class="btn btn-secondary" href="#/events/${eventId}" style="margin-top:16px;">← Quay lại sự kiện</a></div></div>`;
       return;
     }
     if (Math.floor(Date.now() / 1000) >= Number(evt.startTime)) {
@@ -2331,54 +2506,176 @@
       return;
     }
 
-    const total = tier.price * BigInt(qty);
+    const meta = getMeta(eventId);
+    const subtotal = tier.price * BigInt(qty);
 
     $root().innerHTML = h`
       <div class="page container">
-        <div class="checkout-wrap">
-          <div class="checkout-steps"><b>Thông tin vé</b> → Xác nhận → Thanh toán</div>
+        <nav class="breadcrumb" aria-label="Breadcrumb"><a href="#/events/${eventId}">← ${escapeHtml(evt.name)}</a></nav>
+        <h1 class="h2" style="margin-bottom: var(--sp-4);">Thanh toán</h1>
+        <div class="checkout-layout">
+          <div>
+            <section class="card checkout-card">
+              <div class="mini-event-card" style="padding:0; margin:0;">
+                <img src="${eventImage(meta, eventId)}" alt="" />
+                <div>
+                  <div style="font-weight:600;">${escapeHtml(evt.name)}</div>
+                  <div class="text-secondary text-sm">${fmtCardDate(evt.startTime)} · ${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</div>
+                </div>
+              </div>
+            </section>
 
-          <div class="card mini-event-card">
-            <img src="${eventImage(meta, eventId)}" alt="" />
-            <div>
-              <div style="font-weight:600; font-size:14px;">${escapeHtml(evt.name)}</div>
-              <div class="text-secondary text-sm">${fmtDate(evt.startTime)} · ${escapeHtml(meta.location || "Cập nhật sau")}</div>
-            </div>
+            <section class="card checkout-card" id="checks-card">
+              <h2 class="h3">Kiểm tra trước khi thanh toán</h2>
+              <ul class="check-list" id="check-list">
+                <li class="check-item is-pending"><span class="check-dot"></span><span>Đang kiểm tra…</span></li>
+              </ul>
+            </section>
+
+            <section class="card checkout-card" id="progress-card" hidden>
+              <h2 class="h3">Tiến trình giao dịch</h2>
+              <p class="text-sm text-secondary" style="margin-top:4px;">Đừng đóng trang cho tới khi hoàn tất.</p>
+              <ol class="tx-list" id="tx-list"></ol>
+              <div id="checkout-result"></div>
+            </section>
           </div>
 
-          <div class="card" style="padding: var(--sp-4);">
-            <div class="checkout-row"><span>Hạng vé</span><span>${escapeHtml(tier.name)}</span></div>
-            <div class="checkout-row"><span>Đơn giá</span><span class="tabular-nums">${fmtEth(tier.price)} ETH</span></div>
-            <div class="checkout-row"><span>Số lượng</span><span class="tabular-nums">${qty}</span></div>
+          <aside class="card checkout-card checkout-summary">
+            <h2 class="h3">Đơn hàng</h2>
+            <div class="checkout-row"><span class="text-secondary">Hạng vé</span><span>${escapeHtml(tier.name)}</span></div>
+            <div class="checkout-row"><span class="text-secondary">Đơn giá</span><span class="tabular-nums">${fmtEth(tier.price)} ETH</span></div>
+            <div class="checkout-row"><span class="text-secondary">Số lượng</span><span class="tabular-nums">${qty}</span></div>
+            <div class="checkout-row"><span class="text-secondary">Phí gas ước tính</span><span class="tabular-nums" id="gas-est">…</span></div>
             <div class="checkout-divider"></div>
-            <div class="checkout-total"><span>Tổng cộng</span><span class="tabular-nums">${fmtEth(total)} ETH</span></div>
-          </div>
-
-          ${!isConfigured() ? '<div class="banner">Chưa cấu hình hợp đồng — không thể thanh toán thật.</div>' : ""}
-          ${qty > 1 ? `<p class="hint">Mint ${qty} vé = ${qty} giao dịch riêng, xác nhận trong MetaMask từng lần.</p>` : ""}
-
-          <button id="btn-pay" class="btn btn-primary btn-block btn-lg" style="margin-top: var(--sp-4);">Tiếp tục thanh toán →</button>
-          <a href="#/events/${eventId}" class="btn btn-ghost btn-block" style="margin-top: var(--sp-2);">← Quay lại</a>
+            <div class="checkout-total"><span>Tổng thanh toán</span><span class="tabular-nums">${fmtEth(subtotal)} ETH</span></div>
+            <p class="hint-sm" style="text-align:right;margin-top:2px;">+ phí gas (trả cho mạng, không phải cho FairTicket)</p>
+            <div class="checkout-divider"></div>
+            <div class="checkout-row"><span class="text-secondary">Mạng</span><span>Ethereum Sepolia</span></div>
+            <div class="checkout-row"><span class="text-secondary">Ví thanh toán</span><span class="mono" id="pay-wallet">${userAddress ? shortAddr(userAddress) : "—"}</span></div>
+            <p class="hint-sm">${qty > 1 ? `Mua ${qty} vé = ${qty} giao dịch, xác nhận lần lượt trong ví. ` : ""}Vé không hoàn tiền; bán lại tối đa 110% giá gốc.</p>
+            <button id="btn-pay" class="btn btn-accent btn-block btn-lg" style="margin-top: var(--sp-3);" disabled>Xác nhận &amp; thanh toán</button>
+            <a href="#/events/${eventId}" class="btn btn-ghost btn-block" id="btn-back" style="margin-top: var(--sp-2);">Quay lại</a>
+          </aside>
         </div>
       </div>
     `;
 
-    document.getElementById("btn-pay").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
-      requireWallet();
-      requireContract();
-      requireRightNetwork();
-      for (let i = 0; i < qty; i++) {
-        toast(qty > 1 ? `Đang xác nhận vé ${i + 1}/${qty}…` : "Đang xác nhận giao dịch…", "info");
-        const tx = await contract.mintTicket(tierId, { value: tier.price });
-        await tx.wait();
+    const payBtn = document.getElementById("btn-pay");
+
+    async function runChecks() {
+      const items = [];
+      let ok = true;
+      const add = (state, text, actionHtml) => { items.push({ state, text, actionHtml }); if (state !== "ok") ok = false; };
+      let freshTier = tier;
+      if (!window.ethereum) {
+        add("bad", "Chưa có ví trên trình duyệt này — cài MetaMask để mua vé.");
+      } else if (!userAddress) {
+        add("bad", "Chưa kết nối ví.", `<button type="button" class="btn btn-primary btn-sm" data-act="connect">Kết nối ví</button>`);
+      } else {
+        add("ok", `Ví đã kết nối: <span class="mono">${shortAddr(userAddress)}</span>`);
+        if (chainId !== SEPOLIA_CHAIN_ID) add("bad", "Ví đang ở sai mạng.", `<button type="button" class="btn btn-dark btn-sm" data-act="switch">Chuyển sang Sepolia</button>`);
+        else add("ok", "Đúng mạng Ethereum Sepolia.");
       }
-      toast(qty > 1 ? `Đã mint ${qty} vé thành công!` : "Mint vé thành công!", "success");
+      try {
+        const c = await ensureReadContract();
+        const t = await c.tiers(tierId);
+        freshTier = { ...tier, minted: t.minted, maxSupply: t.maxSupply };
+        const remaining = t.maxSupply - t.minted;
+        if (remaining >= BigInt(qty)) add("ok", `Còn ${remaining} vé hạng ${escapeHtml(tier.name)} — đủ cho ${qty} vé.`);
+        else add("bad", remaining === 0n ? "Hạng vé này vừa bán hết." : `Chỉ còn ${remaining} vé — giảm số lượng ở trang sự kiện.`);
+      } catch {
+        add("bad", "Không đọc được số vé còn lại (mạng/RPC). Thử tải lại trang.");
+      }
+      let fee = null;
+      if (userAddress && chainId === SEPOLIA_CHAIN_ID && contract) {
+        try {
+          const balance = await provider.getBalance(userAddress);
+          if (balance < subtotal) {
+            add("bad", `Số dư không đủ: cần ${fmtEth(subtotal)} ETH + phí gas, ví có ${fmtEthShort(balance)} ETH.`);
+          } else {
+            // Chay thu giao dich (khong gui) de biet truoc hop dong co tu choi khong.
+            const [gas, feeData] = await Promise.all([
+              contract.mintTicket.estimateGas(tierId, { value: tier.price }),
+              provider.getFeeData(),
+            ]);
+            const perGas = feeData.maxFeePerGas ?? feeData.gasPrice ?? 0n;
+            fee = gas * perGas * BigInt(qty);
+            if (balance >= subtotal + fee) add("ok", `Số dư đủ (${fmtEthShort(balance)} ETH).`);
+            else add("bad", `Số dư không đủ: cần khoảng ${fmtEth(subtotal + fee)} ETH kể cả phí gas, ví có ${fmtEthShort(balance)} ETH.`);
+          }
+        } catch (err) {
+          add("bad", "Giao dịch thử không thành công: " + friendlyError(err));
+        }
+      }
+      if (myToken !== renderToken || purchaseInFlight) return;
+      document.getElementById("gas-est").textContent = fee !== null ? (fee * 1000000n < 10n ** 18n ? "" : "~") + fmtEthShort(fee) + " ETH" : "—";
+      document.getElementById("pay-wallet").textContent = userAddress ? shortAddr(userAddress) : "—";
+      const list = document.getElementById("check-list");
+      list.innerHTML = items.map((i) => `<li class="check-item is-${i.state}"><span class="check-dot" aria-hidden="true">${i.state === "ok" ? "✓" : "!"}</span><span>${i.text}</span>${i.actionHtml || ""}</li>`).join("");
+      list.querySelector('[data-act="connect"]')?.addEventListener("click", (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true }));
+      list.querySelector('[data-act="switch"]')?.addEventListener("click", switchToSepolia);
+      payBtn.disabled = !ok;
+    }
+
+    payBtn.addEventListener("click", async () => {
+      if (purchaseInFlight || payBtn.disabled) return;
+      purchaseInFlight = true;
+      payBtn.disabled = true;
+      payBtn.innerHTML = '<span class="spinner"></span> Đang xử lý…';
+      document.getElementById("btn-back").classList.add("is-disabled-link");
+      document.getElementById("checks-card").hidden = true;
+      const progress = document.getElementById("progress-card");
+      progress.hidden = false;
+      const txList = document.getElementById("tx-list");
+      txList.innerHTML = Array.from({ length: qty }, (_, i) => `<li class="tx-item is-waiting" id="tx-${i}"><span class="tx-item__label">Vé ${i + 1}/${qty}</span><span class="tx-item__state">Chờ</span></li>`).join("");
+      const setTx = (i, state, html) => {
+        const el = document.getElementById("tx-" + i);
+        if (!el) return;
+        el.className = "tx-item is-" + state;
+        el.querySelector(".tx-item__state").innerHTML = html;
+      };
+
+      const minted = [];
+      let failure = null;
+      for (let i = 0; i < qty; i++) {
+        try {
+          setTx(i, "active", "Chờ xác nhận trong ví…");
+          const tx = await contract.mintTicket(tierId, { value: tier.price });
+          setTx(i, "active", `Đã gửi · đang chờ khối… <a class="link" href="${ETHERSCAN}/tx/${tx.hash}" target="_blank" rel="noopener">xem</a>`);
+          const receipt = await tx.wait();
+          if (!receipt || receipt.status !== 1) throw userError("Giao dịch bị revert trên blockchain.");
+          const log = receipt.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "TicketMinted");
+          const ticketId = log ? log.args.ticketId : null;
+          minted.push({ ticketId, hash: receipt.hash });
+          setTx(i, "ok", `Thành công${ticketId !== null ? " · Vé #" + ticketId : ""} · <a class="link" href="${ETHERSCAN}/tx/${receipt.hash}" target="_blank" rel="noopener">xem</a>`);
+        } catch (err) {
+          console.error(err);
+          failure = friendlyError(err);
+          setTx(i, "bad", escapeHtml(failure));
+          for (let k = i + 1; k < qty; k++) setTx(k, "skip", "Đã dừng");
+          break;
+        }
+      }
+      purchaseInFlight = false;
       eventsCache = null;
       tiersCache = null;
-      window.location.hash = "#/events/" + eventId.toString();
-    }));
+      document.getElementById("btn-back")?.classList.remove("is-disabled-link");
 
-    syncMetaThenRefresh([eventId], () => { if (myToken === renderToken) route(); });
+      const resultEl = document.getElementById("checkout-result");
+      if (!resultEl) return;
+      if (minted.length === qty) {
+        resultEl.innerHTML = `<div class="checkout-done"><h3>Mua vé thành công</h3><p>${qty} vé đã ghi nhận trên blockchain và thuộc về ví <span class="mono">${shortAddr(userAddress)}</span>.</p><div class="checkout-done__actions"><a class="btn btn-primary" href="#/my-tickets">Xem vé của tôi</a><a class="btn btn-secondary" href="#/events/${eventId}">Quay lại sự kiện</a></div></div>`;
+        payBtn.innerHTML = "Đã thanh toán";
+        toast("Mua vé thành công!", "success");
+      } else {
+        resultEl.innerHTML = `<div class="checkout-done checkout-done--bad"><h3>${minted.length ? `Đã mua ${minted.length}/${qty} vé` : "Chưa mua được vé"}</h3><p>${escapeHtml(failure || "")}${minted.length ? " Các vé đã mua thành công vẫn thuộc về bạn." : " Bạn chưa bị trừ tiền vé."}</p><div class="checkout-done__actions">${minted.length ? `<a class="btn btn-primary" href="#/my-tickets">Xem vé của tôi</a>` : ""}<button type="button" class="btn btn-secondary" id="btn-retry-checkout">Thử lại</button></div></div>`;
+        document.getElementById("btn-retry-checkout").addEventListener("click", () => route());
+        payBtn.innerHTML = "Xác nhận &amp; thanh toán";
+      }
+    });
+
+    runChecks();
+    syncMetaThenRefresh([eventId], () => { if (myToken === renderToken && !purchaseInFlight) route(); });
   };
 
   // ---------- Boot ----------
@@ -2452,6 +2749,8 @@
       const base = hash.split("/").filter(Boolean)[0] || "";
       if (base === "create") {
         toast("Đã cập nhật ví/mạng — tiếp tục điền thông tin, không bị mất.", "info");
+      } else if (purchaseInFlight) {
+        toast("Ví/mạng vừa thay đổi trong lúc đang thanh toán — các giao dịch đã gửi vẫn được theo dõi.", "info");
       } else {
         route();
       }
