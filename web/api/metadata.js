@@ -46,8 +46,11 @@ async function handleGet(req, res) {
   }
   try {
     const found = await head(blobPath(eventId), { token: process.env.BLOB_READ_WRITE_TOKEN });
-    const fileRes = await fetch(found.url);
+    // Blob bi ghi de khi organizer sua thong tin; CDN co the con giu ban cu
+    // -> gan uploadedAt vao URL de luon lay dung ban moi nhat.
+    const fileRes = await fetch(found.url + "?v=" + new Date(found.uploadedAt).getTime());
     const data = await fileRes.json();
+    res.setHeader("Cache-Control", "no-store");
     res.status(200).json(data);
   } catch (err) {
     if (err instanceof BlobNotFoundError) {
@@ -120,6 +123,7 @@ async function handlePost(req, res) {
       contentType: "application/json",
       addRandomSuffix: false,
       allowOverwrite: true,
+      cacheControlMaxAge: 60,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
     res.status(200).json({ ok: true });
