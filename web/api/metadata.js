@@ -3,7 +3,7 @@
 // (luu string dai + anh base64 on-chain qua ton gas). Du lieu nay khong anh huong
 // logic hop dong - mat di cung khong lam sai ve/tien, chi mat phan trang tri.
 //
-// GET  /api/metadata?eventId=3        -> { description, location, image } (hoac {} neu chua co)
+// GET  /api/metadata?eventId=3        -> { description, location, image, category } (hoac {} neu chua co)
 // POST /api/metadata { eventId, data, timestamp, signature }
 //      -> chi Organizer cua su kien (theo dia chi tren contract) moi duoc ghi.
 //         signature = ky message duoc server tu dung lai tu (eventId, timestamp)
@@ -18,6 +18,10 @@ const EVENTS_ABI = [
   "function events(uint256) view returns (string name, uint256 startTime, address organizer, uint256 tierCount)",
 ];
 const MAX_SIGNATURE_AGE_MS = 5 * 60 * 1000; // 5 phut, chong phat lai chu ky cu
+// Phai khop danh sach CATEGORIES trong web/app.js.
+const CATEGORY_IDS = ["music", "art", "sport", "workshop", "conference", "experience", "other"];
+// Chi nhan anh base64 tu FileReader - khong nhan URL tuy y (tranh chen noi dung la vao <img src>).
+const SAFE_IMAGE_RE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 
 function blobPath(eventId) {
   return `metadata/${CONTRACT_ADDRESS.toLowerCase()}/${eventId}.json`;
@@ -104,9 +108,10 @@ async function handlePost(req, res) {
   }
 
   const payload = {
-    description: typeof data.description === "string" ? data.description : "",
-    location: typeof data.location === "string" ? data.location : "",
-    image: typeof data.image === "string" ? data.image : "",
+    description: typeof data.description === "string" ? data.description.slice(0, 5000) : "",
+    location: typeof data.location === "string" ? data.location.slice(0, 300) : "",
+    image: typeof data.image === "string" && SAFE_IMAGE_RE.test(data.image) ? data.image : "",
+    category: CATEGORY_IDS.includes(data.category) ? data.category : "other",
   };
 
   try {

@@ -28,6 +28,51 @@
   const CONTRACT_ADDRESS = "0x0f96cafe4C603D706c786C503A5c903090706916"; // ProjectCore.sol v2 (public mint + check-in) da deploy tren Sepolia
   let CONTRACT_ABI = null; // tự nạp từ ./ProjectCore.abi.json
   const SEPOLIA_CHAIN_ID = 11155111n;
+  const SEPOLIA_CHAIN_HEX = "0xaa36a7";
+  // Khach chua ket noi vi van xem duoc su kien: doc qua RPC cong khai nay
+  // (da kiem tra cho phep CORS tu trinh duyet), khong phu thuoc MetaMask.
+  const PUBLIC_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+  const ETHERSCAN = "https://sepolia.etherscan.io";
+
+  // Danh muc la du lieu OFF-CHAIN (luu cung metadata qua /api/metadata),
+  // ProjectCore.sol khong co truong nay. Su kien cu chua chon -> "Khác".
+  const CATEGORIES = [
+    { id: "music", label: "Nhạc sống", icon: "music" },
+    { id: "art", label: "Nghệ thuật", icon: "palette" },
+    { id: "sport", label: "Thể thao", icon: "trophy" },
+    { id: "workshop", label: "Workshop", icon: "tool" },
+    { id: "conference", label: "Hội thảo", icon: "mic" },
+    { id: "experience", label: "Trải nghiệm", icon: "compass" },
+    { id: "other", label: "Khác", icon: "grid" },
+  ];
+  const ICON_PATHS = {
+    music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+    palette: '<circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 0 0 0 20c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-4.9-4.5-8.6-10-8.6z"/>',
+    trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+    tool: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+    mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/>',
+    compass: '<circle cx="12" cy="12" r="10"/><path d="m16 8-2 6-6 2 2-6z"/>',
+    grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    pin: '<path d="M12 22s7-6.1 7-12a7 7 0 0 0-14 0c0 5.9 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+    scale: '<path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0z"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+    chevronLeft: '<path d="m15 18-6-6 6-6"/>',
+    chevronRight: '<path d="m9 18 6-6-6-6"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    ticket: '<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v12" stroke-dasharray="2 2"/>',
+    external: '<path d="M15 3h6v6M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+    wallet: '<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20M16 15h2"/>',
+  };
+  function icon(name, cls) {
+    return `<svg class="${cls || "icon-sm"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ""}</svg>`;
+  }
+  function categoryOf(id) {
+    return CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+  }
 
   const STOCK_IMAGES = [
     "./assets/event-conference.jpg",
@@ -66,9 +111,9 @@
     { id: 2n, name: "Jazz Night Downtown", startTime: BigInt(now - 3 * DAY), organizer: "0x1234567890123456789012345678901234567890", tierCount: 1n },
   ];
   const MOCK_META = {
-    0: { location: "Nhà văn hóa Huế", description: "Đêm nhạc sinh viên UEH quy tụ các ban nhạc indie nổi bật của trường, mở màn mùa lễ hội 2026.", image: "./assets/hero.jpg" },
-    1: { location: "Trung tâm Hội nghị Quốc gia", description: "Hội nghị công nghệ thường niên với các diễn giả từ cộng đồng blockchain Việt Nam.", image: "./assets/event-conference.jpg" },
-    2: { location: "Downtown Jazz Club", description: "Đêm nhạc jazz thân mật với ban nhạc khách mời quốc tế.", image: "./assets/event-jazz.jpg" },
+    0: { location: "Nhà văn hóa Huế", description: "Đêm nhạc sinh viên UEH quy tụ các ban nhạc indie nổi bật của trường, mở màn mùa lễ hội 2026.", image: "./assets/hero.jpg", category: "music" },
+    1: { location: "Trung tâm Hội nghị Quốc gia", description: "Hội nghị công nghệ thường niên với các diễn giả từ cộng đồng blockchain Việt Nam.", image: "./assets/event-conference.jpg", category: "conference" },
+    2: { location: "Downtown Jazz Club", description: "Đêm nhạc jazz thân mật với ban nhạc khách mời quốc tế.", image: "./assets/event-jazz.jpg", category: "music" },
   };
   function ethp(s) { return ethers.parseEther(s); }
   const MOCK_TIERS = [
@@ -78,18 +123,6 @@
     { id: 3n, eventId: 1n, name: "Standard", price: ethp("0.05"), maxSupply: 50n, minted: 50n },
     { id: 4n, eventId: 2n, name: "Standard", price: ethp("0.03"), maxSupply: 20n, minted: 20n },
   ];
-  function buildMockTickets() {
-    const rows = [];
-    let id = 0n;
-    for (const tier of MOCK_TIERS) {
-      const evt = MOCK_EVENTS.find((e) => e.id === tier.eventId);
-      for (let i = 0n; i < tier.minted; i++) {
-        rows.push({ id: id++, eventId: tier.eventId, tierId: tier.id, owner: evt.organizer, originalPrice: tier.price, resalePrice: 0n, forSale: false, checkedIn: false });
-      }
-    }
-    return rows;
-  }
-  let MOCK_TICKETS = null;
 
   // ---------- State ----------
 
@@ -111,6 +144,36 @@
     const div = document.createElement("div");
     div.textContent = str == null ? "" : String(str);
     return div.innerHTML;
+  }
+
+  // escapeHtml (textContent -> innerHTML) KHONG thoat dau nhay, nen gia tri
+  // dat trong thuoc tinh HTML phai qua ham nay.
+  function escapeAttr(str) {
+    return String(str == null ? "" : str)
+      .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Anh su kien den tu metadata do organizer gui len -> chi chap nhan anh
+  // data:image base64 (tu FileReader) hoac asset noi bo, con lai dung anh mac
+  // dinh. Chan chen thuoc tinh/URL la vao <img src>.
+  const SAFE_IMAGE_RE = /^(data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+|\.\/assets\/[\w.-]+)$/;
+  function eventImage(meta, eventId) {
+    return meta && typeof meta.image === "string" && SAFE_IMAGE_RE.test(meta.image) ? meta.image : stockImage(eventId);
+  }
+
+  function fmtCardDate(ts) {
+    const d = new Date(Number(ts) * 1000);
+    const date = d.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+    const time = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    return date + " · " + time;
+  }
+
+  // Loi da viet san bang tieng Viet cho nguoi dung -> friendlyError giu nguyen.
+  function userError(message) {
+    const err = new Error(message);
+    err.userFacing = true;
+    return err;
   }
 
   function shortAddr(addr) {
@@ -138,6 +201,8 @@
   }
 
   function friendlyError(err) {
+    if (err?.userFacing) return err.message;
+    if (err?.code === "ACTION_REJECTED" || err?.code === 4001) return "Bạn đã từ chối giao dịch trong ví.";
     const raw = err?.shortMessage || err?.reason || err?.message || String(err);
     for (const name of Object.keys(ERROR_MESSAGES)) {
       if (raw.includes(name)) return ERROR_MESSAGES[name];
@@ -334,7 +399,7 @@
       const res = await fetch("/api/metadata?eventId=" + key);
       if (!res.ok) return false;
       const remote = await res.json();
-      if (!remote || (!remote.description && !remote.location && !remote.image)) return false;
+      if (!remote || (!remote.description && !remote.location && !remote.image && !remote.category)) return false;
       const before = JSON.stringify(getAllMeta()[key] || {});
       saveMeta(eventId, remote);
       return JSON.stringify(getAllMeta()[key]) !== before;
@@ -394,9 +459,24 @@
     await loadAbi();
     if (!isConfigured()) return null;
     if (readContract) return readContract;
-    const fallbackProvider = ethers.getDefaultProvider("sepolia");
-    readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider || fallbackProvider);
+    // Vi dang o sai mang thi doc qua vi se ra du lieu chain khac -> luc do
+    // (hoac khi chua co vi) doc qua RPC Sepolia cong khai.
+    const walletOnSepolia = provider && userAddress && chainId === SEPOLIA_CHAIN_ID;
+    readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, walletOnSepolia ? provider : getPublicProvider());
     return readContract;
+  }
+
+  let publicProvider = null;
+  function getPublicProvider() {
+    if (!publicProvider) {
+      const net = ethers.Network.from(SEPOLIA_CHAIN_ID);
+      publicProvider = new ethers.JsonRpcProvider(PUBLIC_RPC_URL, net, { staticNetwork: net });
+    }
+    return publicProvider;
+  }
+
+  function range(count) {
+    return Array.from({ length: Number(count) }, (_, i) => BigInt(i));
   }
 
   async function setupWalletSession() {
@@ -406,7 +486,28 @@
     chainId = net.chainId;
     if (isConfigured()) {
       contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-      readContract = contract;
+      readContract = chainId === SEPOLIA_CHAIN_ID ? contract : null;
+    }
+  }
+
+  // MetaMask khong co API "dang xuat" chuan: thu thu hoi quyen (ho tro tu
+  // MetaMask 11+), dong thoi danh dau de trang khong tu ket noi lai im lang.
+  const DISCONNECTED_KEY = "fairticket:disconnected";
+  async function disconnectWallet() {
+    try { await window.ethereum?.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] }); } catch {}
+    try { localStorage.setItem(DISCONNECTED_KEY, "1"); } catch {}
+    userAddress = null; signer = null; contract = null; readContract = null; chainId = null;
+    eventsCache = null; tiersCache = null;
+    toast("Đã ngắt kết nối ví.", "info");
+    route();
+  }
+
+  async function switchToSepolia() {
+    if (!window.ethereum) return;
+    try {
+      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: SEPOLIA_CHAIN_HEX }] });
+    } catch (err) {
+      toast(err?.code === 4001 ? "Bạn đã huỷ đổi mạng trong ví." : "Không đổi được mạng tự động — hãy chọn Sepolia trong MetaMask.", "error");
     }
   }
 
@@ -415,6 +516,7 @@
       toast("Chưa cài MetaMask (hoặc ví tương thích) trên trình duyệt này.", "error");
       return;
     }
+    try { localStorage.removeItem(DISCONNECTED_KEY); } catch {}
     await loadAbi();
     provider = new ethers.BrowserProvider(window.ethereum);
     await provider.send("eth_requestAccounts", []);
@@ -426,6 +528,7 @@
 
   async function trySilentReconnect() {
     if (!window.ethereum) return;
+    try { if (localStorage.getItem(DISCONNECTED_KEY)) return; } catch {}
     try {
       await loadAbi();
       provider = new ethers.BrowserProvider(window.ethereum);
@@ -439,15 +542,15 @@
   }
 
   function requireWallet() {
-    if (!userAddress) throw new Error("Chưa kết nối ví. Bấm “Kết nối ví” ở góc trên bên phải.");
+    if (!userAddress) throw userError("Chưa kết nối ví. Bấm “Kết nối ví” ở góc trên bên phải.");
   }
   function requireContract() {
-    if (!isConfigured()) throw new Error("Chưa cấu hình CONTRACT_ADDRESS/ABI trong app.js.");
-    if (!contract) throw new Error("Chưa kết nối ví.");
+    if (!isConfigured()) throw userError("Chưa cấu hình CONTRACT_ADDRESS/ABI trong app.js.");
+    if (!contract) throw userError("Chưa kết nối ví.");
   }
   function requireRightNetwork() {
     if (chainId && chainId !== SEPOLIA_CHAIN_ID) {
-      throw new Error("Ví đang không ở mạng Sepolia. Đổi mạng trong MetaMask rồi thử lại.");
+      throw userError("Vui lòng chuyển ví sang mạng Ethereum Sepolia rồi thử lại.");
     }
   }
 
@@ -457,12 +560,9 @@
     const c = await ensureReadContract();
     if (!c) return [];
     if (eventsCache && !force) return eventsCache;
-    const count = await c.nextEventId();
-    const out = [];
-    for (let i = 0n; i < count; i++) {
-      const e = await c.events(i);
-      out.push({ id: i, name: e.name, startTime: e.startTime, organizer: e.organizer, tierCount: e.tierCount });
-    }
+    const ids = range(await c.nextEventId());
+    const rows = await Promise.all(ids.map((i) => c.events(i)));
+    const out = rows.map((e, i) => ({ id: ids[i], name: e.name, startTime: e.startTime, organizer: e.organizer, tierCount: e.tierCount }));
     eventsCache = out;
     return out;
   }
@@ -472,12 +572,9 @@
     const c = await ensureReadContract();
     if (!c) return [];
     if (tiersCache && !force) return tiersCache;
-    const count = await c.nextTierId();
-    const out = [];
-    for (let i = 0n; i < count; i++) {
-      const t = await c.tiers(i);
-      out.push({ id: i, eventId: t.eventId, name: t.name, price: t.price, maxSupply: t.maxSupply, minted: t.minted });
-    }
+    const ids = range(await c.nextTierId());
+    const rows = await Promise.all(ids.map((i) => c.tiers(i)));
+    const out = rows.map((t, i) => ({ id: ids[i], eventId: t.eventId, name: t.name, price: t.price, maxSupply: t.maxSupply, minted: t.minted }));
     tiersCache = out;
     return out;
   }
@@ -487,20 +584,44 @@
     return all.filter((t) => t.eventId === eventId);
   }
 
-  async function fetchTicketsForEvent(eventId) {
-    if (!isConfigured()) {
-      if (!MOCK_TICKETS) MOCK_TICKETS = buildMockTickets();
-      return MOCK_TICKETS.filter((t) => t.eventId === eventId);
-    }
+  // Ve dang rao ban lai: doc thang trang thai hien tai tren contract
+  // (forSale && chua check-in), khong suy ra tu log - log rao ban cu co the
+  // da het hieu luc vi ve da duoc mua/chu ve doi.
+  async function fetchResaleListings() {
+    if (!isConfigured()) return [];
     const c = await ensureReadContract();
     if (!c) return [];
-    const count = await c.nextTicketId();
-    const out = [];
-    for (let i = 0n; i < count; i++) {
-      const t = await c.tickets(i);
-      if (t.eventId === eventId) out.push(Object.assign({ id: i }, t));
+    const ids = range(await c.nextTicketId());
+    const rows = await Promise.all(ids.map((i) => c.tickets(i)));
+    return rows
+      .map((t, i) => ({ id: ids[i], eventId: t.eventId, tierId: t.tierId, owner: t.owner, originalPrice: t.originalPrice, resalePrice: t.resalePrice, forSale: t.forSale, checkedIn: t.checkedIn }))
+      .filter((t) => t.forSale && !t.checkedIn);
+  }
+
+  function tiersByEvent(tiers) {
+    const map = new Map();
+    for (const t of tiers) {
+      const key = String(t.eventId);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(t);
     }
-    return out;
+    return map;
+  }
+
+  // Tom tat ban ve cua 1 su kien tu du lieu tier that tren chain.
+  function salesSummary(evt, tiers) {
+    const nowTs = Math.floor(Date.now() / 1000);
+    const ended = Number(evt.startTime) <= nowTs;
+    const supply = tiers.reduce((s, t) => s + t.maxSupply, 0n);
+    const minted = tiers.reduce((s, t) => s + t.minted, 0n);
+    const open = tiers.filter((t) => t.minted < t.maxSupply);
+    const minPrice = (open.length ? open : tiers).reduce((m, t) => (m === null || t.price < m ? t.price : m), null);
+    const remaining = supply - minted;
+    let badge = null;
+    if (ended) badge = { label: "Đã diễn ra", cls: "badge-neutral" };
+    else if (tiers.length && remaining === 0n) badge = { label: "Hết vé", cls: "badge-danger" };
+    else if (tiers.length && remaining * 10n <= supply) badge = { label: "Sắp hết vé", cls: "badge-warning" };
+    return { ended, supply, minted, remaining, minPrice, hasTiers: tiers.length > 0, soldOut: tiers.length > 0 && remaining === 0n, badge };
   }
 
   function computeStatus(evt, tiers) {
@@ -516,16 +637,24 @@
   // ---------- Router ----------
 
   const routes = {};
+  function parseHash() {
+    const raw = window.location.hash.slice(1) || "/";
+    const [path, qs] = raw.split("?");
+    return { parts: path.split("/").filter(Boolean), query: new URLSearchParams(qs || "") };
+  }
   function route() {
     renderToken++;
-    const hash = window.location.hash.slice(1) || "/";
-    const parts = hash.split("/").filter(Boolean);
+    closeWalletMenu();
+    const { parts, query } = parseHash();
     renderHeader();
+    window.scrollTo(0, 0);
     if (parts.length === 0) return routes.home();
     if (parts[0] === "events" && parts[1]) return routes.eventDetail(parts[1]);
-    if (parts[0] === "events") return routes.events();
+    if (parts[0] === "events") return routes.events(query);
+    if (parts[0] === "resale") return routes.resale();
     if (parts[0] === "create") return routes.create();
-    if (parts[0] === "my-events") return routes.myEvents();
+    if (parts[0] === "my-events") return routes.myEvents("organizer");
+    if (parts[0] === "my-tickets") return routes.myEvents("tickets");
     if (parts[0] === "checkout" && parts[1] && parts[2]) return routes.checkout(parts[1], parts[2], parts[3] || "1");
     return routes.home();
   }
@@ -534,33 +663,92 @@
   // ---------- Header ----------
 
   function renderHeader() {
-    const hash = window.location.hash.slice(1) || "/";
-    const base = hash.split("/").filter(Boolean)[0] || "";
+    const base = parseHash().parts[0] || "";
     document.querySelectorAll(".main-nav a").forEach((a) => {
       a.classList.toggle("active", a.dataset.route === base);
     });
+    const myLink = document.querySelector(".header-mytickets");
+    if (myLink) myLink.classList.toggle("btn-secondary", base === "my-tickets");
+
     const btn = document.getElementById("btn-connect");
+    const wrongNetwork = !!(userAddress && chainId && chainId !== SEPOLIA_CHAIN_ID);
     if (userAddress) {
-      btn.innerHTML = '<span class="wallet-chip"><span class="wallet-chip__dot"></span><span class="mono">' + shortAddr(userAddress) + "</span></span>";
-      btn.className = "";
-      btn.onclick = () => { window.location.hash = "#/my-events"; };
+      btn.innerHTML = `<span class="wallet-chip"><span class="wallet-chip__dot${wrongNetwork ? " wallet-chip__dot--bad" : ""}"></span><span class="mono">${shortAddr(userAddress)}</span></span>`;
+      btn.className = "wallet-btn";
+      btn.setAttribute("aria-haspopup", "menu");
+      btn.setAttribute("aria-expanded", "false");
+      btn.onclick = (e) => { e.stopPropagation(); toggleWalletMenu(); };
     } else {
       btn.innerHTML = "Kết nối ví";
       btn.className = "btn btn-primary btn-sm";
+      btn.removeAttribute("aria-haspopup");
+      btn.removeAttribute("aria-expanded");
       btn.onclick = (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true });
     }
 
-    // Canh bao SOM neu vi dang ket noi nhung sai mang - truoc day chi bao
-    // loi SAU khi nguoi dung da bam Deploy/Mua ve, de nham lan ("lam vay sao
-    // van loi"). Gio hien san banner do tren dau ngay khi phat hien sai mang.
+    // Canh bao SOM neu vi dang ket noi nhung sai mang, kem nut doi mang.
     const netBanner = document.getElementById("network-banner");
     if (netBanner) {
-      const wrongNetwork = userAddress && chainId && chainId !== SEPOLIA_CHAIN_ID;
       netBanner.hidden = !wrongNetwork;
       if (wrongNetwork) {
-        netBanner.innerHTML = `⚠️ Ví đang ở mạng khác (không phải Sepolia). Mở MetaMask → đổi mạng sang <strong>Sepolia</strong> thì mới tạo sự kiện / mua vé được.`;
+        netBanner.innerHTML = `<div class="banner-row"><span>Ví đang ở mạng khác (không phải Ethereum Sepolia) — chưa thể tạo sự kiện hay mua vé.</span><button type="button" class="btn btn-sm btn-dark" id="btn-switch-net">Chuyển sang Sepolia</button></div>`;
+        document.getElementById("btn-switch-net").onclick = switchToSepolia;
       }
     }
+  }
+
+  function walletMenuHtml() {
+    const wrongNetwork = chainId && chainId !== SEPOLIA_CHAIN_ID;
+    return `
+      <div class="wallet-dropdown__head">
+        <div class="wallet-dropdown__addr"><span class="mono">${shortAddr(userAddress)}</span><button type="button" class="copy-btn" data-copy="${userAddress}">Sao chép</button></div>
+        <div class="wallet-dropdown__net"><span class="wallet-chip__dot${wrongNetwork ? " wallet-chip__dot--bad" : ""}"></span>${wrongNetwork ? "Sai mạng — cần Ethereum Sepolia" : "Ethereum Sepolia"}</div>
+      </div>
+      ${wrongNetwork ? `<button type="button" class="menu-item" data-action="switch">${icon("wallet")} Chuyển sang Sepolia</button>` : ""}
+      <a href="#/my-tickets" role="menuitem">${icon("ticket")} Vé của tôi</a>
+      <a href="#/my-events" role="menuitem">${icon("calendar")} Sự kiện của tôi</a>
+      <a href="${ETHERSCAN}/address/${userAddress}" target="_blank" rel="noopener" role="menuitem">${icon("external")} Xem ví trên Etherscan</a>
+      <button type="button" class="menu-item menu-item--danger" data-action="disconnect" role="menuitem">${icon("logout")} Ngắt kết nối</button>`;
+  }
+
+  function toggleWalletMenu() {
+    const dd = document.getElementById("wallet-dropdown");
+    if (!dd) return;
+    if (!dd.hidden) return closeWalletMenu();
+    dd.innerHTML = walletMenuHtml();
+    dd.hidden = false;
+    document.getElementById("btn-connect").setAttribute("aria-expanded", "true");
+    dd.querySelector('[data-action="disconnect"]').onclick = () => { closeWalletMenu(); disconnectWallet(); };
+    const sw = dd.querySelector('[data-action="switch"]');
+    if (sw) sw.onclick = () => { closeWalletMenu(); switchToSepolia(); };
+    dd.querySelectorAll("[data-copy]").forEach(bindCopy);
+    dd.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeWalletMenu));
+  }
+
+  function closeWalletMenu() {
+    const dd = document.getElementById("wallet-dropdown");
+    if (dd && !dd.hidden) {
+      dd.hidden = true;
+      document.getElementById("btn-connect")?.setAttribute("aria-expanded", "false");
+    }
+  }
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#wallet-menu")) closeWalletMenu();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeWalletMenu(); });
+
+  function bindCopy(btn) {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy);
+        const old = btn.textContent;
+        btn.textContent = "Đã chép";
+        setTimeout(() => { btn.textContent = old; }, 1200);
+      } catch {
+        toast("Không sao chép được — hãy bôi đen và copy thủ công.", "error");
+      }
+    });
   }
 
   // ---------- Page: Home ----------
@@ -569,66 +757,258 @@
     const myToken = renderToken;
     $root().innerHTML = h`
       <div class="page container">
-        <section class="hero">
-          <img class="hero__img" src="./assets/hero.jpg" alt="" />
-          <div class="hero__scrim"></div>
-          <div class="hero__content">
-            <h1>Vé công bằng cho những sự kiện đáng nhớ</h1>
-            <p>Ứng dụng blockchain giúp chống vé giả, hạn chế đầu cơ và mang lại trải nghiệm minh bạch cho người tham gia.</p>
-            <div class="hero__cta">
-              <a href="#/events" class="btn btn-primary btn-lg">Khám phá sự kiện →</a>
-              <a href="#/create" class="btn btn-secondary btn-lg">Tạo sự kiện</a>
-            </div>
-          </div>
+        <h1 class="sr-only">FairTicket — khám phá và mua vé sự kiện</h1>
+        <nav class="category-bar" aria-label="Danh mục sự kiện">
+          <a class="cat-chip active" href="#/events">${icon("grid")} Tất cả</a>
+          ${CATEGORIES.map((c) => `<a class="cat-chip" href="#/events?cat=${c.id}">${icon(c.icon)} ${c.label}</a>`).join("")}
+        </nav>
+
+        <section class="hero-carousel" id="hero-carousel" aria-roledescription="carousel" aria-label="Sự kiện tiêu điểm">
+          ${brandSlideHtml(true)}
         </section>
 
-        <section class="benefits">
-          <div class="benefit">
-            <h3>Chống vé giả</h3>
-            <p>Mỗi vé là một token duy nhất trên blockchain, không thể sao chép hay làm giả.</p>
-          </div>
-          <div class="benefit">
-            <h3>Hạn chế đầu cơ</h3>
-            <p>Thiết lập trần giá khi chuyển nhượng — tối đa 110% giá gốc.</p>
-          </div>
-          <div class="benefit">
-            <h3>Minh bạch</h3>
-            <p>Kiểm tra nguồn gốc và toàn bộ lịch sử giao dịch của vé trực tiếp trên chuỗi.</p>
-          </div>
-        </section>
-
-        <section>
+        <section class="home-section">
           <div class="section-head">
-            <div>
-              <h2>Sự kiện nổi bật</h2>
-              <p>Những sự kiện đang mở bán vé gần đây.</p>
-            </div>
-            <a href="#/events" class="btn btn-ghost btn-sm">Xem tất cả →</a>
+            <div><h2>Sự kiện nổi bật</h2><p>Các sự kiện mới nhất đang mở bán trên FairTicket.</p></div>
+            <a href="#/events" class="btn btn-ghost btn-sm">Xem tất cả ${icon("chevronRight")}</a>
           </div>
-          <div id="home-events" class="grid-4">${skeletonCards(4)}</div>
+          <div id="home-featured" class="grid-4">${skeletonCards(4)}</div>
+        </section>
+
+        <section class="home-section">
+          <div class="section-head">
+            <div><h2>Sắp diễn ra</h2><p>Sắp xếp theo thời gian bắt đầu gần nhất.</p></div>
+            <a href="#/events?sort=soon" class="btn btn-ghost btn-sm">Xem lịch ${icon("chevronRight")}</a>
+          </div>
+          <div id="home-upcoming" class="upcoming-list">${skeletonRows(4)}</div>
+        </section>
+
+        <section class="home-section">
+          <div class="section-head"><div><h2>Khám phá theo danh mục</h2><p>Chọn loại sự kiện bạn quan tâm.</p></div></div>
+          <div id="home-cats" class="cat-grid">${categoryTilesHtml(null)}</div>
+        </section>
+
+        <section class="home-section">
+          <div class="section-head">
+            <div><h2>Vé bán lại minh bạch</h2><p>Vé do người dùng rao bán lại — trạng thái đọc trực tiếp từ hợp đồng.</p></div>
+            <a href="#/resale" class="btn btn-ghost btn-sm">Xem tất cả ${icon("chevronRight")}</a>
+          </div>
+          ${resaleRuleBanner()}
+          <div id="home-resale" class="grid-4">${skeletonCards(4)}</div>
+        </section>
+
+        <section class="home-section">
+          <div class="section-head"><div><h2>Vì sao chọn FairTicket?</h2></div></div>
+          <div class="benefit-grid">
+            ${benefitHtml("shield", "Vé xác thực on-chain", "Mỗi vé là một bản ghi duy nhất trên hợp đồng ProjectCore — không thể làm giả hay nhân bản.")}
+            ${benefitHtml("scale", "Giới hạn đầu cơ", "Hợp đồng từ chối mọi giá bán lại vượt 110% giá gốc.")}
+            ${benefitHtml("eye", "Sở hữu minh bạch", "Ai đang giữ vé nào đều kiểm chứng được công khai trên Etherscan.")}
+            ${benefitHtml("history", "Theo dõi giao dịch", "Mua, bán lại, check-in đều để lại lịch sử không thể sửa đổi.")}
+          </div>
         </section>
       </div>
     `;
 
-    const evts = await fetchAllEvents();
-    if (myToken !== renderToken) return;
-    const list = document.getElementById("home-events");
-    if (!list) return;
-    if (evts.length === 0) {
-      list.innerHTML = emptyState("Chưa có sự kiện nào", isConfigured() ? "Hãy là người đầu tiên tạo sự kiện." : "Kết nối ví và cấu hình hợp đồng để xem sự kiện.");
+    let evts, tiers;
+    try {
+      [evts, tiers] = await Promise.all([fetchAllEvents(), fetchAllTiers()]);
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error("Không tải được sự kiện:", err);
+      ["home-featured", "home-upcoming", "home-resale"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = errorStateHtml("Không tải được dữ liệu từ blockchain", "Mạng/RPC đang chập chờn.");
+      });
+      wireRetry();
       return;
     }
-    const featured = evts.slice(-4).reverse();
-    list.innerHTML = featured.map(eventCardHtml).join("");
-    syncMetaThenRefresh(featured.map((e) => e.id), () => {
-      if (myToken !== renderToken) return;
-      list.innerHTML = featured.map(eventCardHtml).join("");
-    });
+    if (myToken !== renderToken) return;
+    const byEvent = tiersByEvent(tiers);
+    const draw = () => { if (myToken === renderToken) renderHomeData(evts, byEvent); };
+    draw();
+    syncMetaThenRefresh(evts.map((e) => e.id), draw);
+    loadResaleInto("home-resale", myToken, evts, tiers, 4);
   };
+
+  function renderHomeData(evts, byEvent) {
+    const nowTs = Math.floor(Date.now() / 1000);
+    const tiersOf = (e) => byEvent.get(String(e.id)) || [];
+    const upcoming = evts.filter((e) => Number(e.startTime) > nowTs).sort((a, b) => Number(a.startTime) - Number(b.startTime));
+
+    // Carousel: su kien sap dien ra da co hang ve (toi da 5), cuoi cung la slide gioi thieu.
+    const heroEvents = upcoming.filter((e) => tiersOf(e).length > 0).slice(0, 5);
+    const carousel = document.getElementById("hero-carousel");
+    if (carousel) {
+      mountCarousel(carousel, [
+        ...heroEvents.map((e, i) => eventSlideHtml(e, tiersOf(e), i === 0)),
+        brandSlideHtml(heroEvents.length === 0),
+      ]);
+    }
+
+    // Noi bat = moi nhat con mo ban (chua dien ra, con ve); thieu thi bu bang su kien sap dien ra khac.
+    const newest = upcoming.slice().sort((a, b) => Number(b.id - a.id));
+    const selling = newest.filter((e) => { const s = salesSummary(e, tiersOf(e)); return s.hasTiers && !s.soldOut; });
+    let featured = selling.concat(newest.filter((e) => !selling.includes(e))).slice(0, 8);
+    // Khong con su kien sap dien ra -> hien su kien gan nhat (co nhan "Đã diễn ra") thay vi de trong.
+    if (featured.length < 4) {
+      const past = evts.filter((e) => Number(e.startTime) <= nowTs).sort((a, b) => Number(b.startTime) - Number(a.startTime));
+      featured = featured.concat(past.slice(0, 4 - featured.length));
+    }
+    const featEl = document.getElementById("home-featured");
+    if (featEl) {
+      featEl.innerHTML = featured.length
+        ? featured.map((e) => eventCardHtml(e, tiersOf(e))).join("")
+        : emptyState("Chưa có sự kiện nào", isConfigured() ? "Hãy là người đầu tiên tạo sự kiện trên FairTicket." : "Chưa cấu hình kết nối hợp đồng.", `<a class="btn btn-primary" href="#/create" style="margin-top:16px;">Tạo sự kiện</a>`);
+    }
+
+    const upEl = document.getElementById("home-upcoming");
+    if (upEl) {
+      upEl.innerHTML = upcoming.length
+        ? upcoming.slice(0, 6).map((e) => upcomingItemHtml(e, tiersOf(e))).join("")
+        : emptyState("Chưa có sự kiện sắp diễn ra", "Các sự kiện mới mở bán sẽ xuất hiện tại đây.", evts.length ? `<a class="btn btn-secondary btn-sm" href="#/events?past=1" style="margin-top:16px;">Xem sự kiện đã diễn ra</a>` : "");
+    }
+
+    const counts = {};
+    for (const e of evts) {
+      const id = categoryOf(getMeta(e.id).category).id;
+      counts[id] = (counts[id] || 0) + 1;
+    }
+    const catEl = document.getElementById("home-cats");
+    if (catEl) catEl.innerHTML = categoryTilesHtml(counts);
+  }
+
+  function brandSlideHtml(active) {
+    return `
+      <div class="hero-slide${active ? " is-active" : ""}" role="group" aria-roledescription="slide" aria-label="Giới thiệu FairTicket">
+        <img class="hero-slide__img" src="./assets/hero.jpg" alt="" />
+        <div class="hero-slide__scrim"></div>
+        <div class="hero-slide__content">
+          <span class="hero-slide__eyebrow">FairTicket</span>
+          <h2 class="hero-slide__title">Vé công bằng cho những sự kiện đáng nhớ</h2>
+          <p class="hero-slide__lead">Mua vé ghi nhận trên blockchain — chống vé giả, giá bán lại không vượt 110% giá gốc.</p>
+          <div class="hero-slide__cta">
+            <a href="#/events" class="btn btn-primary btn-lg">Khám phá sự kiện</a>
+            <a href="#/create" class="btn btn-secondary btn-lg">Tạo sự kiện</a>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function eventSlideHtml(evt, tiers, active) {
+    const meta = getMeta(evt.id);
+    const s = salesSummary(evt, tiers);
+    const canBuy = s.hasTiers && !s.soldOut && !s.ended;
+    return `
+      <div class="hero-slide${active ? " is-active" : ""}" role="group" aria-roledescription="slide" aria-label="${escapeAttr(evt.name)}">
+        <img class="hero-slide__img" src="${eventImage(meta, evt.id)}" alt="" />
+        <div class="hero-slide__scrim"></div>
+        <div class="hero-slide__content">
+          <span class="hero-slide__eyebrow">${categoryOf(meta.category).label}${s.badge ? " · " + s.badge.label : ""}</span>
+          <h2 class="hero-slide__title">${escapeHtml(evt.name)}</h2>
+          <div class="hero-slide__meta">
+            <span>${icon("calendar")} ${fmtCardDate(evt.startTime)}</span>
+            <span>${icon("pin")} ${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</span>
+            ${s.hasTiers ? `<span>${icon("ticket")} Từ ${fmtEth(s.minPrice)} ETH</span>` : ""}
+          </div>
+          <div class="hero-slide__cta">
+            ${canBuy ? `<a href="#/events/${evt.id}" class="btn btn-accent btn-lg">Mua vé</a>` : ""}
+            <a href="#/events/${evt.id}" class="btn btn-secondary btn-lg">Xem chi tiết</a>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  let carouselTimer = null;
+  function mountCarousel(root, slides) {
+    clearInterval(carouselTimer);
+    const n = slides.length;
+    root.innerHTML = slides.join("") + (n > 1 ? `
+      <button type="button" class="carousel-nav carousel-nav--prev" aria-label="Slide trước">${icon("chevronLeft", "icon")}</button>
+      <button type="button" class="carousel-nav carousel-nav--next" aria-label="Slide sau">${icon("chevronRight", "icon")}</button>
+      <div class="carousel-dots">${slides.map((_, i) => `<button type="button" class="carousel-dot${i === 0 ? " is-active" : ""}" aria-label="Tới slide ${i + 1}"></button>`).join("")}</div>` : "");
+    const els = root.querySelectorAll(".hero-slide");
+    const dots = root.querySelectorAll(".carousel-dot");
+    let idx = 0;
+    function go(i) {
+      idx = (i + n) % n;
+      els.forEach((el, k) => {
+        el.classList.toggle("is-active", k === idx);
+        el.inert = k !== idx;
+      });
+      dots.forEach((d, k) => { d.classList.toggle("is-active", k === idx); d.setAttribute("aria-current", k === idx ? "true" : "false"); });
+    }
+    go(0);
+    if (n <= 1) return;
+    root.querySelector(".carousel-nav--prev").addEventListener("click", () => go(idx - 1));
+    root.querySelector(".carousel-nav--next").addEventListener("click", () => go(idx + 1));
+    dots.forEach((d, k) => d.addEventListener("click", () => go(k)));
+
+    let paused = false;
+    root.addEventListener("mouseenter", () => { paused = true; });
+    root.addEventListener("mouseleave", () => { paused = false; });
+    root.addEventListener("focusin", () => { paused = true; });
+    root.addEventListener("focusout", () => { paused = false; });
+    let touchX = null;
+    root.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; paused = true; }, { passive: true });
+    root.addEventListener("touchend", (e) => {
+      if (touchX !== null) {
+        const dx = e.changedTouches[0].clientX - touchX;
+        if (Math.abs(dx) > 40) go(idx + (dx < 0 ? 1 : -1));
+      }
+      touchX = null;
+      paused = false;
+    });
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    carouselTimer = setInterval(() => {
+      if (!document.body.contains(root)) { clearInterval(carouselTimer); return; }
+      if (!paused && !document.hidden) go(idx + 1);
+    }, 6000);
+  }
+
+  function upcomingItemHtml(evt, tiers) {
+    const meta = getMeta(evt.id);
+    const d = new Date(Number(evt.startTime) * 1000);
+    const s = salesSummary(evt, tiers);
+    const right = s.badge
+      ? `<span class="badge ${s.badge.cls}">${s.badge.label}</span>`
+      : s.hasTiers ? `<span class="text-sm tabular-nums" style="font-weight:600;">${fmtEth(s.minPrice)} ETH</span>` : `<span class="badge badge-neutral">Chưa mở bán</span>`;
+    return `
+      <a class="upcoming-item" href="#/events/${evt.id}">
+        <div class="date-block" aria-hidden="true">
+          <div class="date-block__month">Thg ${d.getMonth() + 1}</div>
+          <div class="date-block__day">${String(d.getDate()).padStart(2, "0")}</div>
+        </div>
+        <img class="upcoming-item__img" src="${eventImage(meta, evt.id)}" alt="" loading="lazy" />
+        <div class="upcoming-item__main">
+          <div class="upcoming-item__title">${escapeHtml(evt.name)}</div>
+          <div class="upcoming-item__meta">${fmtCardDate(evt.startTime)} · ${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</div>
+        </div>
+        ${right}
+      </a>`;
+  }
+
+  function categoryTilesHtml(counts) {
+    return CATEGORIES.filter((c) => c.id !== "other").map((c) => `
+      <a class="cat-tile" href="#/events?cat=${c.id}">
+        <span class="cat-tile__icon">${icon(c.icon, "icon")}</span>
+        <span>
+          <span class="cat-tile__name">${c.label}</span><br />
+          <span class="cat-tile__count">${counts ? (counts[c.id] || 0) + " sự kiện" : "&nbsp;"}</span>
+        </span>
+      </a>`).join("");
+  }
+
+  function benefitHtml(iconName, title, text) {
+    return `<div class="benefit-card"><div class="benefit-card__icon">${icon(iconName, "icon")}</div><h3>${title}</h3><p>${text}</p></div>`;
+  }
+
+  function resaleRuleBanner() {
+    return `<div class="resale-banner">${icon("scale", "icon")}<span>Giá bán lại được <strong>giới hạn tối đa 110% giá gốc</strong> — chính hợp đồng ProjectCore từ chối mọi mức giá cao hơn, không chỉ là quy định hiển thị.</span></div>`;
+  }
 
   function skeletonCards(n) {
     return Array.from({ length: n }).map(() => `
-      <div class="event-card">
+      <div class="event-card" aria-hidden="true">
         <div class="event-card__img-wrap skel"></div>
         <div class="event-card__body">
           <div class="skel" style="height:12px;width:40%;margin-bottom:8px;"></div>
@@ -638,51 +1018,309 @@
       </div>`).join("");
   }
 
-  function emptyState(title, body) {
-    return `<div class="empty-state card" style="grid-column:1/-1;"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(body)}</p></div>`;
+  function skeletonRows(n) {
+    return Array.from({ length: n }).map(() => `<div class="upcoming-item" aria-hidden="true"><div class="skel" style="width:60px;height:62px;"></div><div style="flex:1;"><div class="skel" style="height:14px;width:70%;margin-bottom:8px;"></div><div class="skel" style="height:12px;width:45%;"></div></div></div>`).join("");
   }
 
-  function eventCardHtml(evt) {
+  function emptyState(title, body, extraHtml) {
+    return `<div class="empty-state card" style="grid-column:1/-1;"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(body)}</p>${extraHtml || ""}</div>`;
+  }
+
+  function errorStateHtml(title, body) {
+    return `<div class="empty-state card" style="grid-column:1/-1;"><h3>${escapeHtml(title)}</h3><p>${escapeHtml(body)}</p><button type="button" class="btn btn-secondary btn-sm" data-retry style="margin-top:16px;">Thử lại</button></div>`;
+  }
+  function wireRetry() {
+    $root().querySelectorAll("[data-retry]").forEach((b) => b.addEventListener("click", () => { eventsCache = null; tiersCache = null; route(); }));
+  }
+
+  function eventCardHtml(evt, tiers) {
     const meta = getMeta(evt.id);
-    const img = meta.image || stockImage(evt.id);
+    const s = tiers ? salesSummary(evt, tiers) : null;
+    const price = !s ? "Xem giá vé" : s.hasTiers ? `Từ <strong>${fmtEth(s.minPrice)} ETH</strong>` : "Chưa mở bán";
     return `
       <a class="event-card" href="#/events/${evt.id}">
-        <div class="event-card__img-wrap"><img class="event-card__img" src="${img}" alt="" /></div>
+        <div class="event-card__img-wrap">
+          <img class="event-card__img" src="${eventImage(meta, evt.id)}" alt="" loading="lazy" />
+          <div class="event-card__tags"><span class="event-card__cat">${categoryOf(meta.category).label}</span>${s && s.badge ? `<span class="badge ${s.badge.cls}">${s.badge.label}</span>` : ""}</div>
+        </div>
         <div class="event-card__body">
-          <div class="event-card__date">${fmtDate(evt.startTime)}</div>
+          <div class="event-card__date">${fmtCardDate(evt.startTime)}</div>
           <div class="event-card__title">${escapeHtml(evt.name)}</div>
-          <div class="event-card__meta">${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</div>
-          <div class="event-card__price">Xem giá vé</div>
+          <div class="event-card__meta">${icon("pin")}<span>${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</span></div>
+          <div class="event-card__price-wrap"><div class="event-card__price"><span>Giá vé</span><span>${price}</span></div></div>
         </div>
       </a>`;
   }
 
-  // ---------- Page: Events list ----------
+  // ---------- Resale (vé bán lại) ----------
 
-  routes.events = async function () {
+  async function loadResaleInto(elId, myToken, evts, tiers, limit) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    let listings;
+    try {
+      listings = await fetchResaleListings();
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error("Không tải được vé bán lại:", err);
+      el.innerHTML = errorStateHtml("Không tải được vé bán lại", "Mạng/RPC đang chập chờn.");
+      wireRetry();
+      return;
+    }
+    if (myToken !== renderToken) return;
+    const shown = listings.slice().sort((a, b) => Number(b.id - a.id)).slice(0, limit || listings.length);
+    if (shown.length === 0) {
+      el.innerHTML = emptyState("Chưa có vé nào đang được rao bán lại", "Khi chủ vé rao bán, vé sẽ xuất hiện tại đây với giá không vượt 110% giá gốc.");
+      return;
+    }
+    const evtMap = new Map(evts.map((e) => [String(e.id), e]));
+    const tierMap = new Map(tiers.map((t) => [String(t.id), t]));
+    el.innerHTML = shown.map((l) => resaleCardHtml(l, evtMap.get(String(l.eventId)), tierMap.get(String(l.tierId)))).join("");
+    el.querySelectorAll("[data-buy-resale]").forEach((btn) => {
+      btn.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+        const id = BigInt(btn.dataset.buyResale);
+        const listing = shown.find((l) => l.id === id);
+        await buyResaleFlow(listing, evtMap.get(String(listing.eventId)), tierMap.get(String(listing.tierId)));
+      }));
+    });
+  }
+
+  function resaleCardHtml(l, evt, tier) {
+    const meta = getMeta(l.eventId);
+    const diffBps = l.originalPrice > 0n ? Number(((l.resalePrice - l.originalPrice) * 10000n) / l.originalPrice) : 0;
+    const pct = (diffBps / 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+    const isMine = userAddress && l.owner.toLowerCase() === userAddress.toLowerCase();
+    const ended = evt && Number(evt.startTime) <= Math.floor(Date.now() / 1000);
+    return `
+      <article class="resale-card">
+        <img class="resale-card__img" src="${eventImage(meta, l.eventId)}" alt="" loading="lazy" />
+        <div class="resale-card__body">
+          <div>
+            <div class="resale-card__title">${escapeHtml(evt ? evt.name : "Sự kiện #" + l.eventId)}</div>
+            <div class="resale-card__sub">${escapeHtml(tier ? tier.name : "Hạng #" + l.tierId)} · Vé #${l.id}${evt ? " · " + fmtDate(evt.startTime) : ""}</div>
+          </div>
+          <div class="price-compare">
+            <div class="price-compare__row"><span>Giá gốc</span><span class="tabular-nums">${fmtEth(l.originalPrice)} ETH</span></div>
+            <div class="price-compare__row"><span>Giá bán lại</span><span class="price-compare__resale">${fmtEth(l.resalePrice)} ETH</span></div>
+            <div class="price-compare__row"><span>Chênh lệch</span><span class="${diffBps > 0 ? "diff-up" : "diff-down"} tabular-nums">${diffBps > 0 ? "+" : ""}${pct}%</span></div>
+          </div>
+          <div class="resale-card__foot">
+            <span class="text-sm text-secondary">Người bán <span class="mono">${shortAddr(l.owner)}</span></span>
+            ${isMine ? `<span class="badge badge-neutral">Vé của bạn</span>` : ended ? `<span class="badge badge-neutral">Đã diễn ra</span>` : `<button type="button" class="btn btn-accent btn-sm" data-buy-resale="${l.id}">Mua lại</button>`}
+          </div>
+        </div>
+      </article>`;
+  }
+
+  function confirmResaleModal(l, evt, tier) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "modal-overlay";
+      overlay.innerHTML = `
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="resale-modal-title">
+          <h3 id="resale-modal-title">Xác nhận mua lại vé</h3>
+          <div class="review-list" style="margin-top: var(--sp-3);">
+            <div class="review-row"><span class="review-row__label">Sự kiện</span><span class="review-row__value">${escapeHtml(evt ? evt.name : "#" + l.eventId)}</span></div>
+            <div class="review-row"><span class="review-row__label">Hạng vé</span><span class="review-row__value">${escapeHtml(tier ? tier.name : "#" + l.tierId)} · Vé #${l.id}</span></div>
+            <div class="review-row"><span class="review-row__label">Giá gốc</span><span class="review-row__value tabular-nums">${fmtEth(l.originalPrice)} ETH</span></div>
+            <div class="review-row"><span class="review-row__label">Người bán</span><span class="review-row__value mono">${shortAddr(l.owner)}</span></div>
+            <div class="review-row"><span class="review-row__label">Ví của bạn</span><span class="review-row__value mono">${shortAddr(userAddress)}</span></div>
+            <div class="review-row"><span class="review-row__label">Mạng</span><span class="review-row__value">Ethereum Sepolia</span></div>
+            <div class="review-row" style="font-size:16px;"><span class="review-row__label">Thanh toán</span><span class="review-row__value tabular-nums">${fmtEth(l.resalePrice)} ETH</span></div>
+          </div>
+          <p class="hint" style="margin-top: var(--sp-3); font-size:13px; color: var(--text-secondary);">Chưa gồm phí gas (ví sẽ hiển thị). Sau khi blockchain xác nhận, vé chuyển sang ví của bạn; nếu bán lại, giá vẫn bị giới hạn tối đa 110% giá gốc.</p>
+          <div class="wizard-actions" style="margin-top: var(--sp-4); padding-top: 0; border-top: none;">
+            <button type="button" class="btn btn-ghost" data-action="cancel">Huỷ</button>
+            <button type="button" class="btn btn-accent" data-action="confirm">Xác nhận mua</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const confirmBtn = overlay.querySelector('[data-action="confirm"]');
+      confirmBtn.focus();
+      function close(v) { overlay.remove(); resolve(v); }
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) close(false); });
+      overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(false); });
+      overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => close(false));
+      confirmBtn.addEventListener("click", () => close(true));
+    });
+  }
+
+  // Mua lai ve: doc lai trang thai ve NGAY truoc khi gui giao dich (listing
+  // co the da bi mua/go tu luc tai trang), chi bao thanh cong khi receipt
+  // co status = 1 (khong dua vao viec MetaMask da mo hay da co tx hash).
+  async function buyResaleFlow(listing, evt, tier) {
+    if (!userAddress) {
+      await connectWallet();
+      if (!userAddress) return;
+    }
+    requireContract();
+    requireRightNetwork();
+    const fresh = await contract.tickets(listing.id);
+    if (!fresh.forSale || fresh.checkedIn) throw userError("Vé này không còn được rao bán (đã có người mua hoặc chủ vé đã gỡ).");
+    if (fresh.owner.toLowerCase() === userAddress.toLowerCase()) throw userError("Đây là vé của chính bạn.");
+    if (evt && Number(evt.startTime) <= Math.floor(Date.now() / 1000)) throw userError("Sự kiện đã diễn ra, không thể mua lại vé.");
+    const l = { id: listing.id, eventId: fresh.eventId, tierId: fresh.tierId, owner: fresh.owner, originalPrice: fresh.originalPrice, resalePrice: fresh.resalePrice };
+    const ok = await confirmResaleModal(l, evt, tier);
+    if (!ok) return;
+    toast("Vui lòng xác nhận giao dịch trong ví…", "info");
+    const tx = await contract.buyResaleTicket(l.id, { value: l.resalePrice });
+    toast("Đã gửi giao dịch — đang chờ blockchain xác nhận…", "info");
+    const receipt = await tx.wait();
+    if (!receipt || receipt.status !== 1) throw userError("Giao dịch bị từ chối trên blockchain. Kiểm tra chi tiết trên Etherscan.");
+    toast("Mua lại vé thành công — vé đã chuyển vào ví của bạn.", "success");
+    route();
+  }
+
+  routes.resale = async function () {
     const myToken = renderToken;
     $root().innerHTML = h`
       <div class="page container">
         <div class="section-head" style="margin-top: var(--sp-5);">
-          <div><h2>Sự kiện</h2><p>Tất cả sự kiện đang có trên FairTicket.</p></div>
+          <div><h1 class="h2">Vé bán lại</h1><p>Mọi vé dưới đây đang được rao bán lại trên hợp đồng ProjectCore.</p></div>
         </div>
+        ${resaleRuleBanner()}
+        <div id="resale-grid" class="grid-4">${skeletonCards(8)}</div>
+      </div>
+    `;
+    let evts, tiers;
+    try {
+      [evts, tiers] = await Promise.all([fetchAllEvents(), fetchAllTiers()]);
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error(err);
+      document.getElementById("resale-grid").innerHTML = errorStateHtml("Không tải được dữ liệu", "Mạng/RPC đang chập chờn.");
+      wireRetry();
+      return;
+    }
+    if (myToken !== renderToken) return;
+    await loadResaleInto("resale-grid", myToken, evts, tiers);
+    syncMetaThenRefresh(evts.map((e) => e.id), () => { if (myToken === renderToken) loadResaleInto("resale-grid", myToken, evts, tiers); });
+  };
+
+  // ---------- Page: Events list (khám phá) ----------
+
+  function normalizeText(s) {
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+  }
+
+  routes.events = async function (query) {
+    const myToken = renderToken;
+    const state = {
+      q: query.get("q") || "",
+      cat: query.get("cat") || "",
+      sort: ["new", "soon", "price"].includes(query.get("sort")) ? query.get("sort") : "new",
+      past: query.get("past") === "1",
+    };
+    $root().innerHTML = h`
+      <div class="page container">
+        <div class="section-head" style="margin-top: var(--sp-5); margin-bottom: 0;">
+          <div><h1 class="h2">Khám phá sự kiện</h1><p>Tìm sự kiện theo tên, địa điểm hoặc danh mục.</p></div>
+        </div>
+        <nav class="category-bar" id="ev-cats" aria-label="Lọc theo danh mục">
+          <button type="button" class="cat-chip" data-cat="">${icon("grid")} Tất cả</button>
+          ${CATEGORIES.map((c) => `<button type="button" class="cat-chip" data-cat="${c.id}">${icon(c.icon)} ${c.label}</button>`).join("")}
+        </nav>
+        <div class="events-toolbar">
+          <label class="field-search">${icon("search")}<input type="search" id="ev-q" placeholder="Tên sự kiện, địa điểm…" aria-label="Tìm sự kiện" value="${escapeAttr(state.q)}" /></label>
+          <select id="ev-sort" aria-label="Sắp xếp">
+            <option value="new">Mới nhất</option>
+            <option value="soon">Sắp diễn ra</option>
+            <option value="price">Giá thấp đến cao</option>
+          </select>
+          <label class="toggle-label"><input type="checkbox" id="ev-past" ${state.past ? "checked" : ""} /> Hiện sự kiện đã diễn ra</label>
+        </div>
+        <div class="result-count" id="ev-count" aria-live="polite"></div>
         <div id="events-grid" class="grid-4">${skeletonCards(8)}</div>
       </div>
     `;
-    const evts = await fetchAllEvents();
-    if (myToken !== renderToken) return;
-    const grid = document.getElementById("events-grid");
-    if (!grid) return;
-    const sorted = evts.slice().reverse();
-    grid.innerHTML = sorted.length
-      ? sorted.map(eventCardHtml).join("")
-      : emptyState("Chưa có sự kiện nào", isConfigured() ? "Hãy là người đầu tiên tạo sự kiện." : "Kết nối ví và cấu hình hợp đồng để xem sự kiện.");
-    if (sorted.length) {
-      syncMetaThenRefresh(sorted.map((e) => e.id), () => {
-        if (myToken !== renderToken) return;
-        grid.innerHTML = sorted.map(eventCardHtml).join("");
-      });
+    document.getElementById("ev-sort").value = state.sort;
+    const qInput = document.getElementById("ev-q");
+    if (query.get("focus") === "1") qInput.focus();
+
+    let evts = null, byEvent = new Map();
+
+    function syncUrl() {
+      const p = new URLSearchParams();
+      if (state.q) p.set("q", state.q);
+      if (state.cat) p.set("cat", state.cat);
+      if (state.sort !== "new") p.set("sort", state.sort);
+      if (state.past) p.set("past", "1");
+      const qs = p.toString();
+      history.replaceState(null, "", "#/events" + (qs ? "?" + qs : ""));
     }
+
+    function apply() {
+      if (myToken !== renderToken) return;
+      document.querySelectorAll("#ev-cats [data-cat]").forEach((b) => {
+        const on = b.dataset.cat === state.cat;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      if (!evts) return;
+      const grid = document.getElementById("events-grid");
+      const countEl = document.getElementById("ev-count");
+      const nowTs = Math.floor(Date.now() / 1000);
+      const q = normalizeText(state.q.trim());
+      const tiersOf = (e) => byEvent.get(String(e.id)) || [];
+      let list = evts.filter((e) => {
+        const meta = getMeta(e.id);
+        if (!state.past && Number(e.startTime) <= nowTs) return false;
+        if (state.cat && categoryOf(meta.category).id !== state.cat) return false;
+        if (q && !normalizeText(e.name + " " + (meta.location || "")).includes(q)) return false;
+        return true;
+      });
+      if (state.sort === "new") list.sort((a, b) => Number(b.id - a.id));
+      if (state.sort === "soon") list.sort((a, b) => {
+        const ea = Number(a.startTime) <= nowTs, eb = Number(b.startTime) <= nowTs;
+        if (ea !== eb) return ea ? 1 : -1;
+        return Number(a.startTime) - Number(b.startTime);
+      });
+      if (state.sort === "price") list.sort((a, b) => {
+        const pa = salesSummary(a, tiersOf(a)).minPrice, pb = salesSummary(b, tiersOf(b)).minPrice;
+        if (pa === null) return 1;
+        if (pb === null) return -1;
+        return pa < pb ? -1 : pa > pb ? 1 : 0;
+      });
+      countEl.textContent = evts.length ? `${list.length} sự kiện` : "";
+      if (list.length) {
+        grid.innerHTML = list.map((e) => eventCardHtml(e, tiersOf(e))).join("");
+      } else if (evts.length === 0) {
+        grid.innerHTML = emptyState("Chưa có sự kiện nào", isConfigured() ? "Hãy là người đầu tiên tạo sự kiện." : "Chưa cấu hình kết nối hợp đồng.", `<a class="btn btn-primary" href="#/create" style="margin-top:16px;">Tạo sự kiện</a>`);
+      } else {
+        grid.innerHTML = emptyState("Không tìm thấy sự kiện phù hợp", state.past ? "Thử từ khoá hoặc danh mục khác." : "Thử từ khoá khác, hoặc bật “Hiện sự kiện đã diễn ra”.", `<button type="button" class="btn btn-secondary btn-sm" id="ev-reset" style="margin-top:16px;">Xoá bộ lọc</button>`);
+        document.getElementById("ev-reset").addEventListener("click", () => {
+          state.q = ""; state.cat = ""; state.past = false;
+          qInput.value = "";
+          document.getElementById("ev-past").checked = false;
+          syncUrl(); apply();
+        });
+      }
+    }
+
+    let debounce;
+    qInput.addEventListener("input", () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => { state.q = qInput.value; syncUrl(); apply(); }, 250);
+    });
+    document.getElementById("ev-sort").addEventListener("change", (e) => { state.sort = e.target.value; syncUrl(); apply(); });
+    document.getElementById("ev-past").addEventListener("change", (e) => { state.past = e.target.checked; syncUrl(); apply(); });
+    document.querySelectorAll("#ev-cats [data-cat]").forEach((b) => b.addEventListener("click", () => { state.cat = b.dataset.cat; syncUrl(); apply(); }));
+    apply();
+
+    try {
+      const [e, t] = await Promise.all([fetchAllEvents(), fetchAllTiers()]);
+      if (myToken !== renderToken) return;
+      evts = e;
+      byEvent = tiersByEvent(t);
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      console.error("Không tải được sự kiện:", err);
+      document.getElementById("events-grid").innerHTML = errorStateHtml("Không tải được danh sách sự kiện", "Mạng/RPC đang chập chờn.");
+      wireRetry();
+      return;
+    }
+    apply();
+    syncMetaThenRefresh(evts.map((e) => e.id), apply);
   };
 
   // ---------- Page: Event detail ----------
@@ -718,8 +1356,10 @@
     const tiers = await fetchTiersForEvent(id);
     if (myToken !== renderToken) return;
     const status = computeStatus(evt, tiers);
+    // ProjectCore.mintTicket() KHONG chan mint sau gio bat dau -> chan o giao dien.
+    const eventEnded = Math.floor(Date.now() / 1000) >= Number(evt.startTime);
     const meta = getMeta(id);
-    const img = meta.image || stockImage(id);
+    const img = eventImage(meta, id);
     const isDemo = !isConfigured();
     const isOrganizer = userAddress && evt.organizer && userAddress.toLowerCase() === evt.organizer.toLowerCase();
 
@@ -776,8 +1416,8 @@
               <div id="tier-list">${tierListHtml(tiers)}</div>
             </div>
 
-            <button id="btn-go-checkout" class="btn btn-primary btn-block btn-lg" style="margin-top: var(--sp-3);" ${tiers.length === 0 ? "disabled" : ""}>
-              ${tiers.length === 0 ? "Chưa có hạng vé" : "Mua vé →"}
+            <button id="btn-go-checkout" class="btn btn-primary btn-block btn-lg" style="margin-top: var(--sp-3);" ${tiers.length === 0 || eventEnded ? "disabled" : ""}>
+              ${eventEnded ? "Sự kiện đã diễn ra" : tiers.length === 0 ? "Chưa có hạng vé" : "Mua vé →"}
             </button>
           </aside>
         </div>
@@ -799,7 +1439,7 @@
     wireTierList(tiers, (s) => { selected = s; });
 
     document.getElementById("btn-go-checkout")?.addEventListener("click", () => {
-      if (!selected) return;
+      if (!selected || eventEnded) return;
       const tier = tiers[selected.index];
       window.location.hash = "#/checkout/" + id.toString() + "/" + tier.id.toString() + "/" + selected.qty;
     });
@@ -945,7 +1585,7 @@
 
   routes.create = function () {
     let step = 1;
-    let data = { name: "", description: "", startTime: "", endTime: "", location: "", image: "", maxSupply: "", price: "" };
+    let data = { name: "", category: "", description: "", startTime: "", endTime: "", location: "", image: "", maxSupply: "", price: "" };
 
     // Lop an toan thu 2: khoi phuc nhap neu bi F5/mat ket noi mang giua chung
     // (lop thu 1 la handleWalletChange() khong con ep reload trang nua).
@@ -993,7 +1633,7 @@
 
     // Lien ket moi o nhap voi `data` + luu nhap NGAY khi go (khong doi bam
     // "Tiep tuc") - de F5 giua chung van khong mat chu dang go dang.
-    const FIELD_MAP = { "f-name": "name", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-supply": "maxSupply", "f-price": "price" };
+    const FIELD_MAP = { "f-name": "name", "f-cat": "category", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-supply": "maxSupply", "f-price": "price" };
     function bindLiveInputs() {
       Object.keys(FIELD_MAP).forEach((elId) => {
         const el = document.getElementById(elId);
@@ -1011,7 +1651,15 @@
         panel.innerHTML = `
           <div class="field">
             <label for="f-name">Tên sự kiện</label>
-            <input id="f-name" placeholder="VD: UEH Music Night 2026" value="${escapeHtml(data.name)}" />
+            <input id="f-name" placeholder="VD: UEH Music Night 2026" value="${escapeAttr(data.name)}" />
+          </div>
+          <div class="field">
+            <label for="f-cat">Danh mục</label>
+            <select id="f-cat">
+              <option value="">— Chọn danh mục —</option>
+              ${CATEGORIES.map((c) => `<option value="${c.id}" ${data.category === c.id ? "selected" : ""}>${c.label}</option>`).join("")}
+            </select>
+            <p class="hint">Dùng để lọc/tìm sự kiện. Lưu cùng ảnh &amp; mô tả (ngoài blockchain).</p>
           </div>
           <div class="field">
             <label for="f-desc">Mô tả</label>
@@ -1029,7 +1677,7 @@
           </div>
           <div class="field">
             <label for="f-loc">Địa điểm</label>
-            <input id="f-loc" placeholder="VD: Nhà văn hóa Huế" value="${escapeHtml(data.location)}" />
+            <input id="f-loc" placeholder="VD: Nhà văn hóa Huế" value="${escapeAttr(data.location)}" />
           </div>
           <div class="field">
             <label>Ảnh sự kiện</label>
@@ -1046,6 +1694,7 @@
         document.getElementById("btn-cancel-wizard").addEventListener("click", clearDraft);
         document.getElementById("btn-next-1").addEventListener("click", () => {
           data.name = document.getElementById("f-name").value.trim();
+          data.category = document.getElementById("f-cat").value;
           data.description = document.getElementById("f-desc").value.trim();
           data.startTime = document.getElementById("f-start").value;
           data.endTime = document.getElementById("f-end").value;
@@ -1064,11 +1713,11 @@
           <div class="field-row">
             <div class="field">
               <label for="f-supply">Tổng số vé (hạng Standard)</label>
-              <input id="f-supply" type="number" min="1" step="1" placeholder="VD: 100" value="${escapeHtml(data.maxSupply)}" />
+              <input id="f-supply" type="number" min="1" step="1" placeholder="VD: 100" value="${escapeAttr(data.maxSupply)}" />
             </div>
             <div class="field">
               <label for="f-price">Giá vé (ETH)</label>
-              <input id="f-price" type="number" min="0" step="0.0001" placeholder="VD: 0.02" value="${escapeHtml(data.price)}" />
+              <input id="f-price" type="number" min="0" step="0.0001" placeholder="VD: 0.02" value="${escapeAttr(data.price)}" />
             </div>
           </div>
           <p class="hint">Đây là hạng vé đầu tiên ("Standard"). Sau khi tạo sự kiện, vào trang quản lý sự kiện để thêm các hạng khác (VD: VIP) nếu muốn.</p>
@@ -1098,6 +1747,7 @@
             <h3 style="margin-bottom: var(--sp-2);">Xem lại trước khi triển khai</h3>
             <div class="review-list">
               <div class="review-row"><span class="review-row__label">Tên sự kiện</span><span class="review-row__value">${escapeHtml(data.name)}</span></div>
+              <div class="review-row"><span class="review-row__label">Danh mục</span><span class="review-row__value">${categoryOf(data.category).label}</span></div>
               <div class="review-row"><span class="review-row__label">Thời gian</span><span class="review-row__value">${data.startTime ? new Date(data.startTime).toLocaleString("vi-VN") : "—"}</span></div>
               <div class="review-row"><span class="review-row__label">Địa điểm</span><span class="review-row__value">${escapeHtml(data.location || "—")}</span></div>
               <div class="review-row"><span class="review-row__label">Hạng Standard</span><span class="review-row__value">${escapeHtml(data.maxSupply)} vé × ${escapeHtml(data.price)} ETH</span></div>
@@ -1125,7 +1775,7 @@
           const log1 = receipt1.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
           const newEventId = log1 ? log1.args.eventId : null;
           if (newEventId === null) throw new Error("Không đọc được eventId vừa tạo.");
-          const newMeta = { description: data.description, location: data.location, image: data.image };
+          const newMeta = { description: data.description, location: data.location, image: data.image, category: categoryOf(data.category).id };
           saveMeta(newEventId, newMeta);
           publishMetaToServer(newEventId, newMeta); // khong chan luong deploy neu loi mang
 
@@ -1147,21 +1797,22 @@
 
   // ---------- Page: My events ----------
 
-  routes.myEvents = async function () {
+  routes.myEvents = async function (startTab) {
     const myToken = renderToken;
+    const onTickets = startTab === "tickets";
     $root().innerHTML = h`
       <div class="page container">
         <div class="section-head" style="margin-top: var(--sp-5);">
-          <div><h2>Vé &amp; Lịch sử</h2><p>Sự kiện bạn tổ chức và vé bạn sở hữu, tất cả đọc trực tiếp từ blockchain.</p></div>
+          <div><h1 class="h2">${onTickets ? "Vé của tôi" : "Sự kiện của tôi"}</h1><p>Sự kiện bạn tổ chức và vé bạn sở hữu, tất cả đọc trực tiếp từ blockchain.</p></div>
           <a href="#/create" class="btn btn-primary">+ Tạo sự kiện mới</a>
         </div>
 
         <div class="tabs">
-          <button class="tab active" data-subtab="organizer">Sự kiện của tôi</button>
-          <button class="tab" data-subtab="tickets">Vé của tôi</button>
+          <button class="tab${onTickets ? "" : " active"}" data-subtab="organizer">Sự kiện của tôi</button>
+          <button class="tab${onTickets ? " active" : ""}" data-subtab="tickets">Vé của tôi</button>
         </div>
 
-        <div id="panel-organizer">
+        <div id="panel-organizer" ${onTickets ? "hidden" : ""}>
           <div class="filter-row">
             <button class="chip active" data-f="all">Tất cả</button>
             <button class="chip" data-f="upcoming">Sắp diễn ra</button>
@@ -1173,7 +1824,7 @@
           </div>
         </div>
 
-        <div id="panel-tickets" hidden>
+        <div id="panel-tickets" ${onTickets ? "" : "hidden"}>
           <div class="card" style="padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-4); display:flex; align-items:center; justify-content:space-between; gap: var(--sp-3); flex-wrap: wrap;">
             <div>
               <div class="text-sm text-secondary">Tiền chờ rút (tiền bán vé, kể cả bán lại)</div>
@@ -1196,8 +1847,12 @@
       btn.addEventListener("click", () => {
         $root().querySelectorAll('[data-subtab]').forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
-        document.getElementById("panel-organizer").hidden = btn.dataset.subtab !== "organizer";
-        document.getElementById("panel-tickets").hidden = btn.dataset.subtab !== "tickets";
+        const tickets = btn.dataset.subtab === "tickets";
+        document.getElementById("panel-organizer").hidden = tickets;
+        document.getElementById("panel-tickets").hidden = !tickets;
+        $root().querySelector("h1").textContent = tickets ? "Vé của tôi" : "Sự kiện của tôi";
+        history.replaceState(null, "", tickets ? "#/my-tickets" : "#/my-events");
+        renderHeader();
       });
     });
 
@@ -1250,7 +1905,7 @@
         const totalSupply = tiers.reduce((s, t) => s + t.maxSupply, 0n);
         return `
           <div class="event-row">
-            <img class="event-row__thumb" src="${meta.image || stockImage(evt.id)}" alt="" />
+            <img class="event-row__thumb" src="${eventImage(meta, evt.id)}" alt="" />
             <div class="event-row__main">
               <div class="event-row__title">${escapeHtml(evt.name)}</div>
               <div class="event-row__meta">${fmtDate(evt.startTime)} · ${escapeHtml(meta.location || "Chưa có địa điểm")} · ${totalMinted}/${totalSupply} vé đã mint</div>
@@ -1483,6 +2138,10 @@
       $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Không tìm thấy hạng vé</h3><a class="btn btn-secondary" href="#/events/${eventId}">← Quay lại sự kiện</a></div></div>`;
       return;
     }
+    if (Math.floor(Date.now() / 1000) >= Number(evt.startTime)) {
+      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Sự kiện đã diễn ra</h3><p>Không thể mua vé cho sự kiện đã bắt đầu.</p><a class="btn btn-secondary" href="#/events/${eventId}" style="margin-top:16px;">← Quay lại sự kiện</a></div></div>`;
+      return;
+    }
 
     const total = tier.price * BigInt(qty);
 
@@ -1492,7 +2151,7 @@
           <div class="checkout-steps"><b>Thông tin vé</b> → Xác nhận → Thanh toán</div>
 
           <div class="card mini-event-card">
-            <img src="${meta.image || stockImage(eventId)}" alt="" />
+            <img src="${eventImage(meta, eventId)}" alt="" />
             <div>
               <div style="font-weight:600; font-size:14px;">${escapeHtml(evt.name)}</div>
               <div class="text-secondary text-sm">${fmtDate(evt.startTime)} · ${escapeHtml(meta.location || "Cập nhật sau")}</div>
@@ -1545,7 +2204,20 @@
     await loadAbi();
     const etherscanLink = document.getElementById("etherscan-link");
     if (etherscanLink && isConfigured()) {
-      etherscanLink.href = "https://sepolia.etherscan.io/address/" + CONTRACT_ADDRESS;
+      etherscanLink.href = ETHERSCAN + "/address/" + CONTRACT_ADDRESS;
+    }
+    const caEl = document.getElementById("footer-ca");
+    if (caEl && isConfigured()) {
+      caEl.innerHTML = `<a href="${ETHERSCAN}/address/${CONTRACT_ADDRESS}" target="_blank" rel="noopener" title="${CONTRACT_ADDRESS}">${shortAddr(CONTRACT_ADDRESS)}</a>`;
+    }
+    const searchForm = document.getElementById("header-search");
+    if (searchForm) {
+      searchForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const q = document.getElementById("header-search-input").value.trim();
+        const target = "#/events" + (q ? "?q=" + encodeURIComponent(q) : "");
+        if (window.location.hash === target) route(); else window.location.hash = target;
+      });
     }
     if (!isConfigured()) {
       const banner = document.getElementById("global-banner");
@@ -1575,10 +2247,13 @@
       eventsCache = null;
       tiersCache = null;
       const accounts = await provider.send("eth_accounts", []);
-      if (!accounts || accounts.length === 0) {
+      let userDisconnected = false;
+      try { userDisconnected = !!localStorage.getItem(DISCONNECTED_KEY); } catch {}
+      if (!accounts || accounts.length === 0 || userDisconnected) {
         userAddress = null;
         signer = null;
         contract = null;
+        chainId = null;
         renderHeader();
         return;
       }

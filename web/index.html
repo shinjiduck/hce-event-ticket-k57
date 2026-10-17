@@ -4,11 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>FairTicket — Vé sự kiện minh bạch trên blockchain</title>
+<meta name="description" content="Khám phá và mua vé sự kiện trên FairTicket — vé ghi nhận trên blockchain, chống vé giả, giá bán lại tối đa 110% giá gốc." />
 <link rel="icon" href="./assets/logo-mark.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;650;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="./styles.css" />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="./styles.css?v=20261017a" />
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 </head>
@@ -17,14 +18,25 @@
 <header class="site-header">
   <div class="site-header__inner">
     <a href="#/" class="brand"><img class="brand__mark" src="./assets/logo-mark.png" alt="" /> FairTicket</a>
-    <nav class="main-nav">
+    <nav class="main-nav" aria-label="Điều hướng chính">
       <a href="#/" data-route="">Trang chủ</a>
-      <a href="#/events" data-route="events">Sự kiện</a>
+      <a href="#/events" data-route="events">Khám phá sự kiện</a>
+      <a href="#/resale" data-route="resale">Vé bán lại</a>
       <a href="#/create" data-route="create">Tạo sự kiện</a>
-      <a href="#/my-events" data-route="my-events">Vé &amp; Lịch sử</a>
     </nav>
     <div class="header-actions">
-      <button id="btn-connect" class="btn btn-primary btn-sm">Kết nối ví</button>
+      <form class="header-search" id="header-search" role="search">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="header-search-input" placeholder="Tìm sự kiện…" aria-label="Tìm sự kiện" />
+      </form>
+      <a href="#/events?focus=1" class="btn btn-ghost btn-sm header-icon-btn" aria-label="Tìm sự kiện">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </a>
+      <a href="#/my-tickets" class="btn btn-ghost btn-sm header-mytickets" data-route-link="my-tickets">Vé của tôi</a>
+      <div class="wallet-menu" id="wallet-menu">
+        <button id="btn-connect" class="btn btn-primary btn-sm">Kết nối ví</button>
+        <div class="wallet-dropdown" id="wallet-dropdown" role="menu" hidden></div>
+      </div>
     </div>
   </div>
 </header>
@@ -38,11 +50,42 @@
 
 <footer class="site-footer">
   <div class="site-footer__inner">
-    <span>FairTicket · Hợp đồng chạy trên Ethereum Sepolia testnet</span>
-    <a id="etherscan-link" href="#" target="_blank" rel="noopener">Xem hợp đồng trên Etherscan</a>
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand"><img src="./assets/logo-mark.png" alt="" /> FairTicket</div>
+        <p class="footer-about">Nền tảng vé sự kiện ứng dụng blockchain: chống vé giả, giới hạn giá bán lại tối đa 110% và minh bạch quyền sở hữu vé.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Khám phá</h4>
+        <ul>
+          <li><a href="#/events">Tất cả sự kiện</a></li>
+          <li><a href="#/resale">Vé bán lại</a></li>
+          <li><a href="#/events?sort=soon">Sắp diễn ra</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Tài khoản</h4>
+        <ul>
+          <li><a href="#/my-tickets">Vé của tôi</a></li>
+          <li><a href="#/my-events">Sự kiện của tôi</a></li>
+          <li><a href="#/create">Tạo sự kiện</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Minh bạch</h4>
+        <ul>
+          <li><a id="etherscan-link" href="#" target="_blank" rel="noopener">Hợp đồng trên Etherscan</a></li>
+          <li><span>Mạng: Ethereum Sepolia (testnet)</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 FairTicket · Đồ án môn ECO2432</span>
+      <span class="footer-ca">CA: <span id="footer-ca" class="mono">—</span></span>
+    </div>
   </div>
 </footer>
 
-<script src="./app.js?v=20261013c"></script>
+<script src="./app.js?v=20261017a"></script>
 </body>
 </html>
