@@ -19,9 +19,10 @@ Theo phân vai Lab 12–15 trong `docs/PROJECT_PLAN.md` (Mai Bá Linh: Giao di�
 ## Thông tin hợp đồng & Mã giao dịch demo
 
 - Contract v2 trên Sepolia: [`0x0f96cafe4C603D706c786C503A5c903090706916`](https://sepolia.etherscan.io/address/0x0f96cafe4C603D706c786C503A5c903090706916)
-- URL công khai: `https://shinjiduck.github.io/hce-event-ticket-k57/web/` *(hoặc link Vercel của nhóm)*
-- Transaction hash (ca thành công — ví dụ mint/resale): *(dán hash giao dịch sau khi test ví)*
-- Transaction hash (ca bị từ chối): *(ghi mã revert hoặc hash giao dịch testnet)*
+- URL DApp công khai (Vercel): [https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app](https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app)
+- Transaction hash (ca thành công — Mint vé #0): [`0xc9f64e9d8694ce48246c6e722b6c500a1b34342abd2963a816dbbfe9b5007dc5`](https://sepolia.etherscan.io/tx/0xc9f64e9d8694ce48246c6e722b6c500a1b34342abd2963a816dbbfe9b5007dc5)
+- Transaction hash (ca thành công — Rút tiền Organizer): [`0x4ecfd995199f6a34ff0b35b07d947c1b85d71328d955ab3f78b580d48595cebd`](https://sepolia.etherscan.io/tx/0x4ecfd995199f6a34ff0b35b07d947c1b85d71328d955ab3f78b580d48595cebd)
+- Ca bị từ chối demo trực tiếp: Rao bán lại vé giá >110% revert `ResalePriceTooHigh` (quy tắc R3) hoặc người lạ check-in revert `NotOrganizer` (quy tắc R5).
 
 ## Checklist trước khi trình bày
 
