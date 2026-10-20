@@ -441,7 +441,11 @@
   // Dung kieu nhung "maps?q=...&output=embed" - KHONG can API key (khong lo
   // khoa bi mat tren frontend). Dia chi la du lieu off-chain trong metadata.
   function mapQuery(meta) {
-    return String((meta && (meta.address || meta.location)) || "").trim();
+    if (!meta) return "";
+    const address = String(meta.address || "").trim();
+    const location = String(meta.location || "").trim();
+    if (address && !meta.street && location) return location + ", " + address;
+    return address || location;
   }
   function mapEmbedUrl(q) { return "https://www.google.com/maps?q=" + encodeURIComponent(q) + "&hl=vi&z=16&output=embed"; }
   function mapSearchUrl(q) { return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q); }
@@ -472,6 +476,95 @@
       if (link) { link.hidden = !q; link.href = q ? mapSearchUrl(q) : "#"; }
     };
     return () => { clearTimeout(timer); timer = setTimeout(update, 800); };
+  }
+
+  // ---------- Dia chi kieu TMDT (Tinh/Thanh -> Phuong/Xa) ----------
+  // Theo don vi hanh chinh moi (tu 1/7/2025: 34 tinh/thanh, bo cap huyen).
+  // Du lieu tinh san trong assets/vn-units.json (khong phu thuoc API ngoai).
+  let vnUnitsPromise = null;
+  function loadVnUnits() {
+    if (!vnUnitsPromise) {
+      vnUnitsPromise = fetch("./assets/vn-units.json").then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then((d) => new Map(d.provinces.map(([name, wards]) => [name, wards])));
+      vnUnitsPromise.catch(() => { vnUnitsPromise = null; });
+    }
+    return vnUnitsPromise;
+  }
+  function shortProvince(name) {
+    return String(name || "").replace(/^(Thành phố|Tỉnh)\s+/, "");
+  }
+  function joinAddress(parts) {
+    return [parts.street, parts.ward, parts.province].map((x) => String(x || "").trim()).filter(Boolean).join(", ");
+  }
+
+  function addressFieldsHtml(prefix, parts) {
+    return `
+      <div class="addr-box">
+        <div class="field-row">
+          <div class="field">
+            <label for="${prefix}-prov">Tỉnh / Thành phố</label>
+            <select id="${prefix}-prov" disabled><option value="">Đang tải…</option></select>
+          </div>
+          <div class="field">
+            <label for="${prefix}-ward">Phường / Xã</label>
+            <input id="${prefix}-ward" list="${prefix}-ward-list" placeholder="Chọn tỉnh/thành trước" autocomplete="off" maxlength="120" value="${escapeAttr(parts.ward || "")}" disabled />
+            <datalist id="${prefix}-ward-list"></datalist>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label for="${prefix}-street">Số nhà, tên đường</label>
+          <input id="${prefix}-street" placeholder="VD: 99 Hồ Đắc Di" maxlength="120" value="${escapeAttr(parts.street || "")}" />
+        </div>
+        <p class="hint-sm" id="${prefix}-addr-hint">Theo đơn vị hành chính mới (34 tỉnh/thành, không còn cấp quận/huyện). Gõ vào ô Phường/Xã để tìm nhanh.</p>
+      </div>`;
+  }
+
+  // Gan su kien cho bo chon dia chi; onChange() goi moi khi dia chi doi.
+  async function wireAddressFields(prefix, parts, onChange) {
+    const prov = document.getElementById(prefix + "-prov");
+    const ward = document.getElementById(prefix + "-ward");
+    const street = document.getElementById(prefix + "-street");
+    const list = document.getElementById(prefix + "-ward-list");
+    let units;
+    try {
+      units = await loadVnUnits();
+    } catch (err) {
+      console.warn("Không tải được danh sách tỉnh/thành:", err);
+      prov.innerHTML = `<option value="">Không tải được danh sách</option>`;
+      return;
+    }
+    if (!document.body.contains(prov)) return;
+    prov.innerHTML = `<option value="">— Chọn tỉnh/thành —</option>` + [...units.keys()].map((n) => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join("");
+    prov.disabled = false;
+    if (parts.province && units.has(parts.province)) prov.value = parts.province;
+    const fillWards = () => {
+      const wards = units.get(prov.value) || [];
+      list.innerHTML = wards.map((w) => `<option value="${escapeAttr(w)}"></option>`).join("");
+      ward.disabled = !prov.value;
+      ward.placeholder = prov.value ? `Gõ để tìm trong ${wards.length} phường/xã` : "Chọn tỉnh/thành trước";
+      if (ward.value && !wards.includes(ward.value)) ward.value = "";
+    };
+    fillWards();
+    prov.addEventListener("change", () => { fillWards(); onChange(); });
+    ward.addEventListener("input", onChange);
+    street.addEventListener("input", onChange);
+  }
+
+  // Doc gia tri; tra ve { ok, parts, error } - phuong/xa phai nam trong danh sach.
+  async function readAddressFields(prefix) {
+    const val = (id) => (document.getElementById(prefix + "-" + id)?.value || "").trim();
+    const parts = { province: val("prov"), ward: val("ward"), street: val("street") };
+    if (parts.ward) {
+      try {
+        const units = await loadVnUnits();
+        if (!(units.get(parts.province) || []).includes(parts.ward)) {
+          return { ok: false, parts, error: "Phường/Xã phải chọn trong danh sách của tỉnh/thành đã chọn." };
+        }
+      } catch {}
+    }
+    return { ok: true, parts: { ...parts, address: joinAddress(parts) } };
   }
 
   // ---------- QR (hien thi ve) ----------
@@ -1170,6 +1263,13 @@
     $root().querySelectorAll("[data-retry]").forEach((b) => b.addEventListener("click", () => { eventsCache = null; tiersCache = null; route(); }));
   }
 
+  function placeLabel(meta) {
+    const loc = meta.location || "";
+    const prov = shortProvince(meta.province);
+    if (loc && prov) return loc + " · " + prov;
+    return loc || prov || "Địa điểm cập nhật sau";
+  }
+
   function eventCardHtml(evt, tiers) {
     const meta = getMeta(evt.id);
     const s = tiers ? salesSummary(evt, tiers) : null;
@@ -1183,7 +1283,7 @@
         <div class="event-card__body">
           <div class="event-card__date">${fmtCardDate(evt.startTime)}</div>
           <div class="event-card__title">${escapeHtml(evt.name)}</div>
-          <div class="event-card__meta">${icon("pin")}<span>${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</span></div>
+          <div class="event-card__meta">${icon("pin")}<span>${escapeHtml(placeLabel(meta))}</span></div>
           <div class="event-card__price-wrap"><div class="event-card__price"><span>Giá vé</span><span>${price}</span></div></div>
         </div>
       </a>`;
@@ -1431,6 +1531,7 @@
       cat: query.get("cat") || "",
       sort: ["new", "soon", "price"].includes(query.get("sort")) ? query.get("sort") : "new",
       past: query.get("past") === "1",
+      prov: query.get("prov") || "",
     };
     $root().innerHTML = h`
       <div class="page container">
@@ -1443,6 +1544,7 @@
         </nav>
         <div class="events-toolbar">
           <label class="field-search">${icon("search")}<input type="search" id="ev-q" placeholder="Tên sự kiện, địa điểm…" aria-label="Tìm sự kiện" value="${escapeAttr(state.q)}" /></label>
+          <select id="ev-prov" aria-label="Lọc theo tỉnh/thành"><option value="">Mọi tỉnh/thành</option></select>
           <select id="ev-sort" aria-label="Sắp xếp">
             <option value="new">Mới nhất</option>
             <option value="soon">Sắp diễn ra</option>
@@ -1466,6 +1568,7 @@
       if (state.cat) p.set("cat", state.cat);
       if (state.sort !== "new") p.set("sort", state.sort);
       if (state.past) p.set("past", "1");
+      if (state.prov) p.set("prov", state.prov);
       const qs = p.toString();
       history.replaceState(null, "", "#/events" + (qs ? "?" + qs : ""));
     }
@@ -1478,6 +1581,12 @@
         b.setAttribute("aria-pressed", on ? "true" : "false");
       });
       if (!evts) return;
+      const provSel = document.getElementById("ev-prov");
+      const provs = [...new Set(evts.map((e) => getMeta(e.id).province).filter(Boolean))].sort((a, b) => shortProvince(a).localeCompare(shortProvince(b), "vi"));
+      if (state.prov && !provs.includes(state.prov)) provs.push(state.prov);
+      const provHtml = `<option value="">Mọi tỉnh/thành</option>` + provs.map((n) => `<option value="${escapeAttr(n)}">${escapeHtml(shortProvince(n))}</option>`).join("");
+      if (provSel.dataset.html !== provHtml) { provSel.innerHTML = provHtml; provSel.dataset.html = provHtml; }
+      provSel.value = state.prov;
       const grid = document.getElementById("events-grid");
       const countEl = document.getElementById("ev-count");
       const nowTs = Math.floor(Date.now() / 1000);
@@ -1487,7 +1596,8 @@
         const meta = getMeta(e.id);
         if (!state.past && Number(e.startTime) <= nowTs) return false;
         if (state.cat && categoryOf(meta.category).id !== state.cat) return false;
-        if (q && !normalizeText(e.name + " " + (meta.location || "")).includes(q)) return false;
+        if (state.prov && meta.province !== state.prov) return false;
+        if (q && !normalizeText(e.name + " " + (meta.location || "") + " " + (meta.address || "")).includes(q)) return false;
         return true;
       });
       if (state.sort === "new") list.sort((a, b) => Number(b.id - a.id));
@@ -1510,7 +1620,7 @@
       } else {
         grid.innerHTML = emptyState("Không tìm thấy sự kiện phù hợp", state.past ? "Thử từ khoá hoặc danh mục khác." : "Thử từ khoá khác, hoặc bật “Hiện sự kiện đã diễn ra”.", `<button type="button" class="btn btn-secondary btn-sm" id="ev-reset" style="margin-top:16px;">Xoá bộ lọc</button>`);
         document.getElementById("ev-reset").addEventListener("click", () => {
-          state.q = ""; state.cat = ""; state.past = false;
+          state.q = ""; state.cat = ""; state.past = false; state.prov = "";
           qInput.value = "";
           document.getElementById("ev-past").checked = false;
           syncUrl(); apply();
@@ -1524,6 +1634,7 @@
       debounce = setTimeout(() => { state.q = qInput.value; syncUrl(); apply(); }, 250);
     });
     document.getElementById("ev-sort").addEventListener("change", (e) => { state.sort = e.target.value; syncUrl(); apply(); });
+    document.getElementById("ev-prov").addEventListener("change", (e) => { state.prov = e.target.value; syncUrl(); apply(); });
     document.getElementById("ev-past").addEventListener("change", (e) => { state.past = e.target.checked; syncUrl(); apply(); });
     document.querySelectorAll("#ev-cats [data-cat]").forEach((b) => b.addEventListener("click", () => { state.cat = b.dataset.cat; syncUrl(); apply(); }));
     apply();
@@ -1819,6 +1930,10 @@
   }
 
   function editMetaModal(meta) {
+    // Su kien cu chi co dia chi dang chu tu do -> dua vao o "So nha, ten duong".
+    const legacyParts = meta.province || meta.ward || meta.street
+      ? { province: meta.province, ward: meta.ward, street: meta.street }
+      : { street: meta.address || "" };
     return new Promise((resolve) => {
       let newImage = null;
       const overlay = document.createElement("div");
@@ -1835,11 +1950,11 @@
             <label for="em-loc">Tên địa điểm</label>
             <input id="em-loc" maxlength="300" value="${escapeAttr(meta.location || "")}" />
           </div>
-          <div class="field">
-            <label for="em-addr">Địa chỉ trên bản đồ <span class="text-tertiary">(tuỳ chọn)</span></label>
-            <input id="em-addr" maxlength="300" placeholder="VD: 26 Lê Lợi, Vĩnh Ninh, Huế" value="${escapeAttr(meta.address || "")}" />
-            ${mapPickerHtml("em-map", meta.address, meta.location)}
-          </div>
+          <fieldset class="addr-fieldset">
+            <legend>Địa chỉ</legend>
+            ${addressFieldsHtml("em", legacyParts)}
+            ${mapPickerHtml("em-map", mapQuery(meta))}
+          </fieldset>
           <div class="field">
             <label for="em-desc">Mô tả</label>
             <textarea id="em-desc" maxlength="5000" rows="5">${escapeHtml(meta.description || "")}</textarea>
@@ -1856,9 +1971,13 @@
         </div>`;
       document.body.appendChild(overlay);
       overlay.querySelector("#em-loc").focus();
-      const refreshMap = wireMapPicker("em-map", () => mapQuery({ address: overlay.querySelector("#em-addr").value, location: overlay.querySelector("#em-loc").value }));
-      overlay.querySelector("#em-addr").addEventListener("input", refreshMap);
+      const emQuery = () => {
+        const v = (id) => overlay.querySelector("#" + id).value.trim();
+        return mapQuery({ location: v("em-loc"), street: v("em-street"), address: joinAddress({ street: v("em-street"), ward: v("em-ward"), province: v("em-prov") }) });
+      };
+      const refreshMap = wireMapPicker("em-map", emQuery);
       overlay.querySelector("#em-loc").addEventListener("input", refreshMap);
+      wireAddressFields("em", legacyParts, refreshMap);
       function close(v) { overlay.remove(); resolve(v); }
       overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
       overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(null); });
@@ -1871,13 +1990,17 @@
         saveBtn.disabled = false;
         if (file && !newImage) toast("Không đọc được ảnh này, hãy chọn ảnh PNG/JPG khác.", "error");
       });
-      overlay.querySelector('[data-action="save"]').addEventListener("click", () => close({
+      overlay.querySelector('[data-action="save"]').addEventListener("click", async () => {
+        const addr = await readAddressFields("em");
+        if (!addr.ok) { toast(addr.error, "error"); return; }
+        close({
+        ...addr.parts,
         category: overlay.querySelector("#em-cat").value,
         location: overlay.querySelector("#em-loc").value.trim(),
-        address: overlay.querySelector("#em-addr").value.trim(),
         description: overlay.querySelector("#em-desc").value.trim(),
         image: newImage || meta.image || "",
-      }));
+        });
+      });
     });
   }
 
@@ -1963,7 +2086,7 @@
 
   routes.create = function () {
     let step = 1;
-    let data = { name: "", category: "", description: "", startTime: "", endTime: "", location: "", address: "", image: "", maxSupply: "", price: "" };
+    let data = { name: "", category: "", description: "", startTime: "", endTime: "", location: "", province: "", ward: "", street: "", address: "", image: "", maxSupply: "", price: "" };
 
     // Lop an toan thu 2: khoi phuc nhap neu bi F5/mat ket noi mang giua chung
     // (lop thu 1 la handleWalletChange() khong con ep reload trang nua).
@@ -2011,7 +2134,7 @@
 
     // Lien ket moi o nhap voi `data` + luu nhap NGAY khi go (khong doi bam
     // "Tiep tuc") - de F5 giua chung van khong mat chu dang go dang.
-    const FIELD_MAP = { "f-name": "name", "f-cat": "category", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-addr": "address", "f-supply": "maxSupply", "f-price": "price" };
+    const FIELD_MAP = { "f-name": "name", "f-cat": "category", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-prov": "province", "f-ward": "ward", "f-street": "street", "f-supply": "maxSupply", "f-price": "price" };
     function bindLiveInputs() {
       Object.keys(FIELD_MAP).forEach((elId) => {
         const el = document.getElementById(elId);
@@ -2053,20 +2176,15 @@
               <input id="f-end" type="datetime-local" value="${data.endTime}" />
             </div>
           </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="f-loc">Tên địa điểm</label>
-              <input id="f-loc" placeholder="VD: Nhà văn hóa Huế" maxlength="300" value="${escapeAttr(data.location)}" />
-            </div>
-            <div class="field">
-              <label for="f-addr">Địa chỉ trên bản đồ <span class="text-tertiary">(tuỳ chọn)</span></label>
-              <input id="f-addr" placeholder="VD: 26 Lê Lợi, Vĩnh Ninh, Huế" maxlength="300" value="${escapeAttr(data.address)}" />
-            </div>
-          </div>
           <div class="field">
-            ${mapPickerHtml("f-map", data.address, data.location)}
-            <p class="hint">Bản đồ dùng địa chỉ; để trống thì dùng tên địa điểm. Có thể nhập toạ độ, VD: 16.4637, 107.5909.</p>
+            <label for="f-loc">Tên địa điểm</label>
+            <input id="f-loc" placeholder="VD: Nhà văn hóa Trung tâm" maxlength="300" value="${escapeAttr(data.location)}" />
           </div>
+          <fieldset class="addr-fieldset">
+            <legend>Địa chỉ</legend>
+            ${addressFieldsHtml("f", data)}
+            ${mapPickerHtml("f-map", mapQuery({ location: data.location, address: joinAddress(data), street: data.street }))}
+          </fieldset>
           <div class="field">
             <label>Ảnh sự kiện</label>
             <div class="upload-box">Chọn ảnh bìa (tự nén tối đa 1600px, lưu cùng mô tả để mọi người cùng thấy).<br/>
@@ -2079,19 +2197,25 @@
           </div>
         `;
         bindLiveInputs();
-        const refreshMap = wireMapPicker("f-map", () => mapQuery({ address: document.getElementById("f-addr").value, location: document.getElementById("f-loc").value }));
-        document.getElementById("f-addr").addEventListener("input", refreshMap);
+        const wizQuery = () => {
+          const v = (id) => document.getElementById(id).value.trim();
+          return mapQuery({ location: v("f-loc"), street: v("f-street"), address: joinAddress({ street: v("f-street"), ward: v("f-ward"), province: v("f-prov") }) });
+        };
+        const refreshMap = wireMapPicker("f-map", wizQuery);
         document.getElementById("f-loc").addEventListener("input", refreshMap);
+        wireAddressFields("f", data, () => { data.province = document.getElementById("f-prov").value; saveDraft(); refreshMap(); });
         document.getElementById("btn-cancel-wizard").addEventListener("click", clearDraft);
-        document.getElementById("btn-next-1").addEventListener("click", () => {
+        document.getElementById("btn-next-1").addEventListener("click", async () => {
           data.name = document.getElementById("f-name").value.trim();
           data.category = document.getElementById("f-cat").value;
           data.description = document.getElementById("f-desc").value.trim();
           data.startTime = document.getElementById("f-start").value;
           data.endTime = document.getElementById("f-end").value;
           data.location = document.getElementById("f-loc").value.trim();
-          data.address = document.getElementById("f-addr").value.trim();
           if (!data.name || !data.startTime) { toast("Điền tên sự kiện và thời gian bắt đầu.", "error"); return; }
+          const addr = await readAddressFields("f");
+          if (!addr.ok) { toast(addr.error, "error"); return; }
+          Object.assign(data, addr.parts);
           const file = document.getElementById("f-image").files[0];
           const goNext = () => { step = 2; render(); };
           if (file) {
@@ -2144,7 +2268,7 @@
               <div class="review-row"><span class="review-row__label">Danh mục</span><span class="review-row__value">${categoryOf(data.category).label}</span></div>
               <div class="review-row"><span class="review-row__label">Thời gian</span><span class="review-row__value">${data.startTime ? new Date(data.startTime).toLocaleString("vi-VN") : "—"}</span></div>
               <div class="review-row"><span class="review-row__label">Địa điểm</span><span class="review-row__value">${escapeHtml(data.location || "—")}</span></div>
-              ${data.address ? `<div class="review-row"><span class="review-row__label">Địa chỉ</span><span class="review-row__value">${escapeHtml(data.address)}</span></div>` : ""}
+              ${joinAddress(data) ? `<div class="review-row"><span class="review-row__label">Địa chỉ</span><span class="review-row__value">${escapeHtml(joinAddress(data))}</span></div>` : ""}
               <div class="review-row"><span class="review-row__label">Hạng Standard</span><span class="review-row__value">${escapeHtml(data.maxSupply)} vé × ${escapeHtml(data.price)} ETH</span></div>
               <div class="review-row"><span class="review-row__label">Giới hạn bán lại</span><span class="review-row__value">110%</span></div>
               <div class="review-row"><span class="review-row__label">Organizer wallet</span><span class="review-row__value mono">${userAddress ? shortAddr(userAddress) : "Chưa kết nối ví"}</span></div>
@@ -2170,7 +2294,7 @@
           const log1 = receipt1.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
           const newEventId = log1 ? log1.args.eventId : null;
           if (newEventId === null) throw new Error("Không đọc được eventId vừa tạo.");
-          const newMeta = { description: data.description, location: data.location, address: data.address, image: data.image, category: categoryOf(data.category).id };
+          const newMeta = { description: data.description, location: data.location, province: data.province, ward: data.ward, street: data.street, address: joinAddress(data), image: data.image, category: categoryOf(data.category).id };
           saveMeta(newEventId, newMeta);
 
           toast("Đang tạo hạng vé Standard… (giao dịch 2/2)", "info");

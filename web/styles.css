@@ -1222,3 +1222,10 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
 .map-picker__preview { height: 220px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: var(--neutral-bg); }
 .map-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text-tertiary); font-size: 13px; }
 @media (max-width: 640px) { .map-wrap { height: 240px; } }
+
+/* ---------- Dia chi kieu TMDT ---------- */
+
+.addr-fieldset { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--sp-3); margin: 0 0 var(--sp-4); background: var(--surface); }
+.addr-fieldset legend { font-size: 13px; font-weight: 600; padding: 0 6px; }
+.addr-box .field-row { margin-bottom: 0; }
+.field select:disabled, .field input:disabled { background: var(--neutral-bg); color: var(--text-tertiary); cursor: not-allowed; }
