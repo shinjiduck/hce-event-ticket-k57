@@ -1846,6 +1846,18 @@
 
   function wireOrganizerPanel(eventId, evt) {
     document.getElementById("btn-edit-meta")?.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+      // Ky la GHI DE toan bo metadata tren server -> lay ban moi nhat truoc,
+      // tranh mo form khi cache tren may chua dong bo (o trong) roi ky xoa mat
+      // anh/mo ta cu.
+      try {
+        const res = await fetch("/api/metadata?eventId=" + eventId, { cache: "no-store" });
+        if (res.ok) {
+          const remote = await res.json();
+          if (remote && Object.keys(remote).length) saveMeta(eventId, remote);
+        }
+      } catch (err) {
+        console.warn("Không đọc được metadata mới nhất:", err);
+      }
       const updated = await editMetaModal(getMeta(eventId));
       if (!updated) return;
       requireWallet();
