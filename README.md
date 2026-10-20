@@ -21,6 +21,7 @@ Vé sự kiện giới hạn bán lại.
 - [docs/SPEC.md](docs/SPEC.md) — đặc tả v0.1
 - [docs/ECONOMIC_RULES.md](docs/ECONOMIC_RULES.md) — quy tắc kinh tế
 - [docs/AI_JOURNAL.md](docs/AI_JOURNAL.md) — nhật ký sử dụng AI
+- [docs/WEBSITE.md](docs/WEBSITE.md) — **tiến độ website**: từng trang có gì, đã chạy thật hay chưa, việc cần test
 - [docs/PROGRESS.md](docs/PROGRESS.md) — **tiến độ dự án**: trạng thái từng Lab, việc còn lại, lỗi đã sửa, giao dịch thật trên Sepolia
 
 **DApp công khai:** https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app

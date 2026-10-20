@@ -1,6 +1,7 @@
 # TIẾN ĐỘ DỰ ÁN — FairTicket
 
 > Cập nhật: **20/10/2026** · Người cập nhật: Nguyễn Hoàng Thảo (soạn cùng Claude Code)
+> Chi tiết từng trang của website: [WEBSITE.md](WEBSITE.md)
 > Tài liệu này ghi trạng thái thật của dự án tại thời điểm cập nhật: cái gì đã chạy, bằng chứng ở đâu, cái gì còn thiếu. Khi làm thêm, cập nhật bảng ở mục 6 và 7.
 
 ## 1. Tóm tắt nhanh
