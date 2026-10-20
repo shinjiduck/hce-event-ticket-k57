@@ -21,6 +21,9 @@ Vé sự kiện giới hạn bán lại.
 - [docs/SPEC.md](docs/SPEC.md) — đặc tả v0.1
 - [docs/ECONOMIC_RULES.md](docs/ECONOMIC_RULES.md) — quy tắc kinh tế
 - [docs/AI_JOURNAL.md](docs/AI_JOURNAL.md) — nhật ký sử dụng AI
+- [docs/PROGRESS.md](docs/PROGRESS.md) — **tiến độ dự án**: trạng thái từng Lab, việc còn lại, lỗi đã sửa, giao dịch thật trên Sepolia
+
+**DApp công khai:** https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
 
 ## Cách chạy
 
@@ -30,7 +33,7 @@ Contract chính: [contracts/project/ProjectCore.sol](contracts/project/ProjectCo
 1. Mở [remix.ethereum.org](https://remix.ethereum.org), tạo file mới, dán nội dung `ProjectCore.sol`.
 2. Tab Solidity Compiler → chọn phiên bản `0.8.20` trở lên → Compile.
 3. Tab Deploy & Run → môi trường "Remix VM" (thử nhanh, miễn phí) hoặc "Injected Provider - MetaMask" (Sepolia, để có bằng chứng on-chain thật) → Deploy.
-4. Gọi lần lượt: `createEvent(name, startTime, maxSupply)` → `mintTicket(eventId, originalPrice)` → `buyTicket(ticketId)` kèm `value` đúng giá vé → `listForResale(ticketId, price)` / `buyResaleTicket(ticketId)` nếu muốn thử luồng bán lại.
+4. Gọi lần lượt: `createEvent(name, startTime)` → `createTier(eventId, name, price, maxSupply)` → `mintTicket(tierId)` kèm `value` đúng giá hạng vé → `listForResale(ticketId, price)` / `buyResaleTicket(ticketId)` để thử bán lại → `checkIn(ticketId)` (ví Organizer) → `withdrawProceeds()`.
 
 **Cách 2 — biên dịch nhanh bằng dòng lệnh (kiểm tra không lỗi cú pháp, không deploy):**
 ```
@@ -50,19 +53,15 @@ npx solc --bin --abi contracts/project/ProjectCore.sol
 | Hàm đọc không tốn phí (`view`, không cần ký ví) | `nextEventId()`, `nextTierId()`, `nextTicketId()`, `MAX_RESALE_BPS()`, `events(id)`, `tiers(id)`, `tickets(id)`, `pendingWithdrawals(address)` |
 | Hàm ghi cần xác nhận ví (gửi transaction, tốn gas) | `createEvent()`, `createTier()` *(Organizer)*, `mintTicket()` *(ai cũng gọi được)*, `listForResale()`, `buyResaleTicket()`, `checkIn()` *(Organizer)*, `withdrawProceeds()` |
 
-**Mô hình mới:** Organizer tạo sự kiện rồi tạo từng **hạng vé** (`createTier`: tên + giá + tổng cung, VD "Standard" 0.02 ETH × 50). Sau đó **ai cũng tự `mintTicket(tierId)` được trực tiếp** (trả đúng giá, không cần Organizer phát hành hộ) — kiểu "public mint" của NFT. Vé có mã QR (`ticketId`) để Organizer quét/nhập tay check-in tại cửa qua `checkIn()`.
+**Mô hình mới:** Organizer tạo sự kiện rồi tạo từng **hạng vé** (`createTier`: tên + giá + tổng cung, VD "Standard" 0.02 ETH × 50). Sau đó **ai cũng tự `mintTicket(tierId)` được trực tiếp** (trả đúng giá, không cần Organizer phát hành hộ) — kiểu "public mint" của NFT. Tại cửa, chủ vé tạo **mã QR check-in có chữ ký ví** (hết hạn sau 5 phút); Organizer quét ở trang `#/check-in`, hệ thống kiểm tra người ký là chủ vé hiện tại trên chain rồi mới gọi `checkIn()`.
 
-**Cấu trúc `web/`:** `index.html` (khung trang) + `styles.css` (design system) + `app.js` (router, logic contract). Điền `CONTRACT_ADDRESS` ở **đầu file `web/app.js`**. Trước khi deploy contract thật, trang tự chuyển sang **chế độ dữ liệu minh họa** (3 sự kiện mẫu, có hạng vé) để xem/trình bày giao diện — luôn có banner vàng nhắc chưa cấu hình thật.
+**Cấu trúc `web/`:** `index.html` (khung trang) + `styles.css` (design system) + `app.js` (router, logic contract) + `api/metadata.js` (Vercel Function lưu ảnh/mô tả/địa chỉ/danh mục vào Vercel Blob, ghi phải kèm chữ ký ví của Organizer) + `assets/vn-units.json` (34 tỉnh/thành, 3.321 phường/xã). `CONTRACT_ADDRESS` nằm ở **đầu file `web/app.js`** và trong `web/api/metadata.js`. Kiến trúc chi tiết: [docs/PROGRESS.md](docs/PROGRESS.md#5-kiến-trúc-hiện-tại).
 
-### Các bước đưa web lên mạng công khai
+### Chạy và deploy
 
-1. **Deploy contract v2:** mở Remix, dán `contracts/project/ProjectCore.sol` (bản có `createTier`/`checkIn`), compile, Deploy & Run chọn "Injected Provider - MetaMask", mạng **Sepolia**, bấm Deploy, xác nhận trong MetaMask. Copy địa chỉ vừa deploy.
-2. **Cấu hình:** mở `web/app.js`, dòng đầu file, sửa `CONTRACT_ADDRESS = "0x0000...000"` thành địa chỉ vừa copy. Điền luôn vào bảng ánh xạ phía trên.
-3. **Test cục bộ:** chạy `python -m http.server 4173` trong thư mục `web/`, mở `http://localhost:4173`, bấm "Kết nối ví" (MetaMask ở mạng Sepolia), thử tạo sự kiện (tự gửi 2 giao dịch: tạo event + tạo hạng Standard) → tự mint vé → check-in thử.
-4. **Đưa lên GitHub Pages:**
-   - Vào repo trên GitHub → **Settings → Pages**.
-   - Mục "Build and deployment" → Source: **Deploy from a branch**.
-   - Branch: `main`, thư mục: **`/web`** → Save.
-   - Đợi vài phút, GitHub cấp link dạng `https://<tên tài khoản>.github.io/<tên kho>/`.
-5. **Test trên điện thoại:** mở link đó bằng trình duyệt có MetaMask mobile (hoặc quét QR từ MetaMask), lặp lại luồng mint vé, lưu lại mã giao dịch (transaction hash) làm bằng chứng nộp bài.
-6. Điền `docs/PRESENTATION_PLAN.md`, commit `lab-15: public dapp va presentation plan`, gắn tag `v0.1-demo`.
+1. **Test cục bộ (không có API metadata):** chạy `python -m http.server 4173` trong thư mục `web/`, mở `http://localhost:4173`. Ảnh/mô tả chỉ lưu trên máy vì không có `/api`.
+2. **Deploy lên Vercel (cách nhóm đang dùng — GitHub Pages không chạy được `/api`):**
+   - Import repo vào Vercel, **Root Directory = `web`**, tắt Deployment Protection để URL công khai.
+   - Tab **Storage** → tạo Blob store → Vercel tự thêm biến `BLOB_READ_WRITE_TOKEN` (mẫu: `web/.env.example`; file `web/.env` thật **không commit**).
+   - Mỗi lần push lên `main`, Vercel tự deploy lại.
+3. **Deploy lại hợp đồng (chỉ khi sửa `ProjectCore.sol`):** Remix → Injected Provider - MetaMask → Sepolia → Deploy. Đổi địa chỉ trong `web/app.js`, `web/api/metadata.js`, `FIRST_LOG_BLOCK` trong `web/app.js` (khối có log đầu tiên của hợp đồng mới) và README này. Dữ liệu cũ sẽ không còn hiển thị.
