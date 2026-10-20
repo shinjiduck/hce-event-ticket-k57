@@ -350,6 +350,7 @@
           <div class="qr-thumb" id="modal-qr"></div>
           <div class="ticket-modal__info">
             <span class="badge ${st.cls}">${st.label}</span>
+            <span class="badge badge-primary">${categoryOf(meta.category).label}</span>
             <h3 id="tm-title">${escapeHtml(evt ? evt.name : "Sự kiện #" + t.eventId)}</h3>
             <p class="text-sm text-secondary">${escapeHtml(tier ? tier.name : "Hạng #" + t.tierId)} · <span class="mono">Vé #${t.id}</span></p>
             <p class="text-sm" style="margin-top:6px;">${evt ? fmtCardDate(evt.startTime) : ""}<br />${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</p>
@@ -2330,6 +2331,7 @@
       <article class="ticket-card${st.key === "used" || st.key === "past" ? " is-muted" : ""}">
         <div class="ticket-card__media">
           <img src="${eventImage(meta, t.eventId)}" alt="" loading="lazy" />
+          <span class="event-card__cat ticket-card__cat">${categoryOf(meta.category).label}</span>
           <span class="badge ${st.cls} ticket-card__status">${st.label}</span>
         </div>
         <div class="ticket-card__body">
