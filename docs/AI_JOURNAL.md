@@ -209,4 +209,41 @@ Sau khi sửa: chụp lại toàn bộ 6 trang (desktop 1440px + mobile 390px) k
 - Chấp nhận phải deploy lại lần nữa (mất dữ liệu sự kiện test cũ) để đổi đúng 1 lần, gộp chung với việc thêm check-in, thay vì deploy nhiều lần nhỏ lẻ.
 - Chọn QR tĩnh (MVP) thay vì QR động, vì đánh giá rủi ro gian lận thấp ở quy mô sự kiện sinh viên.
 
-**Giới hạn:** `CONTRACT_ADDRESS` trong `web/app.js` đã reset về `0x0...0` vì địa chỉ cũ không còn tương thích — **cần deploy lại và test thật với ví MetaMask** trước khi coi là xong Lab 15. R7 (hạn bán lại theo thời gian) vẫn chưa cài.
+**Giới hạn ban đầu:** Lúc vừa hoàn thành testnet contract, `CONTRACT_ADDRESS` chưa cấu hình và giao diện chưa có backend lưu trữ ảnh. Các hạn chế này đã được giải quyết toàn diện trong đợt nâng cấp FairTicket V2 dưới đây.
+
+## FairTicket V2 — Marketplace, Backend Metadata & Check-in Ký số (Lab 15+)
+
+**Công cụ:** Claude (Claude Code / Opus & Sonnet) + Google Antigravity
+
+**Bối cảnh:** Sau khi có contract v2 hỗ trợ public mint theo hạng vé và check-in trên Sepolia (`0x0f96cafe4C603D706c786C503A5c903090706916`), nhóm nhận thấy sản phẩm thực tế cần giải quyết 3 bài toán lớn:
+1. Lưu trữ ảnh bìa, mô tả chi tiết, địa điểm mà không làm tốn gas hàng chục USD trên blockchain.
+2. Quản lý vé bán lại (Resale) và theo dõi trạng thái giao dịch trực quan cho người dùng phổ thông.
+3. Chống gian lận khi check-in bằng vé điện tử (chống chụp màn hình gửi cho người khác).
+
+**Các giải pháp và tính năng đã triển khai:**
+
+1. **Kiến trúc dữ liệu Hybrid (On-chain + Vercel Blob):**
+   - **On-chain:** Tên sự kiện, thời gian bắt đầu, organizer, các hạng vé (Tier: giá, tổng cung, đã mint), vé (chủ sở hữu, trạng thái resale, check-in), tiền chờ rút.
+   - **Off-chain:** Ảnh bìa, mô tả, danh mục, địa chỉ (tỉnh/huyện/xã từ `vn-units.json`) được lưu trữ qua Vercel Blob thông qua Vercel Serverless Function (`web/api/metadata.js`).
+   - **Xác thực phi tập trung:** Thao tác tạo/sửa thông tin ngoài chuỗi đòi hỏi người dùng ký thông điệp bằng ví (Sign Message). Server kiểm tra chữ ký khớp với địa chỉ `organizer` của sự kiện trên blockchain mới chấp nhận lưu trữ.
+
+2. **Chợ vé bán lại (Resale Market):**
+   - Cho phép chủ vé rao bán lại với trần giá ≤ 110% (tuân thủ quy tắc R3).
+   - Người mua khác duyệt danh sách vé đang bán lại và mua trực tiếp (`buyResaleTicket`). Tiền vào `pendingWithdrawals` của người bán cũ.
+
+3. **Check-in bằng mã QR động có chữ ký số (EIP-712/Wallet Signature):**
+   - Nâng cấp vượt phạm vi ban đầu: Thay vì chỉ dùng mã QR tĩnh (chứa `ticketId`), chủ vé khi đến sự kiện sẽ tạo **mã QR động có chữ ký số từ ví cá nhân**, mã tự động hết hạn sau 5 phút để chống chụp ảnh màn hình chuyển cho người khác.
+   - Tại cửa soát vé, Organizer mở trang `#/check-in`, quét mã QR của khách; hệ thống giải mã, xác thực chữ ký trùng với chủ vé hiện tại trên chain rồi mới kích hoạt giao dịch `checkIn(ticketId)`.
+
+4. **Sửa các lỗi thực tế (Edge cases) qua nhiều vòng test:**
+   - Tránh spam listener nút rút tiền gây gọi giao dịch trùng lặp (`89e5caa`).
+   - Chặn treo trang "Đang tải…" khi RPC mạng công cộng gặp sự cố, lọc log qua Tenderly RPC (`0c2ba93`, `a75acd7`).
+   - Ngăn chặn lỗi mở form sửa metadata làm ghi đè mất ảnh cũ (`e60c3bd`).
+   - Lọc dữ liệu đầu vào chống XSS qua HTML injection.
+
+**Phần do nhóm tự quyết định (không phải AI đề xuất):**
+- Quyết định dùng chữ ký ví để phân quyền backend metadata thay vì tạo hệ thống đăng nhập tài khoản/mật khẩu truyền thống (giữ đúng tinh thần Web3).
+- Chấp nhận giới hạn: vé không chuyển thành ERC-721 chuẩn để giữ vững quy tắc chống đầu cơ (không thể lách luật chuyển ví ngoài hệ thống).
+- Chọn Vercel làm nền tảng deploy chính thức để hỗ trợ cả web tĩnh lẫn Serverless Function `/api/metadata`.
+
+**Kết quả:** DApp hoàn thiện đầy đủ, trực quan và chạy ổn định trên mạng Sepolia tại [https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app](https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app).
