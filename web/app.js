@@ -2981,17 +2981,30 @@
     const nowTs = Math.floor(Date.now() / 1000);
     const selected = mine.find((e) => String(e.id) === wanted) || mine.find((e) => Number(e.startTime) > nowTs - 86400) || mine[0];
     let eventId = selected.id;
-    const doneThisSession = [];
+    // Nhat ky phien: { id, owner, at, status: "pending" | "ok" | "fail", hash, error }
+    const sessionLog = [];
+    // Ve da gui giao dich check-in nhung chua co khoi xac nhan -> chan quet lai.
+    const pendingIds = new Set();
+    // Ve da ghi thanh cong trong phien: chan ngay ca khi RPC con cham 1 khoi
+    // (van bao "chua check-in") - tranh bat MetaMask lan 2 cho cung 1 ve.
+    const doneIds = new Map();
+    const AUTO_KEY = "fairticket:ci-auto";
+    let autoMode = true;
+    try { autoMode = localStorage.getItem(AUTO_KEY) !== "0"; } catch {}
 
     $root().innerHTML = h`
       <div class="page container checkin-page">
         <div class="section-head" style="margin-top: var(--sp-5);">
-          <div><h1 class="h2">Check-in tại cửa</h1><p>Quét mã check-in trên điện thoại của khách. Hệ thống kiểm tra trên blockchain trước khi bạn xác nhận.</p></div>
+          <div><h1 class="h2">Check-in tại cửa</h1><p>Quét mã check-in trên điện thoại của khách. Hệ thống tự kiểm tra trên blockchain trước khi ghi.</p></div>
         </div>
         <div class="field" style="max-width:480px;">
           <label for="ci-event">Sự kiện đang check-in</label>
           <select id="ci-event">${mine.map((e) => `<option value="${e.id}" ${e.id === eventId ? "selected" : ""}>#${e.id} · ${escapeHtml(e.name)} — ${fmtDate(e.startTime)}</option>`).join("")}</select>
         </div>
+        <label class="ci-auto">
+          <input type="checkbox" id="ci-auto" ${autoMode ? "checked" : ""} />
+          <span><strong>Chế độ quét liên tục</strong> — vé hợp lệ (có chữ ký) tự mở MetaMask; duyệt xong quét ngay người tiếp theo, giao dịch chạy nền. Tắt đi thì phải bấm "Xác nhận" từng vé.</span>
+        </label>
         <div class="checkin-grid">
           <section class="card checkout-card">
             <h2 class="h3">Quét mã QR</h2>
@@ -3013,9 +3026,10 @@
             </div>
           </section>
           <section class="card checkout-card">
-            <h2 class="h3">Kết quả</h2>
-            <div id="ci-result" aria-live="polite"><p class="text-secondary text-sm" style="margin-top:8px;">Chưa quét vé nào.</p></div>
-            <h3 class="h3" style="font-size:15px;margin-top:var(--sp-4);">Đã check-in trong phiên này</h3>
+            <div class="ci-status ci-status--idle" id="ci-status" role="status" aria-live="assertive">Sẵn sàng quét</div>
+            <div id="ci-result"></div>
+            <div class="ci-stats" id="ci-stats"></div>
+            <h3 class="h3" style="font-size:15px;margin-top:var(--sp-4);">Nhật ký phiên này</h3>
             <ul class="checkin-log" id="ci-log"><li class="text-secondary">—</li></ul>
           </section>
         </div>
@@ -3023,6 +3037,7 @@
     `;
 
     const resultEl = document.getElementById("ci-result");
+    const statusEl = document.getElementById("ci-status");
     const video = document.getElementById("ci-video");
     let scanning = false;
     let busy = false;
@@ -3030,45 +3045,146 @@
     document.getElementById("ci-event").addEventListener("change", (e) => {
       eventId = BigInt(e.target.value);
       history.replaceState(null, "", "#/check-in?event=" + eventId);
-      resultEl.innerHTML = `<p class="text-secondary text-sm" style="margin-top:8px;">Chưa quét vé nào.</p>`;
+      resultEl.innerHTML = "";
+      setStatus("idle", "Sẵn sàng quét");
+    });
+    document.getElementById("ci-auto").addEventListener("change", (e) => {
+      autoMode = e.target.checked;
+      try { localStorage.setItem(AUTO_KEY, autoMode ? "1" : "0"); } catch {}
     });
 
-    function show(kind, html) { resultEl.innerHTML = `<div class="checkin-result checkin-result--${kind}">${html}</div>`; }
+    function show(kind, html) { resultEl.innerHTML = html ? `<div class="checkin-result checkin-result--${kind}">${html}</div>` : ""; }
+    function setStatus(kind, text) {
+      statusEl.className = "ci-status ci-status--" + kind;
+      statusEl.textContent = text;
+    }
+
+    // Tieng bip + rung de nhan vien khong can nhin man hinh moi lan quet.
+    let audioCtx = null;
+    function feedback(ok) {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = ok ? 1046 : 220;
+        gain.gain.value = 0.08;
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + (ok ? 0.12 : 0.35));
+      } catch {}
+      try { navigator.vibrate?.(ok ? 80 : [80, 60, 80]); } catch {}
+    }
+
+    function renderLog() {
+      const ok = sessionLog.filter((d) => d.status === "ok").length;
+      const pend = sessionLog.filter((d) => d.status === "pending").length;
+      const fail = sessionLog.filter((d) => d.status === "fail").length;
+      document.getElementById("ci-stats").innerHTML = sessionLog.length
+        ? `Đã ghi lên chain: <strong>${ok}</strong> · Đang chờ khối: <strong>${pend}</strong>${fail ? ` · <span class="text-danger">Thất bại: <strong>${fail}</strong></span>` : ""}`
+        : "";
+      const label = { pending: "⏳ đang chờ khối", ok: "✓ đã ghi", fail: "✗ thất bại" };
+      document.getElementById("ci-log").innerHTML = sessionLog.length ? sessionLog.map((d) => `
+        <li class="ci-log-item ci-log-item--${d.status}">
+          <span><span class="mono">Vé #${d.id}</span> · ${shortAddr(d.owner)} · ${d.at.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+          <span>${label[d.status]}${d.error ? " — " + escapeHtml(d.error) : ""} · <a class="link" href="${ETHERSCAN}/tx/${d.hash}" target="_blank" rel="noopener">tx</a></span>
+        </li>`).join("") : `<li class="text-secondary">—</li>`;
+    }
+
+    // Gui checkIn(): cho nguoi dung duyet trong MetaMask, KHONG cho khoi - theo
+    // doi khoi o nen va cap nhat nhat ky (that bai thi bao to + bip).
+    async function submitCheckin(r) {
+      requireContract();
+      requireRightNetwork();
+      const id = String(r.ticketId);
+      if (pendingIds.has(id)) { setStatus("bad", `Vé #${id} đang được check-in — chờ khối xác nhận.`); feedback(false); return; }
+      setStatus("info", `Vé #${id} hợp lệ — duyệt giao dịch trong MetaMask…`);
+      let tx;
+      try {
+        tx = await contract.checkIn(r.ticketId);
+      } catch (err) {
+        setStatus("bad", `Vé #${id}: ${friendlyError(err)}`);
+        feedback(false);
+        return;
+      }
+      pendingIds.add(id);
+      const entry = { id, owner: r.t.owner, at: new Date(), status: "pending", hash: tx.hash, error: "" };
+      sessionLog.unshift(entry);
+      renderLog();
+      setStatus("ok", `✓ Vé #${id} hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.`);
+      feedback(true);
+      show("", "");
+      document.getElementById("ci-manual").value = "";
+      tx.wait().then((receipt) => {
+        if (receipt && receipt.status === 1) { entry.status = "ok"; doneIds.set(id, entry.at); }
+        else { entry.status = "fail"; entry.error = "giao dịch bị revert"; }
+      }).catch((err) => {
+        entry.status = "fail";
+        entry.error = friendlyError(err);
+      }).finally(() => {
+        pendingIds.delete(id);
+        if (myToken !== renderToken) return;
+        renderLog();
+        if (entry.status === "fail") {
+          toast(`Check-in vé #${id} THẤT BẠI trên blockchain (${entry.error}). Kiểm tra lại khách này.`, "error");
+          feedback(false);
+        }
+      });
+    }
 
     async function handleInput(raw) {
       if (busy) return;
       busy = true;
-      show("info", "Đang kiểm tra trên blockchain…");
+      setStatus("info", "Đang kiểm tra trên blockchain…");
       try {
         requireRightNetwork();
         const r = await verifyCheckinInput(raw, eventId);
         if (myToken !== renderToken) return;
-        if (!r.ok) { show("bad", `<strong>Không hợp lệ.</strong> ${escapeHtml(r.error)}`); return; }
+        if (!r.ok) {
+          setStatus("bad", "✗ Không hợp lệ");
+          show("bad", escapeHtml(r.error));
+          feedback(false);
+          return;
+        }
+        if (doneIds.has(String(r.ticketId))) {
+          setStatus("bad", `Vé #${r.ticketId} đã check-in lúc ${doneIds.get(String(r.ticketId)).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} (phiên này).`);
+          show("", "");
+          feedback(false);
+          return;
+        }
+        if (pendingIds.has(String(r.ticketId))) {
+          setStatus("bad", `Vé #${r.ticketId} vừa được check-in — đang chờ khối xác nhận.`);
+          show("", "");
+          feedback(false);
+          return;
+        }
         const sigLine = r.signed
           ? `<div class="text-sm">✓ Chữ ký của chủ vé hợp lệ · mã tạo ${Math.max(0, Math.round(r.signed.ageMs / 1000))} giây trước</div>`
           : `<div class="text-sm"><strong>Không có chữ ký</strong> — chỉ nhập số vé. Hãy đối chiếu ví <span class="mono">${shortAddr(r.t.owner)}</span> trên điện thoại khách trước khi xác nhận.</div>`;
-        show(r.signed ? "ok" : "warn", `
+        const details = `
           <div style="font-size:16px;"><strong>Vé #${r.ticketId}</strong> · ${escapeHtml(r.tier ? r.tier.name : "Hạng #" + r.t.tierId)}</div>
           <div class="text-sm">Chủ vé: <span class="mono">${shortAddr(r.t.owner)}</span>${r.t.forSale ? " · đang rao bán (check-in sẽ khoá việc bán lại)" : ""}</div>
-          ${sigLine}
-          <button type="button" class="btn btn-dark" id="ci-confirm" style="margin-top:12px;">Xác nhận check-in</button>`);
-        document.getElementById("ci-confirm").addEventListener("click", (ev) => withBusy(ev.currentTarget, async () => {
-          requireContract();
-          requireRightNetwork();
-          toast("Xác nhận giao dịch trong ví…", "info");
-          const tx = await contract.checkIn(r.ticketId);
-          toast("Đã gửi — đang chờ blockchain xác nhận…", "info");
-          const receipt = await tx.wait();
-          if (!receipt || receipt.status !== 1) throw userError("Check-in thất bại trên blockchain.");
-          show("ok", `<div style="font-size:16px;"><strong>✓ Đã check-in vé #${r.ticketId}</strong></div><div class="text-sm">Chủ vé <span class="mono">${shortAddr(r.t.owner)}</span> · <a class="link" href="${ETHERSCAN}/tx/${receipt.hash}" target="_blank" rel="noopener">xem giao dịch</a></div>`);
-          doneThisSession.unshift({ id: r.ticketId, owner: r.t.owner, at: new Date() });
-          document.getElementById("ci-log").innerHTML = doneThisSession.map((d) => `<li><span class="mono">Vé #${d.id}</span> · ${shortAddr(d.owner)} · ${d.at.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</li>`).join("");
-          document.getElementById("ci-manual").value = "";
-          toast("Check-in thành công.", "success");
-        }));
+          ${sigLine}`;
+        // Tu dong chi khi co chu ky; nhap tay so ve luon can nguoi doi chieu vi.
+        if (autoMode && r.signed) {
+          show("ok", details);
+          await submitCheckin(r);
+          return;
+        }
+        setStatus(r.signed ? "ok" : "warn", r.signed ? "Hợp lệ — bấm “Xác nhận check-in”" : "Cần đối chiếu ví thủ công");
+        feedback(!!r.signed);
+        show(r.signed ? "ok" : "warn", details + `<button type="button" class="btn btn-dark" id="ci-confirm" style="margin-top:12px;">Xác nhận check-in</button>`);
+        document.getElementById("ci-confirm").addEventListener("click", async (ev) => {
+          if (busy) return;
+          busy = true;
+          ev.currentTarget.disabled = true;
+          try { await submitCheckin(r); } catch (err) { setStatus("bad", friendlyError(err)); feedback(false); } finally { busy = false; }
+        });
       } catch (err) {
         console.error(err);
+        setStatus("bad", "✗ Lỗi");
         show("bad", escapeHtml(friendlyError(err)));
+        feedback(false);
       } finally {
         busy = false;
       }
@@ -3081,10 +3197,10 @@
       const file = e.target.files[0];
       e.target.value = "";
       if (!file) return;
-      show("info", "Đang đọc mã QR trong ảnh…");
+      setStatus("info", "Đang đọc mã QR trong ảnh…");
       try {
         const data = await decodeQrFromImage(await createImageBitmap(file));
-        if (!data) { show("bad", "Không tìm thấy mã QR trong ảnh. Chụp gần hơn, đủ sáng, không bị loá — tốt nhất là ảnh chụp màn hình mã của khách — hoặc dán mã / nhập số vé."); return; }
+        if (!data) { setStatus("bad", "✗ Không tìm thấy mã QR"); feedback(false); show("bad", "Không tìm thấy mã QR trong ảnh. Chụp gần hơn, đủ sáng, không bị loá — tốt nhất là ảnh chụp màn hình mã của khách — hoặc dán mã / nhập số vé."); return; }
         document.getElementById("ci-manual").value = data;
         handleInput(data);
       } catch (err) {
@@ -3105,7 +3221,7 @@
         document.getElementById("ci-placeholder").hidden = true;
         camBtn.textContent = "Tắt camera";
         scanning = true;
-        show("info", "Đưa mã QR vào giữa khung hình, cách khoảng 15–25 cm.");
+        setStatus("idle", "Đưa mã QR vào giữa khung hình, cách 15–25 cm");
         const canvas = document.createElement("canvas");
         let last = "";
         let lastAt = 0;

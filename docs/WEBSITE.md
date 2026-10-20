@@ -115,6 +115,7 @@
 | Chọn sự kiện; quét camera, tải ảnh QR, hoặc dán mã / nhập số vé | 🟢 Đã test: ảnh chụp camera 4000px (QR chỉ chiếm ~10%), camera giả lập. Đã sửa lỗi "Không tìm thấy mã QR" ngày 20/10 |
 | Kiểm tra: chữ ký đúng chủ vé hiện tại, mã chưa quá 5 phút, vé thuộc đúng sự kiện, vé chưa check-in | 🟢 Đã thử đủ các trường hợp sai: ví khác ký, mã hết hạn, sửa số vé, sai sự kiện |
 | Nhập tay số vé → cảnh báo "không có chữ ký, đối chiếu ví thủ công" | 🟢 |
+| **Chế độ quét liên tục** (bật sẵn): mã hợp lệ tự mở MetaMask, duyệt xong quét ngay người tiếp theo, giao dịch theo dõi nền (⏳ chờ khối → ✓ đã ghi / ✗ thất bại kèm cảnh báo); khung trạng thái lớn + bíp + rung; chặn quét lại vé đang chờ khối hoặc đã check-in trong phiên | 🟢 Đã test với ví giả lập mô phỏng MetaMask duyệt/từ chối và giao dịch thành công/revert |
 | **Xác nhận check-in bằng ví thật** | 🟡 Chưa có check-in nào trên chain |
 | Quét bằng camera điện thoại thật | 🟡 Cần HTTPS — bản Vercel đáp ứng |
 

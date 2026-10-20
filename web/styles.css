@@ -1242,3 +1242,19 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
 .qr-fullscreen__code { width: min(92vw, 78vh, 560px); aspect-ratio: 1; }
 .qr-fullscreen__code svg { display: block; width: 100%; height: 100%; }
 .qr-fullscreen__label { font-size: 14px; color: var(--text-secondary); text-align: center; }
+
+/* ---------- Check-in lien tuc ---------- */
+
+.ci-auto { display: flex; gap: var(--sp-2); align-items: flex-start; max-width: 760px; margin: 0 0 var(--sp-4); padding: var(--sp-3); border-radius: var(--radius-md); background: var(--primary-tint); font-size: 14px; line-height: 1.5; cursor: pointer; }
+.ci-auto input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--primary); flex-shrink: 0; }
+.ci-status { padding: var(--sp-4) var(--sp-3); border-radius: var(--radius-md); font-size: 18px; font-weight: 700; line-height: 1.4; text-align: center; margin-bottom: var(--sp-3); }
+.ci-status--idle { background: var(--neutral-bg); color: var(--text-secondary); font-weight: 600; font-size: 16px; }
+.ci-status--info { background: var(--primary-tint); color: var(--primary); }
+.ci-status--ok { background: var(--success-text); color: #fff; }
+.ci-status--warn { background: var(--warning-bg); color: var(--warning-text); }
+.ci-status--bad { background: var(--danger-text); color: #fff; }
+.ci-stats { font-size: 14px; margin-top: var(--sp-3); }
+.text-danger { color: var(--danger-text); }
+.ci-log-item { display: flex; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: var(--neutral-bg); }
+.ci-log-item--ok { background: var(--success-bg); }
+.ci-log-item--fail { background: var(--danger-bg); color: var(--danger-text); }
