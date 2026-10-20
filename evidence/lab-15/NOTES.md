@@ -12,10 +12,12 @@
 - [x] **Đã test bằng trình duyệt thật (Playwright + Edge có sẵn trên máy)** — 2 vòng kiểm thử, vòng 1 phát hiện 2 lỗi responsive mobile thật (banner vỡ chữ, nav header vỡ dòng), đã sửa cả 2, vòng 2 xác nhận hết lỗi. Chụp đủ desktop (1440px) + mobile (390px) cho cả 6 trang và luồng chọn vé → checkout. Chi tiết trong `docs/AI_JOURNAL.md` mục Lab 15.
 - [x] **Phát hiện quan trọng:** địa chỉ Sepolia cũ (từ Lab 9, `0xb8Cb6Fe71f1Cb5682f27fb738FC2d78DCF09A149`) đã lỗi thời — thiếu hàm `listForResale`/`buyResaleTicket`/`withdrawProceeds`. Phải deploy lại bản `ProjectCore.sol` mới nhất lên Sepolia trước khi dùng thật.
 
-## Chưa làm được (cần môi trường thật — ví MetaMask, mạng Sepolia, điện thoại)
+## Đã hoàn thành thêm
+- [x] Deploy `ProjectCore.sol` v2 lên mạng Sepolia tại địa chỉ [`0x0f96cafe4C603D706c786C503A5c903090706916`](https://sepolia.etherscan.io/address/0x0f96cafe4C603D706c786C503A5c903090706916).
+- [x] Điền `CONTRACT_ADDRESS` vào `web/app.js` và cập nhật README.
+- [x] Đồng bộ `evidence/lab-15/ProjectCore.abi.json` khớp 100% với contract v2 và `web/ProjectCore.abi.json`.
+- [x] Phân vai người nói chi tiết trong `docs/PRESENTATION_PLAN.md` (Linh: Giao diện & Demo kiểm thử, Thảo: Giới thiệu & Bảo mật).
 
-- [ ] Deploy `ProjectCore.sol` (bản mới nhất, đã qua Lab 10/11/14) lên Sepolia → lấy địa chỉ mới, điền vào README và `web/app.js` (hằng số `CONTRACT_ADDRESS` ở đầu file).
-- [ ] Kết nối ví MetaMask thật, chạy 1 luồng thành công (VD: tạo sự kiện → phát hành vé → mua vé) + 1 luồng bị từ chối (VD: rao bán giá > 110%), xác nhận thông báo lỗi hiện tiếng Việt thân thiện (đã viết sẵn bảng dịch lỗi trong code, chưa test với ví thật).
-- [ ] Bật GitHub Pages cho `web/`, lấy URL công khai, mở thử trên điện thoại thật.
-- [ ] Điền tên người nói + mã giao dịch thật vào `docs/PRESENTATION_PLAN.md`.
-- [ ] Commit `lab-15: public dapp va presentation plan` + tag `v0.1-demo`.
+## Việc còn lại khi nộp bài
+- [ ] Mở DApp qua URL công khai (GitHub Pages / Vercel), kết nối MetaMask Sepolia test 1 luồng thành công + 1 luồng revert để lấy 2 mã transaction hash dán vào `docs/PRESENTATION_PLAN.md`.
+- [ ] Gắn tag `v0.1-demo` (`git tag v0.1-demo && git push origin v0.1-demo`).

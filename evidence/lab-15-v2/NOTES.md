@@ -17,8 +17,6 @@ Sau khi test web thật, phát hiện `mintTicket()` cũ bắt Organizer phát h
 - [x] `web/app.js` viết lại gần như toàn bộ cho khớp model Tier mới + panel Organizer (tạo hạng vé, check-in) + QR vé (`qrcode-generator` qua CDN).
 - [x] Test lại toàn bộ giao diện bằng Playwright (ví giả lập) — 0 lỗi console, tier/organizer-panel/checkout/QR đều render đúng.
 
-## Chưa làm được (cần ví thật + deploy thật)
-
-- [ ] Deploy `ProjectCore.sol` bản mới lên Sepolia (địa chỉ cũ không còn tương thích ABI).
-- [ ] Điền `CONTRACT_ADDRESS` mới vào `web/app.js` + README.
-- [ ] Test thật: tạo sự kiện → tạo hạng vé → mint vé bằng ví thật → check-in thật → xem QR vé thật.
+- [x] Deploy `ProjectCore.sol` bản v2 lên Sepolia tại địa chỉ [`0x0f96cafe4C603D706c786C503A5c903090706916`](https://sepolia.etherscan.io/address/0x0f96cafe4C603D706c786C503A5c903090706916).
+- [x] Điền `CONTRACT_ADDRESS` mới vào `web/app.js` + README.
+- [ ] Test trực tiếp bằng ví thật trên Sepolia (tạo sự kiện → tạo hạng vé → mint vé → check-in → lưu 2 transaction hash cho presentation plan).

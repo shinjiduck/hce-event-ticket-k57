@@ -32,11 +32,6 @@
   },
   {
     "inputs": [],
-    "name": "MaxSupplyReached",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "NotOrganizer",
     "type": "error"
   },
@@ -68,7 +63,12 @@
   },
   {
     "inputs": [],
-    "name": "TicketAlreadySold",
+    "name": "TicketAlreadyCheckedIn",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TicketCheckedInCannotResell",
     "type": "error"
   },
   {
@@ -83,7 +83,12 @@
   },
   {
     "inputs": [],
-    "name": "TicketNotYetSold",
+    "name": "TierDoesNotExist",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TierSupplyReached",
     "type": "error"
   },
   {
@@ -110,12 +115,6 @@
         "internalType": "address",
         "name": "organizer",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "maxSupply",
-        "type": "uint256"
       },
       {
         "indexed": false,
@@ -158,17 +157,11 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "buyer",
+        "name": "owner",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
       }
     ],
-    "name": "TicketBought",
+    "name": "TicketCheckedIn",
     "type": "event"
   },
   {
@@ -208,13 +201,25 @@
       {
         "indexed": true,
         "internalType": "uint256",
+        "name": "tierId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
         "name": "eventId",
         "type": "uint256"
       },
       {
         "indexed": false,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
         "internalType": "uint256",
-        "name": "originalPrice",
+        "name": "price",
         "type": "uint256"
       }
     ],
@@ -253,6 +258,43 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tierId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxSupply",
+        "type": "uint256"
+      }
+    ],
+    "name": "TierCreated",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "MAX_RESALE_BPS",
     "outputs": [
@@ -286,9 +328,9 @@
         "type": "uint256"
       }
     ],
-    "name": "buyTicket",
+    "name": "checkIn",
     "outputs": [],
-    "stateMutability": "payable",
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -302,11 +344,6 @@
         "internalType": "uint256",
         "name": "startTime",
         "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxSupply",
-        "type": "uint256"
       }
     ],
     "name": "createEvent",
@@ -314,6 +351,40 @@
       {
         "internalType": "uint256",
         "name": "eventId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxSupply",
+        "type": "uint256"
+      }
+    ],
+    "name": "createTier",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "tierId",
         "type": "uint256"
       }
     ],
@@ -341,19 +412,14 @@
         "type": "uint256"
       },
       {
-        "internalType": "uint256",
-        "name": "maxSupply",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "ticketsMinted",
-        "type": "uint256"
-      },
-      {
         "internalType": "address",
         "name": "organizer",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tierCount",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -381,12 +447,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "eventId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "originalPrice",
+        "name": "tierId",
         "type": "uint256"
       }
     ],
@@ -398,7 +459,7 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -417,6 +478,19 @@
   {
     "inputs": [],
     "name": "nextTicketId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextTierId",
     "outputs": [
       {
         "internalType": "uint256",
@@ -462,6 +536,11 @@
         "type": "uint256"
       },
       {
+        "internalType": "uint256",
+        "name": "tierId",
+        "type": "uint256"
+      },
+      {
         "internalType": "address",
         "name": "owner",
         "type": "address"
@@ -472,11 +551,6 @@
         "type": "uint256"
       },
       {
-        "internalType": "bool",
-        "name": "sold",
-        "type": "bool"
-      },
-      {
         "internalType": "uint256",
         "name": "resalePrice",
         "type": "uint256"
@@ -485,6 +559,50 @@
         "internalType": "bool",
         "name": "forSale",
         "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "checkedIn",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "tiers",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxSupply",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minted",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",

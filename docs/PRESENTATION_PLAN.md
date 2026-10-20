@@ -4,21 +4,24 @@
 
 ## Phân vai — mỗi người phụ trách đúng 1 artifact
 
+Theo phân vai Lab 12–15 trong `docs/PROJECT_PLAN.md` (Mai Bá Linh: Giao diện + Kiểm thử; Nguyễn Hoàng Thảo: Đặc tả + Hợp đồng):
+
 | Thời lượng | Nội dung | Người nói | Artifact phụ trách |
 |---|---|---|---|
-| 1 phút | Giới thiệu bài toán + đối tượng dùng (vé giả, đầu cơ, không xác định được chủ vé) | *(điền tên)* | `README.md` / `docs/PROJECT_PLAN.md` |
-| 2 phút | Demo trực tiếp trên URL công khai: kết nối ví, chạy 1 luồng thành công (mua vé hoặc rao bán lại) | *(điền tên)* | `web/index.html` (bản deploy GitHub Pages) |
-| 1.5 phút | Demo ca bị từ chối (vi phạm quy tắc kinh tế) + giải thích thông báo lỗi bằng ngôn ngữ người dùng | *(điền tên)* | `contracts/project/ProjectCore.sol` (quy tắc R3/R4) |
-| 1 phút | Hành trình audit/vá lỗi bảo mật đã làm (Lab 10, 13, 14) — vì sao sản phẩm đáng tin hơn bản đầu | *(điền tên)* | `docs/AI_JOURNAL.md` + `evidence/lab-13/`, `evidence/lab-14/` |
-| 1 phút | Hướng phát triển tiếp theo + câu hỏi thảo luận | Cả 2 | `docs/ECONOMIC_RULES.md` |
+| 1 phút | Giới thiệu bài toán + đối tượng dùng (vé giả, đầu cơ, không xác định được chủ vé) | **Nguyễn Hoàng Thảo** | `README.md` / `docs/PROJECT_PLAN.md` |
+| 2 phút | Demo trực tiếp trên URL công khai: kết nối ví, chạy luồng thành công (tạo sự kiện → tạo hạng vé → mint vé → xem QR) | **Mai Bá Linh** | `web/` (DApp frontend đã deploy) |
+| 1.5 phút | Demo ca bị từ chối (rao bán >110% revert `ResalePriceTooHigh`, người lạ check-in revert `NotOrganizer`) | **Mai Bá Linh** & **Nguyễn Hoàng Thảo** | `contracts/project/ProjectCore.sol` (quy tắc R3/R5) |
+| 1 phút | Hành trình audit/vá lỗi bảo mật đã làm (Lab 10, 13, 14) — phòng chống Reentrancy bằng Pull-Payment | **Nguyễn Hoàng Thảo** | `docs/AI_JOURNAL.md` + `evidence/lab-13/`, `evidence/lab-14/` |
+| 1 phút | Hướng phát triển tiếp theo (QR động chống chụp màn hình, phí bản quyền) + câu hỏi thảo luận | **Cả 2** (Linh & Thảo) | `docs/ECONOMIC_RULES.md` |
 
 **Tổng thời lượng:** 6.5 phút — nếu đề bài quy định đúng khung thời gian khác, giãn/co lại các mục trên.
 
-## Mã giao dịch demo (điền sau khi deploy + test thật trên Sepolia)
+## Thông tin hợp đồng & Mã giao dịch demo
 
-- Transaction hash (ca thành công):
-- Transaction hash (ca bị từ chối):
-- URL công khai: `https://<tên tài khoản GitHub>.github.io/<tên kho>/`
+- Contract v2 trên Sepolia: [`0x0f96cafe4C603D706c786C503A5c903090706916`](https://sepolia.etherscan.io/address/0x0f96cafe4C603D706c786C503A5c903090706916)
+- URL công khai: `https://shinjiduck.github.io/hce-event-ticket-k57/web/` *(hoặc link Vercel của nhóm)*
+- Transaction hash (ca thành công — ví dụ mint/resale): *(dán hash giao dịch sau khi test ví)*
+- Transaction hash (ca bị từ chối): *(ghi mã revert hoặc hash giao dịch testnet)*
 
 ## Checklist trước khi trình bày
 
