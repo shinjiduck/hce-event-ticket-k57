@@ -99,12 +99,11 @@ Bí mật (`BLOB_READ_WRITE_TOKEN`) chỉ nằm trong `web/.env` (không commit)
 | # | Việc | Ai | Ghi chú |
 |---|---|---|---|
 | 1 | **Test đầu-cuối bằng ví thật** trên Vercel: tạo sự kiện (ngày tương lai) → ví B mua 2 vé → B rao bán lại (thử giá > 110% phải bị chặn) → ví C mua lại → C tạo mã check-in → Organizer quét bằng điện thoại | Cả nhóm | Lưu mã giao dịch làm bằng chứng |
-| 2 | Điền `docs/PRESENTATION_PLAN.md`: tên người từng phần, mã giao dịch demo, đổi URL GitHub Pages → URL Vercel | Cả nhóm | Lấy mã giao dịch từ bước 1 |
-| 3 | Gán danh mục + địa chỉ cho sự kiện cũ (đang hiện "Khác") | Thảo: #0, #2 · Ví `0x82d0…19A7`: #1 | Nút "Sửa thông tin hiển thị", ký miễn phí |
-| 4 | Ghi phần FairTicket V2 vào `docs/AI_JOURNAL.md` | Thảo | Môn học yêu cầu nhật ký dùng AI |
-| 5 | Commit `lab-15: public dapp va presentation plan` + tag `v0.1-demo` | Thảo | Làm sau bước 1–2 |
-| 6 | Quyết định stash `stash@{0}` (chú thích `@notice` cho `contracts/training`) | Linh/Thảo | Áp lại hoặc bỏ |
-| 7 | (Tuỳ chọn) R7 — hạn bán lại theo thời gian | — | Cần sửa hợp đồng + deploy lại → đổi CA |
+| 2 | ~~Điền `docs/PRESENTATION_PLAN.md`~~ | **Đã xong** | Đã phân vai Linh & Thảo, gắn link Vercel và các mã txn Sepolia thật |
+| 3 | Gán danh mục + địa chỉ cho sự kiện cũ (đang hiện "Khác") | Thảo: #0, #2 · Ví `0x82d0…19A7`: #1 | Nút "Sửa thông tin hiển thị", ký miễn phí trên DApp |
+| 4 | ~~Ghi phần FairTicket V2 vào `docs/AI_JOURNAL.md`~~ | **Đã xong** | Đã cập nhật đầy đủ chi tiết kiến trúc V2, Vercel Blob và QR ký số |
+| 5 | Gắn tag `v0.1-demo` và hoàn tất nộp bài Lab 15 | Cả nhóm | Thực hiện sau bước 1 (hoặc khi chốt nộp bài) |
+| 6 | (Tuỳ chọn) R7 — hạn bán lại theo thời gian | — | Cần sửa hợp đồng + deploy lại → đổi CA (đã ghi nhận là hướng phát triển) |
 
 ## 8. Giới hạn đã biết (nên nói rõ khi thuyết trình)
 
