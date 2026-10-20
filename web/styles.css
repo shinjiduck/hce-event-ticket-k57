@@ -1213,3 +1213,12 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
 #modal-qr.is-expired { opacity: 0.2; filter: blur(2px); }
 @media (max-width: 520px) { #modal-qr.is-dynamic { width: 260px; height: 260px; } }
 .ticket-card__cat { position: absolute; top: var(--sp-2); left: var(--sp-2); }
+
+/* ---------- Ban do ---------- */
+
+.map-frame { display: block; width: 100%; height: 100%; border: 0; }
+.map-wrap { margin: var(--sp-3) 0; height: 320px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); background: var(--neutral-bg); }
+.map-picker { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.map-picker__preview { height: 220px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: var(--neutral-bg); }
+.map-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text-tertiary); font-size: 13px; }
+@media (max-width: 640px) { .map-wrap { height: 240px; } }

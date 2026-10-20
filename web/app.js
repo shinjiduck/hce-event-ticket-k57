@@ -354,6 +354,7 @@
             <h3 id="tm-title">${escapeHtml(evt ? evt.name : "Sự kiện #" + t.eventId)}</h3>
             <p class="text-sm text-secondary">${escapeHtml(tier ? tier.name : "Hạng #" + t.tierId)} · <span class="mono">Vé #${t.id}</span></p>
             <p class="text-sm" style="margin-top:6px;">${evt ? fmtCardDate(evt.startTime) : ""}<br />${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</p>
+            ${mapQuery(meta) ? `<a class="link text-sm" href="${escapeAttr(mapDirectionsUrl(mapQuery(meta)))}" target="_blank" rel="noopener">${icon("pin")} Chỉ đường tới sự kiện</a>` : ""}
           </div>
         </div>
         ${canMakeCode ? `
@@ -436,6 +437,43 @@
     })();
   }
 
+  // ---------- Ban do (Google Maps) ----------
+  // Dung kieu nhung "maps?q=...&output=embed" - KHONG can API key (khong lo
+  // khoa bi mat tren frontend). Dia chi la du lieu off-chain trong metadata.
+  function mapQuery(meta) {
+    return String((meta && (meta.address || meta.location)) || "").trim();
+  }
+  function mapEmbedUrl(q) { return "https://www.google.com/maps?q=" + encodeURIComponent(q) + "&hl=vi&z=16&output=embed"; }
+  function mapSearchUrl(q) { return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q); }
+  function mapDirectionsUrl(q) { return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(q); }
+  function mapFrameHtml(q, extraCls) {
+    return `<iframe class="map-frame ${extraCls || ""}" src="${escapeAttr(mapEmbedUrl(q))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Bản đồ: ${escapeAttr(q)}" allowfullscreen></iframe>`;
+  }
+  // O nhap dia chi + ban do xem truoc (cap nhat sau khi ngung go 800ms).
+  function mapPickerHtml(idPrefix, value, fallback) {
+    const q = String(value || fallback || "").trim();
+    return `
+      <div class="map-picker">
+        <div class="map-picker__preview" id="${idPrefix}-preview">${q ? mapFrameHtml(q) : `<div class="map-empty">${icon("pin", "icon")}<span>Nhập địa chỉ để xem bản đồ</span></div>`}</div>
+        <a class="link text-sm" id="${idPrefix}-open" href="${q ? escapeAttr(mapSearchUrl(q)) : "#"}" target="_blank" rel="noopener" ${q ? "" : "hidden"}>Mở Google Maps để kiểm tra vị trí ${icon("external")}</a>
+      </div>`;
+  }
+  function wireMapPicker(idPrefix, getQuery) {
+    let timer;
+    let lastQ = getQuery();
+    const update = () => {
+      const q = getQuery();
+      if (q === lastQ) return;
+      lastQ = q;
+      const box = document.getElementById(idPrefix + "-preview");
+      const link = document.getElementById(idPrefix + "-open");
+      if (!box) return;
+      box.innerHTML = q ? mapFrameHtml(q) : `<div class="map-empty">${icon("pin", "icon")}<span>Nhập địa chỉ để xem bản đồ</span></div>`;
+      if (link) { link.hidden = !q; link.href = q ? mapSearchUrl(q) : "#"; }
+    };
+    return () => { clearTimeout(timer); timer = setTimeout(update, 800); };
+  }
+
   // ---------- QR (hien thi ve) ----------
 
   /// Ve QR don gian ngay trong canvas, ma hoa 1 chuoi ngan (ticketId).
@@ -480,7 +518,7 @@
       const res = await fetch("/api/metadata?eventId=" + key);
       if (!res.ok) return false;
       const remote = await res.json();
-      if (!remote || (!remote.description && !remote.location && !remote.image && !remote.category)) return false;
+      if (!remote || (!remote.description && !remote.location && !remote.address && !remote.image && !remote.category)) return false;
       const before = JSON.stringify(getAllMeta()[key] || {});
       saveMeta(eventId, remote);
       return JSON.stringify(getAllMeta()[key]) !== before;
@@ -1578,6 +1616,7 @@
             <nav class="detail-tabs" aria-label="Nội dung sự kiện">
               <a href="#sec-intro" data-jump="sec-intro">Giới thiệu</a>
               <a href="#sec-info" data-jump="sec-info">Thông tin</a>
+              ${mapQuery(meta) ? `<a href="#sec-map" data-jump="sec-map">Địa điểm</a>` : ""}
               <a href="#sec-policy" data-jump="sec-policy">Chính sách vé</a>
               <a href="#sec-verify" data-jump="sec-verify">Xác minh blockchain</a>
             </nav>
@@ -1597,6 +1636,18 @@
                 <div class="info-row"><div class="info-row__label">Vé đã bán</div><div class="info-row__value tabular-nums">${s.hasTiers ? `${s.minted} / ${s.supply} vé` : "Chưa mở bán"}</div></div>
               </div>
             </section>
+
+            ${mapQuery(meta) ? `
+            <section class="detail-section" id="sec-map">
+              <h2>Địa điểm</h2>
+              <p style="font-weight:600;">${escapeHtml(meta.location || meta.address)}</p>
+              ${meta.address && meta.location ? `<p class="text-sm text-secondary">${escapeHtml(meta.address)}</p>` : ""}
+              <div class="map-wrap">${mapFrameHtml(mapQuery(meta))}</div>
+              <div class="organizer-actions">
+                <a class="btn btn-primary btn-sm" href="${escapeAttr(mapDirectionsUrl(mapQuery(meta)))}" target="_blank" rel="noopener">${icon("pin")} Chỉ đường</a>
+                <a class="btn btn-secondary btn-sm" href="${escapeAttr(mapSearchUrl(mapQuery(meta)))}" target="_blank" rel="noopener">Mở trong Google Maps ${icon("external")}</a>
+              </div>
+            </section>` : ""}
 
             <section class="detail-section" id="sec-policy">
               <h2>Chính sách vé &amp; bán lại</h2>
@@ -1781,8 +1832,13 @@
             <select id="em-cat">${CATEGORIES.map((c) => `<option value="${c.id}" ${categoryOf(meta.category).id === c.id ? "selected" : ""}>${c.label}</option>`).join("")}</select>
           </div>
           <div class="field">
-            <label for="em-loc">Địa điểm</label>
+            <label for="em-loc">Tên địa điểm</label>
             <input id="em-loc" maxlength="300" value="${escapeAttr(meta.location || "")}" />
+          </div>
+          <div class="field">
+            <label for="em-addr">Địa chỉ trên bản đồ <span class="text-tertiary">(tuỳ chọn)</span></label>
+            <input id="em-addr" maxlength="300" placeholder="VD: 26 Lê Lợi, Vĩnh Ninh, Huế" value="${escapeAttr(meta.address || "")}" />
+            ${mapPickerHtml("em-map", meta.address, meta.location)}
           </div>
           <div class="field">
             <label for="em-desc">Mô tả</label>
@@ -1800,6 +1856,9 @@
         </div>`;
       document.body.appendChild(overlay);
       overlay.querySelector("#em-loc").focus();
+      const refreshMap = wireMapPicker("em-map", () => mapQuery({ address: overlay.querySelector("#em-addr").value, location: overlay.querySelector("#em-loc").value }));
+      overlay.querySelector("#em-addr").addEventListener("input", refreshMap);
+      overlay.querySelector("#em-loc").addEventListener("input", refreshMap);
       function close(v) { overlay.remove(); resolve(v); }
       overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
       overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(null); });
@@ -1815,6 +1874,7 @@
       overlay.querySelector('[data-action="save"]').addEventListener("click", () => close({
         category: overlay.querySelector("#em-cat").value,
         location: overlay.querySelector("#em-loc").value.trim(),
+        address: overlay.querySelector("#em-addr").value.trim(),
         description: overlay.querySelector("#em-desc").value.trim(),
         image: newImage || meta.image || "",
       }));
@@ -1903,13 +1963,13 @@
 
   routes.create = function () {
     let step = 1;
-    let data = { name: "", category: "", description: "", startTime: "", endTime: "", location: "", image: "", maxSupply: "", price: "" };
+    let data = { name: "", category: "", description: "", startTime: "", endTime: "", location: "", address: "", image: "", maxSupply: "", price: "" };
 
     // Lop an toan thu 2: khoi phuc nhap neu bi F5/mat ket noi mang giua chung
     // (lop thu 1 la handleWalletChange() khong con ep reload trang nua).
     try {
       const saved = JSON.parse(sessionStorage.getItem(CREATE_DRAFT_KEY) || "null");
-      if (saved && saved.data && saved.data.name) {
+      if (saved && saved.data && Object.values(saved.data).some((v) => v)) {
         data = Object.assign(data, saved.data);
         step = saved.step || 1;
         setTimeout(() => toast("Đã khôi phục thông tin đang điền dở.", "info"), 300);
@@ -1951,7 +2011,7 @@
 
     // Lien ket moi o nhap voi `data` + luu nhap NGAY khi go (khong doi bam
     // "Tiep tuc") - de F5 giua chung van khong mat chu dang go dang.
-    const FIELD_MAP = { "f-name": "name", "f-cat": "category", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-supply": "maxSupply", "f-price": "price" };
+    const FIELD_MAP = { "f-name": "name", "f-cat": "category", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-addr": "address", "f-supply": "maxSupply", "f-price": "price" };
     function bindLiveInputs() {
       Object.keys(FIELD_MAP).forEach((elId) => {
         const el = document.getElementById(elId);
@@ -1993,13 +2053,23 @@
               <input id="f-end" type="datetime-local" value="${data.endTime}" />
             </div>
           </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-loc">Tên địa điểm</label>
+              <input id="f-loc" placeholder="VD: Nhà văn hóa Huế" maxlength="300" value="${escapeAttr(data.location)}" />
+            </div>
+            <div class="field">
+              <label for="f-addr">Địa chỉ trên bản đồ <span class="text-tertiary">(tuỳ chọn)</span></label>
+              <input id="f-addr" placeholder="VD: 26 Lê Lợi, Vĩnh Ninh, Huế" maxlength="300" value="${escapeAttr(data.address)}" />
+            </div>
+          </div>
           <div class="field">
-            <label for="f-loc">Địa điểm</label>
-            <input id="f-loc" placeholder="VD: Nhà văn hóa Huế" value="${escapeAttr(data.location)}" />
+            ${mapPickerHtml("f-map", data.address, data.location)}
+            <p class="hint">Bản đồ dùng địa chỉ; để trống thì dùng tên địa điểm. Có thể nhập toạ độ, VD: 16.4637, 107.5909.</p>
           </div>
           <div class="field">
             <label>Ảnh sự kiện</label>
-            <div class="upload-box">Kéo-thả hoặc chọn ảnh (lưu cục bộ trong trình duyệt — chưa hỗ trợ upload lên server).<br/>
+            <div class="upload-box">Chọn ảnh bìa (tự nén tối đa 1600px, lưu cùng mô tả để mọi người cùng thấy).<br/>
               <input type="file" id="f-image" accept="image/*" style="margin-top:8px;" />
             </div>
           </div>
@@ -2009,6 +2079,9 @@
           </div>
         `;
         bindLiveInputs();
+        const refreshMap = wireMapPicker("f-map", () => mapQuery({ address: document.getElementById("f-addr").value, location: document.getElementById("f-loc").value }));
+        document.getElementById("f-addr").addEventListener("input", refreshMap);
+        document.getElementById("f-loc").addEventListener("input", refreshMap);
         document.getElementById("btn-cancel-wizard").addEventListener("click", clearDraft);
         document.getElementById("btn-next-1").addEventListener("click", () => {
           data.name = document.getElementById("f-name").value.trim();
@@ -2017,6 +2090,7 @@
           data.startTime = document.getElementById("f-start").value;
           data.endTime = document.getElementById("f-end").value;
           data.location = document.getElementById("f-loc").value.trim();
+          data.address = document.getElementById("f-addr").value.trim();
           if (!data.name || !data.startTime) { toast("Điền tên sự kiện và thời gian bắt đầu.", "error"); return; }
           const file = document.getElementById("f-image").files[0];
           const goNext = () => { step = 2; render(); };
@@ -2070,6 +2144,7 @@
               <div class="review-row"><span class="review-row__label">Danh mục</span><span class="review-row__value">${categoryOf(data.category).label}</span></div>
               <div class="review-row"><span class="review-row__label">Thời gian</span><span class="review-row__value">${data.startTime ? new Date(data.startTime).toLocaleString("vi-VN") : "—"}</span></div>
               <div class="review-row"><span class="review-row__label">Địa điểm</span><span class="review-row__value">${escapeHtml(data.location || "—")}</span></div>
+              ${data.address ? `<div class="review-row"><span class="review-row__label">Địa chỉ</span><span class="review-row__value">${escapeHtml(data.address)}</span></div>` : ""}
               <div class="review-row"><span class="review-row__label">Hạng Standard</span><span class="review-row__value">${escapeHtml(data.maxSupply)} vé × ${escapeHtml(data.price)} ETH</span></div>
               <div class="review-row"><span class="review-row__label">Giới hạn bán lại</span><span class="review-row__value">110%</span></div>
               <div class="review-row"><span class="review-row__label">Organizer wallet</span><span class="review-row__value mono">${userAddress ? shortAddr(userAddress) : "Chưa kết nối ví"}</span></div>
@@ -2095,7 +2170,7 @@
           const log1 = receipt1.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
           const newEventId = log1 ? log1.args.eventId : null;
           if (newEventId === null) throw new Error("Không đọc được eventId vừa tạo.");
-          const newMeta = { description: data.description, location: data.location, image: data.image, category: categoryOf(data.category).id };
+          const newMeta = { description: data.description, location: data.location, address: data.address, image: data.image, category: categoryOf(data.category).id };
           saveMeta(newEventId, newMeta);
 
           toast("Đang tạo hạng vé Standard… (giao dịch 2/2)", "info");
