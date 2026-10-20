@@ -12,7 +12,7 @@
 | Deploy | ✅ Vercel tự deploy mỗi lần push lên `main` |
 | Giao diện desktop + mobile (390px) | ✅ Không tràn ngang, đã chụp kiểm tra từng trang |
 | Đọc dữ liệu thật từ Sepolia | ✅ Đã kiểm tra trực tiếp trên bản Vercel |
-| Ghi dữ liệu bằng ví thật | 🟡 Mới chạy thật: **tạo sự kiện** và **rút tiền** (20/10). Chưa chạy thật: mua vé qua trang thanh toán mới, rao bán lại, mua lại, check-in |
+| Ghi dữ liệu bằng ví thật | 🟡 Đã chạy thật (20/10): **tạo sự kiện, mua vé qua trang thanh toán mới, rao bán lại (đúng mức trần 110%), rút tiền**. Chưa chạy thật: mua lại, check-in |
 
 **Ký hiệu trạng thái**
 - ✅ **Đã chạy thật**: đã có giao dịch thật bằng ví MetaMask, hoặc đã kiểm tra trực tiếp trên bản Vercel.
@@ -69,7 +69,7 @@
 | Kiểm tra trước khi cho bấm: ví, mạng, số vé còn lại, số dư (cả phí gas), chạy thử giao dịch | 🟢 |
 | Theo dõi từng vé: chờ ví → đã gửi (link Etherscan) → thành công / bị từ chối / revert | 🟢 (đã thử bấm từ chối trong ví) |
 | Chỉ báo thành công khi blockchain xác nhận; chống bấm 2 lần; cảnh báo khi đóng trang | 🟢 |
-| **Mua vé thành công bằng ví thật** | 🟡 Chưa thử: các lần mua thật (13/10, 15/10) diễn ra trước khi có trang thanh toán mới |
+| **Mua vé thành công bằng ví thật** | ✅ Vé #2 và #3 mua qua trang thanh toán mới ngày 20/10 |
 
 ### 2.6 Vé bán lại — `#/resale`
 
@@ -96,7 +96,7 @@
 | Thẻ vé điện tử, chia tab Sắp diễn ra / Đã sử dụng / Đang bán lại / Tất cả (có đếm) | ✅ (kiểm tra trên Vercel) |
 | Modal vé: QR, chủ sở hữu kiểm tra lại trên chain, CA, lịch sử riêng của vé, chỉ đường | 🟢 |
 | **Tạo mã check-in có chữ ký** (hết hạn 5 phút, đếm ngược) | 🟢 |
-| Rao bán lại / đổi giá (chặn giá > 110% ngay trên giao diện) | 🟡 |
+| Rao bán lại / đổi giá (chặn giá > 110% ngay trên giao diện) | ✅ Vé #3 rao bán 0.0055 ETH = đúng 110% giá gốc (20/10) |
 | Rút tiền | ✅ Ví `0x4f99…` đã rút thật 0.005 ETH ngày 20/10 |
 | Lịch sử giao dịch của ví | ✅ (kiểm tra trên Vercel) |
 
@@ -112,7 +112,7 @@
 
 | Chức năng | Trạng thái |
 |---|---|
-| Chọn sự kiện; quét camera, tải ảnh QR, hoặc dán mã / nhập số vé | 🟢 (đọc ảnh QR đã test) |
+| Chọn sự kiện; quét camera, tải ảnh QR, hoặc dán mã / nhập số vé | 🟢 Đã test: ảnh chụp camera 4000px (QR chỉ chiếm ~10%), camera giả lập. Đã sửa lỗi "Không tìm thấy mã QR" ngày 20/10 |
 | Kiểm tra: chữ ký đúng chủ vé hiện tại, mã chưa quá 5 phút, vé thuộc đúng sự kiện, vé chưa check-in | 🟢 Đã thử đủ các trường hợp sai: ví khác ký, mã hết hạn, sửa số vé, sai sự kiện |
 | Nhập tay số vé → cảnh báo "không có chữ ký, đối chiếu ví thủ công" | 🟢 |
 | **Xác nhận check-in bằng ví thật** | 🟡 Chưa có check-in nào trên chain |

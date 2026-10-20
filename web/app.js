@@ -334,6 +334,23 @@
     });
   }
 
+  // Hien ma check-in toan man hinh nen trang: QR cang to va tuong phan cang
+  // cao thi camera cang de doc (nhat la khi quet man hinh dien thoai).
+  function showQrFullscreen(code, label) {
+    const el = document.createElement("div");
+    el.className = "qr-fullscreen";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-label", "Mã check-in phóng to");
+    el.innerHTML = `<div class="qr-fullscreen__code"></div><div class="qr-fullscreen__label">${escapeHtml(label)} · tăng độ sáng màn hình · chạm để đóng</div>`;
+    renderQrInto(el.querySelector(".qr-fullscreen__code"), code, "Alphanumeric");
+    const close = () => el.remove();
+    el.addEventListener("click", close);
+    el.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+    el.tabIndex = -1;
+    document.body.appendChild(el);
+    el.focus();
+  }
+
   /// Modal ve dien tu: QR to de xuat trinh tai cong + thong tin xac minh
   /// (CA, so ve, chu so huu doc lai tu chain) + lich su rieng cua ve nay.
   function showTicketDetailModal(t, evt, tier) {
@@ -360,6 +377,7 @@
         ${canMakeCode ? `
         <div class="checkin-code" id="tm-code-box">
           <button type="button" class="btn btn-accent btn-block" id="tm-make-code">Tạo mã check-in (ký bằng ví, miễn phí)</button>
+          <button type="button" class="btn btn-secondary btn-block" id="tm-zoom" style="margin-top:8px;" hidden>Phóng to mã toàn màn hình</button>
           <p class="hint-sm" id="tm-code-hint">Mã vào cửa có chữ ký của ví chủ vé và tự hết hạn sau 5 phút — ảnh chụp lại hay mã gửi cho người khác đều không dùng được. Mã đang hiển thị phía trên chỉ là số vé để tra cứu.</p>
         </div>` : `<p class="hint-sm">${t.checkedIn ? "Vé đã được check-in — không thể dùng lại." : "Mở trang này bằng ví đang giữ vé để tạo mã check-in."}</p>`}
         <div class="info-list" style="margin-top: var(--sp-3);">
@@ -386,6 +404,10 @@
     closeBtn.addEventListener("click", close);
     overlay.querySelector('[data-action="goto"]').addEventListener("click", close);
 
+    overlay.querySelector("#tm-zoom")?.addEventListener("click", () => {
+      const code = overlay.querySelector("#modal-qr").dataset.code;
+      if (code) showQrFullscreen(code, "Vé #" + t.id);
+    });
     const makeBtn = overlay.querySelector("#tm-make-code");
     makeBtn?.addEventListener("click", () => withBusy(makeBtn, async () => {
       requireWallet();
@@ -394,7 +416,8 @@
       qrEl.classList.add("is-dynamic");
       qrEl.classList.remove("is-expired");
       qrEl.dataset.code = code;
-      renderQrInto(qrEl, code);
+      renderQrInto(qrEl, code, "Alphanumeric");
+      overlay.querySelector("#tm-zoom").hidden = false;
       makeBtn.textContent = "Tạo mã mới";
       clearInterval(codeTimer);
       const hint = overlay.querySelector("#tm-code-hint");
@@ -571,13 +594,16 @@
 
   /// Ve QR don gian ngay trong canvas, ma hoa 1 chuoi ngan (ticketId).
   /// Dung thu vien qrcode-generator (nho, khong phu thuoc gi khac).
-  function renderQrInto(container, text) {
+  function renderQrInto(container, text, mode) {
     if (!window.qrcode) { container.textContent = "(Không tải được thư viện QR)"; return; }
     const qr = window.qrcode(0, "M");
-    qr.addData(text);
+    qr.addData(text, mode || "Byte");
     qr.make();
-    container.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2 });
+    // margin tinh bang DIEM ANH (khong phai so o): 16px = 4 o le trang theo
+    // chuan QR. Truoc day margin 2 -> le chi nua o, may quet kho dinh vi ma.
+    container.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 16 });
   }
+
 
   // ---------- Local metadata (non-chain fields) ----------
 
@@ -2829,19 +2855,20 @@
     if (!signer) throw userError("Kết nối ví chủ vé để tạo mã check-in.");
     const ts = Date.now();
     const sig = await signer.signMessage(checkinMessage(ticketId, ts));
-    return { code: `FT1:${ticketId}:${ts}:${sig}`, expiresAt: ts + CHECKIN_TTL_MS };
+    return { code: `FT1:${ticketId}:${ts}:${sig.slice(2).toUpperCase()}`, expiresAt: ts + CHECKIN_TTL_MS };
   }
 
   // Tra ve ket qua kiem tra (khong gui giao dich). raw: ma QR dong hoac so ve.
   async function verifyCheckinInput(raw, eventId) {
     const text = String(raw || "").trim();
     let ticketId, signed = null;
-    const m = /^FT1:(\d+):(\d+):(0x[0-9a-fA-F]{130})$/.exec(text);
+    // Nhan ca dang cu "0x..." chu thuong lan dang moi viet HOA khong "0x".
+    const m = /^FT1:(\d+):(\d+):(?:0x)?([0-9a-f]{130})$/i.exec(text);
     if (m) {
       ticketId = BigInt(m[1]);
       const ts = Number(m[2]);
       let signerAddr = null;
-      try { signerAddr = ethers.verifyMessage(checkinMessage(ticketId, ts), m[3]); } catch {}
+      try { signerAddr = ethers.verifyMessage(checkinMessage(ticketId, ts), "0x" + m[3].toLowerCase()); } catch {}
       signed = { ts, signer: signerAddr, ageMs: Date.now() - ts };
     } else if (/^\d+$/.test(text)) {
       ticketId = BigInt(text);
@@ -2862,6 +2889,51 @@
     }
     const tier = (await fetchAllTiers()).find((x) => x.id === t.tierId);
     return { ok: true, ticketId, t, tier, signed };
+  }
+
+  let barcodeDetector;
+  async function nativeDetect(source) {
+    if (barcodeDetector === null) return null;
+    if (barcodeDetector === undefined) {
+      barcodeDetector = null;
+      try {
+        if ("BarcodeDetector" in window && (await window.BarcodeDetector.getSupportedFormats()).includes("qr_code")) {
+          barcodeDetector = new window.BarcodeDetector({ formats: ["qr_code"] });
+        }
+      } catch {}
+      if (!barcodeDetector) return null;
+    }
+    try {
+      const found = await barcodeDetector.detect(source);
+      return found[0] ? found[0].rawValue : null;
+    } catch { return null; }
+  }
+  function jsQrDetect(jsQR, canvas) {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const r = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, { inversionAttempts: "attemptBoth" });
+    return r ? r.data : null;
+  }
+  // Doc QR tu anh: thu trinh doc goc, roi jsQR o nhieu cach. Anh chup bang
+  // camera dien thoai ~4000px, QR co the chi chiem ~10% - truoc day luon thu
+  // nho ve 1200px nen moi o QR chi con 2-3 diem anh -> "khong tim thay".
+  // Do thu: doc o do phan giai goc (<=3000px) truoc, roi cat phan giua.
+  async function decodeQrFromImage(bmp) {
+    const native = await nativeDetect(bmp);
+    if (native) return native;
+    const jsQR = await loadJsQr();
+    const attempts = [[3000, false], [1600, true], [2400, true], [1600, false], [1000, false], [640, false]];
+    for (const [target, crop] of attempts) {
+      const sx = crop ? bmp.width * 0.2 : 0, sy = crop ? bmp.height * 0.2 : 0;
+      const sw = crop ? bmp.width * 0.6 : bmp.width, sh = crop ? bmp.height * 0.6 : bmp.height;
+      const scale = Math.min(1, target / Math.max(sw, sh));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(sw * scale);
+      canvas.height = Math.round(sh * scale);
+      canvas.getContext("2d", { willReadFrequently: true }).drawImage(bmp, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      const data = jsQrDetect(jsQR, canvas);
+      if (data) return data;
+    }
+    return null;
   }
 
   let scanStream = null;
@@ -3009,19 +3081,12 @@
       const file = e.target.files[0];
       e.target.value = "";
       if (!file) return;
+      show("info", "Đang đọc mã QR trong ảnh…");
       try {
-        const jsQR = await loadJsQr();
-        const bmp = await createImageBitmap(file);
-        const canvas = document.createElement("canvas");
-        const scale = Math.min(1, 1200 / Math.max(bmp.width, bmp.height));
-        canvas.width = Math.round(bmp.width * scale);
-        canvas.height = Math.round(bmp.height * scale);
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-        const found = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
-        if (!found) { show("bad", "Không tìm thấy mã QR trong ảnh."); return; }
-        document.getElementById("ci-manual").value = found.data;
-        handleInput(found.data);
+        const data = await decodeQrFromImage(await createImageBitmap(file));
+        if (!data) { show("bad", "Không tìm thấy mã QR trong ảnh. Chụp gần hơn, đủ sáng, không bị loá — tốt nhất là ảnh chụp màn hình mã của khách — hoặc dán mã / nhập số vé."); return; }
+        document.getElementById("ci-manual").value = data;
+        handleInput(data);
       } catch (err) {
         show("bad", escapeHtml(friendlyError(err)));
       }
@@ -3032,35 +3097,46 @@
       if (scanning) { scanning = false; stopScanner(); video.hidden = true; document.getElementById("ci-placeholder").hidden = false; camBtn.textContent = "Bật camera"; return; }
       try {
         const jsQR = await loadJsQr();
-        if (!navigator.mediaDevices?.getUserMedia) throw userError("Trình duyệt không hỗ trợ camera — dùng “Tải ảnh mã QR” hoặc nhập số vé.");
-        scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        if (!navigator.mediaDevices?.getUserMedia) throw userError("Trình duyệt này không cho dùng camera (VD trình duyệt bên trong ví) — dùng “Tải ảnh mã QR”, dán mã hoặc nhập số vé.");
+        scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } });
         video.srcObject = scanStream;
         await video.play();
         video.hidden = false;
         document.getElementById("ci-placeholder").hidden = true;
         camBtn.textContent = "Tắt camera";
         scanning = true;
+        show("info", "Đưa mã QR vào giữa khung hình, cách khoảng 15–25 cm.");
         const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         let last = "";
-        const tick = () => {
+        let lastAt = 0;
+        // Quet ~6 lan/giay (khong phai moi khung hinh) de may yeu khong bi giat.
+        const tick = async () => {
           if (!scanning || myToken !== renderToken || !document.body.contains(video)) { stopScanner(); return; }
           if (video.readyState >= 2 && !busy) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            const found = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
-            if (found && found.data !== last) {
-              last = found.data;
-              document.getElementById("ci-manual").value = found.data;
-              handleInput(found.data);
+            let data = await nativeDetect(video);
+            if (!data) {
+              // Chi doc phan giua khung hinh (vuong) - nhanh hon va it nhieu hon.
+              const side = Math.min(video.videoWidth, video.videoHeight);
+              canvas.width = canvas.height = Math.min(side, 800);
+              canvas.getContext("2d", { willReadFrequently: true }).drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+              data = jsQrDetect(jsQR, canvas);
+            }
+            // Cung 1 ma: bo qua trong 4 giay de khong kiem tra lap lai lien tuc.
+            if (data && (data !== last || Date.now() - lastAt > 4000)) {
+              last = data;
+              lastAt = Date.now();
+              document.getElementById("ci-manual").value = data;
+              handleInput(data);
             }
           }
-          requestAnimationFrame(tick);
+          setTimeout(tick, 160);
         };
-        requestAnimationFrame(tick);
+        tick();
       } catch (err) {
-        const msg = err?.name === "NotAllowedError" ? "Bạn chưa cho phép dùng camera." : friendlyError(err);
+        const msg = err?.name === "NotAllowedError" ? "Bạn chưa cho phép dùng camera (bật lại trong cài đặt trình duyệt)."
+          : err?.name === "NotFoundError" ? "Không tìm thấy camera trên thiết bị này."
+          : err?.name === "NotReadableError" ? "Camera đang được ứng dụng khác dùng."
+          : friendlyError(err);
         show("bad", escapeHtml(msg));
       }
     });
