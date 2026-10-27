@@ -12,7 +12,7 @@
 const { put, head, BlobNotFoundError } = require("@vercel/blob");
 const { ethers } = require("ethers");
 
-const CONTRACT_ADDRESS = "0x0f96cafe4C603D706c786C503A5c903090706916";
+const CONTRACT_ADDRESS = "0x7c574216844854C04878B41D68d58F50a54cA0AF"; // ProjectCore v3
 const SEPOLIA_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
 const EVENTS_ABI = [
   "function events(uint256) view returns (string name, uint256 startTime, address organizer, uint256 tierCount)",

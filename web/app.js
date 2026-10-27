@@ -25,7 +25,7 @@
 
   // ---------- Config ----------
 
-  const CONTRACT_ADDRESS = "0x0f96cafe4C603D706c786C503A5c903090706916"; // ProjectCore.sol v2 (public mint + check-in) da deploy tren Sepolia
+  const CONTRACT_ADDRESS = "0x7c574216844854C04878B41D68d58F50a54cA0AF"; // ProjectCore.sol v3 (CTV soat ve, checkIn theo su kien, go rao ban) - Sepolia, deploy 27/10/2026
   let CONTRACT_ABI = null; // tự nạp từ ./ProjectCore.abi.json
   const SEPOLIA_CHAIN_ID = 11155111n;
   const SEPOLIA_CHAIN_HEX = "0xaa36a7";
@@ -98,6 +98,9 @@
     ZeroResalePrice: "Giá rao bán phải lớn hơn 0.",
     TicketAlreadyCheckedIn: "Vé này đã được check-in rồi.",
     TicketCheckedInCannotResell: "Vé đã check-in, không thể rao bán lại.",
+    NotCheckInAuthorized: "Ví này không có quyền soát vé cho sự kiện này (cần là Organizer hoặc CTV được cấp quyền).",
+    TicketNotInEvent: "Vé không thuộc sự kiện đang soát.",
+    ZeroAddress: "Địa chỉ ví không hợp lệ.",
   };
 
   // ---------- Demo data mode ----------
@@ -208,8 +211,31 @@
     return STOCK_IMAGES[i];
   }
 
+  // Vi (MetaMask...) hay boc du lieu revert sau nhieu lop -> ethers bao
+  // "unknown custom error". Tu tim chuoi hex trong loi va giai ma theo ABI.
+  function revertNameFrom(err) {
+    if (err?.revert?.name) return err.revert.name;
+    if (!CONTRACT_ABI) return null;
+    const iface = new ethers.Interface(CONTRACT_ABI);
+    const seen = new Set();
+    const stack = [err];
+    while (stack.length) {
+      const x = stack.pop();
+      if (!x || typeof x !== "object" || seen.has(x)) continue;
+      seen.add(x);
+      for (const v of Object.values(x)) {
+        if (typeof v === "string" && /^0x[0-9a-fA-F]{8}/.test(v)) {
+          try { const parsed = iface.parseError(v); if (parsed) return parsed.name; } catch {}
+        } else if (v && typeof v === "object") stack.push(v);
+      }
+    }
+    return null;
+  }
+
   function friendlyError(err) {
     if (err?.userFacing) return err.message;
+    const revertName = revertNameFrom(err);
+    if (revertName && ERROR_MESSAGES[revertName]) return ERROR_MESSAGES[revertName];
     if (err?.code === "ACTION_REJECTED" || err?.code === 4001 || err?.info?.error?.code === 4001) return "Bạn đã từ chối giao dịch trong ví.";
     if (err?.revert?.name && ERROR_MESSAGES[err.revert.name]) return ERROR_MESSAGES[err.revert.name];
     const raw = err?.shortMessage || err?.reason || err?.message || String(err);
@@ -442,8 +468,8 @@
         const fresh = await c.tickets(t.id);
         const el = overlay.querySelector("#tm-owner-check");
         if (el) el.textContent = fresh.owner.toLowerCase() === t.owner.toLowerCase() ? "· đã xác minh trên chain lúc " + new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "· chủ vé đã thay đổi, tải lại trang";
-        const names = { TicketMinted: "Phát hành (mua lần đầu)", TicketListedForResale: "Rao bán lại", TicketResold: "Đổi chủ (mua lại)", TicketCheckedIn: "Check-in tại cửa" };
-        const rows = (await fetchAllContractLogs())
+        const names = { TicketMinted: "Phát hành (mua lần đầu)", TicketListedForResale: "Rao bán lại", TicketResaleCancelled: "Gỡ rao bán", TicketResold: "Đổi chủ (mua lại)", TicketCheckedIn: "Check-in tại cửa" };
+        const rows = (await fetchAllContractLogs(true))
           .filter((x) => names[x.name] && x.args.ticketId === t.id)
           .map((x) => ({ x, name: names[x.name] }))
           .sort((a, b) => a.x.blockNumber - b.x.blockNumber || a.x.index - b.x.index);
@@ -1812,7 +1838,7 @@
               </details>
             </section>
 
-            ${isOrganizer ? organizerPanelHtml(id, tiers, s) : ""}
+            ${isOrganizer ? organizerPanelHtml(id, tiers, s) : `<div id="staff-note"></div>`}
           </div>
 
           <aside class="ticket-panel" id="ticket-panel" aria-label="Chọn vé">
@@ -1896,6 +1922,13 @@
     }));
 
     if (isOrganizer) wireOrganizerPanel(id, evt);
+    else if (userAddress && isConfigured()) {
+      ensureReadContract().then((c) => c.isStaff(id, userAddress)).then((ok) => {
+        const note = document.getElementById("staff-note");
+        if (!ok || !note || myToken !== renderToken) return;
+        note.innerHTML = `<section class="detail-section organizer-panel"><h2>Bạn là CTV soát vé</h2><p class="text-sm text-secondary">Organizer đã cấp quyền check-in vé của sự kiện này cho ví của bạn.</p><a class="btn btn-dark" href="#/check-in?event=${id}" style="margin-top: var(--sp-3);">Mở màn hình check-in</a></section>`;
+      }).catch(() => {});
+    }
 
     syncMetaThenRefresh([id], () => { if (myToken === renderToken) route(); });
   };
@@ -1950,6 +1983,16 @@
           <h3>Check-in tại cửa</h3>
           <p class="text-sm text-secondary">Quét mã check-in có chữ ký của khách (hết hạn sau 5 phút) — chặn được ảnh chụp màn hình cũ và mã của người khác.</p>
           <a class="btn btn-dark" href="#/check-in?event=${eventId}" style="margin-top: var(--sp-3);">Mở màn hình check-in</a>
+        </div>
+
+        <div class="checkin-box" id="staff-box">
+          <h3>Cộng tác viên (CTV) soát vé</h3>
+          <p class="text-sm text-secondary">CTV dùng ví riêng, <strong>chỉ</strong> check-in được vé của sự kiện này — không rút tiền, không tạo hạng vé, không cấp quyền cho người khác. Thu hồi có hiệu lực ngay trên hợp đồng.</p>
+          <div class="checkin-row">
+            <input id="staff-addr" placeholder="Địa chỉ ví CTV (0x…)" autocomplete="off" spellcheck="false" aria-label="Địa chỉ ví CTV" />
+            <button id="btn-add-staff" type="button" class="btn btn-dark">Cấp quyền</button>
+          </div>
+          <ul class="staff-list" id="staff-list"><li class="text-secondary text-sm">Đang tải…</li></ul>
         </div>
       </section>
     `;
@@ -2053,7 +2096,64 @@
     });
   }
 
+  // Danh sach CTV hien tai: dung lai tu log StaffUpdated (lan cap/thu hoi gan
+  // nhat cua tung vi), roi doi chieu isStaff() tren chain cho chac.
+  async function loadStaffList(eventId) {
+    const logs = await fetchAllContractLogs(true);
+    const last = new Map();
+    logs.filter((l) => l.name === "StaffUpdated" && l.args.eventId === eventId)
+      .forEach((l) => last.set(l.args.staff.toLowerCase(), { addr: l.args.staff, allowed: l.args.allowed, hash: l.transactionHash }));
+    const c = await ensureReadContract();
+    const rows = [...last.values()].filter((x) => x.allowed);
+    const onChain = await Promise.all(rows.map((x) => c.isStaff(eventId, x.addr)));
+    return rows.filter((_, i) => onChain[i]);
+  }
+
+  function wireStaffPanel(eventId, evt) {
+    const listEl = document.getElementById("staff-list");
+    if (!listEl) return;
+    let staff = [];
+    const draw = () => {
+      listEl.innerHTML = staff.length
+        ? staff.map((x) => `<li class="staff-item"><span class="mono" title="${x.addr}">${shortAddr(x.addr)}</span><span class="staff-item__actions"><button type="button" class="copy-btn" data-copy="${x.addr}">Sao chép</button><button type="button" class="btn btn-ghost btn-sm" data-revoke="${x.addr}">Thu hồi</button></span></li>`).join("")
+        : `<li class="text-secondary text-sm">Chưa có CTV nào. Chỉ ví Organizer check-in được.</li>`;
+      listEl.querySelectorAll("[data-copy]").forEach(bindCopy);
+      listEl.querySelectorAll("[data-revoke]").forEach((b) => b.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+        await sendSetStaff(b.dataset.revoke, false);
+        staff = staff.filter((x) => !sameAddr(x.addr, b.dataset.revoke));
+        draw();
+        toast("Đã thu hồi quyền CTV " + shortAddr(b.dataset.revoke) + ".", "success");
+      })));
+    };
+    async function sendSetStaff(addr, allowed) {
+      requireWallet(); requireContract(); requireRightNetwork();
+      toast("Vui lòng xác nhận giao dịch trong ví…", "info");
+      const tx = await contract.setStaff(eventId, addr, allowed);
+      toast("Đã gửi — đang chờ blockchain xác nhận…", "info");
+      const receipt = await tx.wait();
+      if (!receipt || receipt.status !== 1) throw userError("Giao dịch thất bại trên blockchain.");
+    }
+    loadStaffList(eventId).then((rows) => { staff = rows; draw(); }).catch((err) => {
+      console.warn("Không tải được danh sách CTV:", err);
+      listEl.innerHTML = `<li class="text-secondary text-sm">Không tải được danh sách CTV (mạng/RPC).</li>`;
+    });
+    const input = document.getElementById("staff-addr");
+    document.getElementById("btn-add-staff").addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+      const addr = input.value.trim();
+      if (!ethers.isAddress(addr)) throw userError("Địa chỉ ví không hợp lệ — cần dạng 0x… gồm 40 ký tự.");
+      const checksum = ethers.getAddress(addr);
+      if (sameAddr(checksum, evt.organizer)) throw userError("Đây là ví Organizer — đã có quyền check-in sẵn.");
+      if (staff.some((x) => sameAddr(x.addr, checksum))) throw userError("Ví này đã là CTV của sự kiện.");
+      await sendSetStaff(checksum, true);
+      staff.push({ addr: checksum, allowed: true });
+      input.value = "";
+      draw();
+      toast("Đã cấp quyền CTV cho " + shortAddr(checksum) + ". Gửi họ link màn hình check-in.", "success");
+    }));
+  }
+
   function wireOrganizerPanel(eventId, evt) {
+    wireStaffPanel(eventId, evt);
     document.getElementById("btn-edit-meta")?.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
       // Ky la GHI DE toan bo metadata tren server -> lay ban moi nhat truoc,
       // tranh mo form khi cache tren may chua dong bo (o trong) roi ky xoa mat
@@ -2514,15 +2614,23 @@
 
   function renderOwnedTickets(rows, listEl) {
     const filters = document.getElementById("ticket-filters");
-    const counts = { upcoming: 0, used: 0, selling: 0, all: rows.length };
-    rows.forEach((r) => { const k = ticketState(r.t, r.evt).key; if (counts[k] !== undefined) counts[k]++; });
+    // "Sap dien ra" gom ca ve dang rao ban cua su kien chua bat dau - truoc day
+    // rao ban xong ve bien khoi tab dang xem, nguoi dung khong thay nut "Go rao ban".
+    const inTab = (r, tab) => {
+      const k = ticketState(r.t, r.evt).key;
+      if (tab === "all") return true;
+      if (tab === "upcoming") return k === "upcoming" || (k === "selling" && r.evt && Number(r.evt.startTime) > Math.floor(Date.now() / 1000));
+      return k === tab;
+    };
+    const counts = {};
+    ["upcoming", "used", "selling", "all"].forEach((tab) => { counts[tab] = rows.filter((r) => inTab(r, tab)).length; });
     const labels = { upcoming: "Sắp diễn ra", used: "Đã sử dụng", selling: "Đang bán lại", all: "Tất cả" };
     filters.querySelectorAll("[data-tf]").forEach((b) => { b.textContent = `${labels[b.dataset.tf]} (${counts[b.dataset.tf]})`; });
 
     function draw() {
       const active = filters.querySelector(".chip.active").dataset.tf;
       const shown = rows
-        .filter((r) => active === "all" || ticketState(r.t, r.evt).key === active)
+        .filter((r) => inTab(r, active))
         .sort((a, b) => Number((a.evt?.startTime || 0n) - (b.evt?.startTime || 0n)));
       if (rows.length === 0) {
         listEl.innerHTML = emptyState("Bạn chưa có vé nào", "Vé bạn mua sẽ xuất hiện tại đây, gắn với địa chỉ ví này.", `<a class="btn btn-primary" href="#/events" style="margin-top:16px;">Khám phá sự kiện</a>`);
@@ -2538,6 +2646,16 @@
         const row = rows.find((r) => r.t.id.toString() === el.dataset.view);
         if (row) showTicketDetailModal(row.t, row.evt, row.tier);
       }));
+      listEl.querySelectorAll("[data-unlist]").forEach((btn) => btn.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
+        requireWallet(); requireContract(); requireRightNetwork();
+        toast("Vui lòng xác nhận giao dịch trong ví…", "info");
+        const tx = await contract.cancelResale(BigInt(btn.dataset.unlist));
+        toast("Đã gửi — đang chờ blockchain xác nhận…", "info");
+        const receipt = await tx.wait();
+        if (!receipt || receipt.status !== 1) throw userError("Gỡ rao bán thất bại trên blockchain.");
+        toast("Đã gỡ rao bán vé #" + btn.dataset.unlist + ".", "success");
+        renderMyTickets();
+      })));
       listEl.querySelectorAll("[data-resell]").forEach((btn) => btn.addEventListener("click", (e) => withBusy(e.currentTarget, async () => {
         const row = rows.find((r) => r.t.id.toString() === btn.dataset.resell);
         await resellFlow(row);
@@ -2584,6 +2702,7 @@
           <div class="ticket-card__actions">
             <button type="button" class="btn btn-primary btn-sm" data-view="${t.id}">Xem vé</button>
             ${canResell ? `<button type="button" class="btn btn-secondary btn-sm" data-resell="${t.id}">${t.forSale ? "Đổi giá bán" : "Rao bán lại"}</button>` : ""}
+            ${t.forSale && !t.checkedIn ? `<button type="button" class="btn btn-ghost btn-sm" data-unlist="${t.id}">Gỡ rao bán</button>` : ""}
           </div>
         </div>
       </article>`;
@@ -2597,7 +2716,7 @@
     const input = await promptPriceModal({
       title: t.forSale ? "Đổi giá rao bán" : "Rao bán lại vé",
       label: "Giá rao bán (ETH)",
-      hint: `Giá gốc ${fmtEth(t.originalPrice)} ETH · tối đa ${fmtEth(max)} ETH (110%). Lưu ý: hợp đồng hiện không có chức năng gỡ rao bán — vé sẽ thuộc về người đầu tiên trả đúng giá. Bạn vẫn đổi giá được.`,
+      hint: `Giá gốc ${fmtEth(t.originalPrice)} ETH · tối đa ${fmtEth(max)} ETH (110%). Vé thuộc về người đầu tiên trả đúng giá; trước đó bạn có thể đổi giá hoặc gỡ rao bán.`,
       confirmText: t.forSale ? "Cập nhật giá" : "Rao bán",
     });
     if (!input) return;
@@ -2620,7 +2739,7 @@
   // cho phep CORS - da kiem tra), quet tu khoi chua log dau tien cua hop dong
   // (EventCreated #0), chia khuc de khong vuot gioi han khi chain dai ra.
   const LOGS_RPC_URL = "https://sepolia.gateway.tenderly.co";
-  const FIRST_LOG_BLOCK = 11904408;
+  const FIRST_LOG_BLOCK = 12004406; // khoi deploy hop dong v3
   const LOG_CHUNK = 100_000;
   let logsProvider = null;
   function getLogsProvider() {
@@ -2680,6 +2799,8 @@
       if (l.name === "TicketListedForResale" && sameAddr(a.seller, me)) return "Rao bán vé";
       if (l.name === "ProceedsWithdrawn" && sameAddr(a.organizer, me)) return "Rút tiền";
       if (l.name === "TicketCheckedIn" && sameAddr(a.owner, me)) return "Check-in vé";
+      if (l.name === "TicketResaleCancelled" && sameAddr(a.seller, me)) return "Gỡ rao bán";
+      if (l.name === "StaffUpdated" && sameAddr(a.staff, me)) return a.allowed ? "Được cấp quyền CTV" : "Bị thu hồi quyền CTV";
       if (l.name === "EventCreated" && sameAddr(a.organizer, me)) return "Tạo sự kiện";
       return null;
     };
@@ -2806,7 +2927,7 @@
     // Hoat dong: log cua cac su kien cua toi. Log ve (check-in/ban lai) chi
     // co ticketId -> suy ra su kien qua log TicketMinted(ticketId, ..., eventId).
     try {
-      const logs = await fetchAllContractLogs();
+      const logs = await fetchAllContractLogs(true);
       if (myToken !== renderToken) return;
       const myIds = new Set(mine.map((e) => String(e.id)));
       const ticketEvent = new Map();
@@ -2823,6 +2944,8 @@
           TicketListedForResale: `Vé #${a.ticketId} được rao bán lại · ${fmtEth(a.resalePrice)} ETH`,
           TicketResold: `Vé #${a.ticketId} đổi chủ · ${fmtEth(a.amount)} ETH`,
           TicketCheckedIn: `Check-in vé #${a.ticketId}`,
+          TicketResaleCancelled: `Vé #${a.ticketId} gỡ rao bán`,
+          StaffUpdated: a.staff ? `${a.allowed ? "Cấp quyền" : "Thu hồi quyền"} CTV ${shortAddr(a.staff)}` : "",
         };
         if (!map[l.name]) return null;
         return { text: map[l.name], ev: evName(evId), l };
@@ -2960,7 +3083,7 @@
     const myToken = renderToken;
     $root().innerHTML = `<div class="page container"><div class="skel" style="height:320px;margin-top:var(--sp-5);"></div></div>`;
     if (!userAddress) {
-      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Kết nối ví Organizer</h3><p>Chỉ ví đã tạo sự kiện mới check-in được vé của sự kiện đó.</p><button type="button" class="btn btn-primary" id="ci-connect" style="margin-top:16px;">Kết nối ví</button></div></div>`;
+      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Kết nối ví Organizer hoặc CTV</h3><p>Chỉ ví Organizer của sự kiện, hoặc ví CTV được Organizer cấp quyền, mới check-in được vé.</p><button type="button" class="btn btn-primary" id="ci-connect" style="margin-top:16px;">Kết nối ví</button></div></div>`;
       document.getElementById("ci-connect").addEventListener("click", (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true }));
       return;
     }
@@ -2972,9 +3095,25 @@
       return;
     }
     if (myToken !== renderToken) return;
-    const mine = evts.filter((e) => sameAddr(e.organizer, userAddress)).sort((a, b) => Number(a.startTime) - Number(b.startTime));
+    // Su kien ma vi nay duoc soat ve: minh to chuc, hoac duoc cap quyen CTV.
+    let staffFlags;
+    try {
+      const c = await ensureReadContract();
+      staffFlags = await Promise.all(evts.map((e) => (sameAddr(e.organizer, userAddress) ? true : c.isStaff(e.id, userAddress))));
+    } catch (err) {
+      if (myToken !== renderToken) return;
+      $root().innerHTML = `<div class="page container">${errorStateHtml("Không kiểm tra được quyền soát vé", "Mạng/RPC đang chập chờn.")}</div>`;
+      wireRetry();
+      return;
+    }
+    if (myToken !== renderToken) return;
+    const mine = evts
+      .map((e, i) => ({ ...e, role: sameAddr(e.organizer, userAddress) ? "organizer" : staffFlags[i] ? "staff" : null }))
+      .filter((e) => e.role)
+      .sort((a, b) => Number(a.startTime) - Number(b.startTime));
     if (!mine.length) {
-      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Ví này chưa tổ chức sự kiện nào</h3><p>Màn hình check-in chỉ dành cho Organizer.</p><a class="btn btn-primary" href="#/create" style="margin-top:16px;">Tạo sự kiện</a></div></div>`;
+      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Ví này chưa có quyền soát vé</h3><p>Ví không tổ chức sự kiện nào và chưa được cấp quyền CTV. Gửi địa chỉ ví này cho Organizer để được cấp quyền:</p><p class="mono" style="margin-top:8px;">${userAddress}</p><button type="button" class="copy-btn" data-copy="${userAddress}" style="margin-top:8px;">Sao chép địa chỉ</button></div></div>`;
+      $root().querySelectorAll("[data-copy]").forEach(bindCopy);
       return;
     }
     const wanted = query.get("event");
@@ -2999,7 +3138,7 @@
         </div>
         <div class="field" style="max-width:480px;">
           <label for="ci-event">Sự kiện đang check-in</label>
-          <select id="ci-event">${mine.map((e) => `<option value="${e.id}" ${e.id === eventId ? "selected" : ""}>#${e.id} · ${escapeHtml(e.name)} — ${fmtDate(e.startTime)}</option>`).join("")}</select>
+          <select id="ci-event">${mine.map((e) => `<option value="${e.id}" ${e.id === eventId ? "selected" : ""}>#${e.id} · ${escapeHtml(e.name)} — ${fmtDate(e.startTime)} · ${e.role === "organizer" ? "Organizer" : "CTV"}</option>`).join("")}</select>
         </div>
         <label class="ci-auto">
           <input type="checkbox" id="ci-auto" ${autoMode ? "checked" : ""} />
@@ -3101,7 +3240,7 @@
       setStatus("info", `Vé #${id} hợp lệ — duyệt giao dịch trong MetaMask…`);
       let tx;
       try {
-        tx = await contract.checkIn(r.ticketId);
+        tx = await contract.checkIn(r.t.eventId, r.ticketId);
       } catch (err) {
         setStatus("bad", `Vé #${id}: ${friendlyError(err)}`);
         feedback(false);

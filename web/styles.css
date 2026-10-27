@@ -1258,3 +1258,9 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
 .ci-log-item { display: flex; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: var(--neutral-bg); }
 .ci-log-item--ok { background: var(--success-bg); }
 .ci-log-item--fail { background: var(--danger-bg); color: var(--danger-text); }
+
+/* ---------- CTV soat ve ---------- */
+
+.staff-list { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.staff-item { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--neutral-bg); font-size: 14px; }
+.staff-item__actions { display: flex; align-items: center; gap: 6px; }

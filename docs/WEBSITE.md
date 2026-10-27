@@ -1,6 +1,6 @@
 # TIẾN ĐỘ WEBSITE — FairTicket
 
-> Cập nhật: **20/10/2026**
+> Cập nhật: **27/10/2026** — website đã chuyển sang hợp đồng **v3** `0x7c574216844854C04878B41D68d58F50a54cA0AF`: các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v3.
 > URL công khai: https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
 > Mã nguồn: thư mục `web/` · Tiến độ chung của cả dự án (Lab, hợp đồng): [PROGRESS.md](PROGRESS.md)
 
@@ -60,7 +60,7 @@
 | Chọn hạng vé (còn lại / tổng, thanh tiến độ), số lượng (tối đa 10), tổng tiền | 🟢 | |
 | Chặn mua khi sự kiện đã bắt đầu | 🟢 | Hợp đồng không tự chặn việc này |
 | Thanh "Chọn vé" dính đáy màn hình trên mobile | 🟢 | |
-| **Organizer:** thống kê, Sửa thông tin hiển thị, + Thêm hạng vé, nút mở màn hình check-in | 🟢 / 🟡 | Sửa thông tin và thêm hạng vé cần test bằng ví thật |
+| **Organizer:** thống kê, Sửa thông tin hiển thị, + Thêm hạng vé, nút mở màn hình check-in, **quản lý CTV soát vé** (dán ví → Cấp quyền / Thu hồi; danh sách đọc lại từ chain) | 🟢 / 🟡 | Sửa thông tin và thêm hạng vé cần test bằng ví thật |
 
 ### 2.5 Thanh toán — `#/checkout/:eventId/:tierId/:qty`
 
@@ -110,6 +110,8 @@
 
 ### 2.10 Check-in tại cửa — `#/check-in`
 
+> v3: mở cho cả **ví CTV** được cấp quyền (ô chọn sự kiện ghi vai trò Organizer/CTV). Ví chưa có quyền thấy địa chỉ ví để gửi cho Organizer. CTV bị thu hồi quét vé → hợp đồng từ chối, hiện "Ví này không có quyền soát vé cho sự kiện này". Đã chạy trọn luồng trên chain cục bộ với đúng bytecode Sepolia.
+
 | Chức năng | Trạng thái |
 |---|---|
 | Chọn sự kiện; quét camera, tải ảnh QR, hoặc dán mã / nhập số vé | 🟢 Đã test: ảnh chụp camera 4000px (QR chỉ chiếm ~10%), camera giả lập. Đã sửa lỗi "Không tìm thấy mã QR" ngày 20/10 |
@@ -139,7 +141,7 @@
 ## 4. Giới hạn của website (nói rõ khi demo)
 
 - Giao diện chặn một số việc mà **hợp đồng không chặn**: mua vé sau giờ bắt đầu, check-in nhầm vé của sự kiện khác. Gọi thẳng hợp đồng (Remix/Etherscan) thì vẫn làm được.
-- Không có nút **gỡ rao bán**, vì hợp đồng không có hàm này; chỉ đổi giá được.
+- ~~Không có nút gỡ rao bán~~ — v3 đã có `cancelResale`, nút **Gỡ rao bán** ở trang Vé của tôi.
 - Mã check-in còn hạn 5 phút: nếu chủ vé tự gửi mã cho người khác trong 5 phút đó thì người kia vào được. Hợp đồng vẫn chỉ cho check-in 1 lần.
 - Website phụ thuộc Vercel, Tenderly, publicnode và Google Maps. Dịch vụ nào lỗi thì phần tương ứng báo lỗi kèm nút "Thử lại"; dữ liệu trên chain không bị ảnh hưởng.
 - Chạy cục bộ bằng `python -m http.server` thì không có `/api`, nên ảnh và mô tả chỉ lưu trên máy.

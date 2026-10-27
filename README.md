@@ -34,7 +34,7 @@ Contract chính: [contracts/project/ProjectCore.sol](contracts/project/ProjectCo
 1. Mở [remix.ethereum.org](https://remix.ethereum.org), tạo file mới, dán nội dung `ProjectCore.sol`.
 2. Tab Solidity Compiler → chọn phiên bản `0.8.20` trở lên → Compile.
 3. Tab Deploy & Run → môi trường "Remix VM" (thử nhanh, miễn phí) hoặc "Injected Provider - MetaMask" (Sepolia, để có bằng chứng on-chain thật) → Deploy.
-4. Gọi lần lượt: `createEvent(name, startTime)` → `createTier(eventId, name, price, maxSupply)` → `mintTicket(tierId)` kèm `value` đúng giá hạng vé → `listForResale(ticketId, price)` / `buyResaleTicket(ticketId)` để thử bán lại → `checkIn(ticketId)` (ví Organizer) → `withdrawProceeds()`.
+4. Gọi lần lượt: `createEvent(name, startTime)` → `createTier(eventId, name, price, maxSupply)` → `mintTicket(tierId)` kèm `value` đúng giá hạng vé → `listForResale(ticketId, price)` / `buyResaleTicket(ticketId)` để thử bán lại → `setStaff(eventId, víCTV, true)` (Organizer cấp quyền CTV) → `checkIn(eventId, ticketId)` (Organizer hoặc CTV) → `cancelResale(ticketId)` nếu muốn gỡ rao bán → `withdrawProceeds()`.
 
 **Cách 2 — biên dịch nhanh bằng dòng lệnh (kiểm tra không lỗi cú pháp, không deploy):**
 ```
@@ -45,14 +45,14 @@ npx solc --bin --abi contracts/project/ProjectCore.sol
 
 ## Giao diện web (`web/`) — kết nối Sepolia
 
-> ✅ **Contract đã thiết kế lại (public mint theo hạng vé + check-in) và đã deploy bản v2.** Địa chỉ Sepolia cũ (`0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`, Lab 15 bản đầu) không còn dùng — thiếu `createTier`/`checkIn`.
+> ✅ **Đang dùng hợp đồng v3** (27/10/2026): thêm vai trò **CTV soát vé** (`setStaff`), `checkIn(eventId, ticketId)` tự chặn vé sai sự kiện, `cancelResale` cho chủ vé gỡ rao bán. Test 13/13: `evidence/lab-15-v3/`. Địa chỉ cũ không dùng nữa: v2 `0x0f96cafe4C603D706c786C503A5c903090706916` (dữ liệu demo 13–20/10 nằm lại ở đó), v1 `0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`.
 
 | Thành phần | Giá trị của nhóm |
 |---|---|
-| Địa chỉ contract | [`0x0f96cafe4C603D706c786C503A5c903090706916`](https://sepolia.etherscan.io/address/0x0f96cafe4C603D706c786C503A5c903090706916) (Sepolia) |
+| Địa chỉ contract | [`0x7c574216844854C04878B41D68d58F50a54cA0AF`](https://sepolia.etherscan.io/address/0x7c574216844854C04878B41D68d58F50a54cA0AF) (Sepolia, v3 — deploy tại [`0x30236210…`](https://sepolia.etherscan.io/tx/0x30236210fe9f518f8d663745f10e02663490604481f4d3d5112c0ab7a1d62f4c), khối 12004406) |
 | ABI lấy từ đâu | Remix → tab Solidity Compiler → biên dịch `contracts/project/ProjectCore.sol` → nút **ABI** (copy). Bản lưu sẵn để đối chiếu: [web/ProjectCore.abi.json](web/ProjectCore.abi.json) |
-| Hàm đọc không tốn phí (`view`, không cần ký ví) | `nextEventId()`, `nextTierId()`, `nextTicketId()`, `MAX_RESALE_BPS()`, `events(id)`, `tiers(id)`, `tickets(id)`, `pendingWithdrawals(address)` |
-| Hàm ghi cần xác nhận ví (gửi transaction, tốn gas) | `createEvent()`, `createTier()` *(Organizer)*, `mintTicket()` *(ai cũng gọi được)*, `listForResale()`, `buyResaleTicket()`, `checkIn()` *(Organizer)*, `withdrawProceeds()` |
+| Hàm đọc không tốn phí (`view`, không cần ký ví) | `nextEventId()`, `nextTierId()`, `nextTicketId()`, `MAX_RESALE_BPS()`, `events(id)`, `tiers(id)`, `tickets(id)`, `isStaff(eventId, ví)`, `pendingWithdrawals(address)` |
+| Hàm ghi cần xác nhận ví (gửi transaction, tốn gas) | `createEvent()`, `createTier()` *(Organizer)*, `mintTicket()` *(ai cũng gọi được)*, `listForResale()`, `cancelResale()`, `buyResaleTicket()`, `setStaff()` *(Organizer)*, `checkIn()` *(Organizer hoặc CTV)*, `withdrawProceeds()` |
 
 **Mô hình mới:** Organizer tạo sự kiện rồi tạo từng **hạng vé** (`createTier`: tên + giá + tổng cung, VD "Standard" 0.02 ETH × 50). Sau đó **ai cũng tự `mintTicket(tierId)` được trực tiếp** (trả đúng giá, không cần Organizer phát hành hộ) — kiểu "public mint" của NFT. Tại cửa, chủ vé tạo **mã QR check-in có chữ ký ví** (hết hạn sau 5 phút); Organizer quét ở trang `#/check-in`, hệ thống kiểm tra người ký là chủ vé hiện tại trên chain rồi mới gọi `checkIn()`.
 

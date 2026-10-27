@@ -26,4 +26,13 @@ Hardhat 2.29, Solidity 0.8.20 — **13/13 ca đạt** (`projectcore-v3.test.js`,
 
 ## Triển khai
 
-Chưa deploy tại thời điểm ghi chú (27/10/2026). Sau khi deploy bằng Remix trên Sepolia: ghi địa chỉ + mã giao dịch deploy vào `README.md` và `docs/PROGRESS.md`. Hợp đồng v2 `0x0f96cafe4C603D706c786C503A5c903090706916` không dùng nữa (dữ liệu demo cũ nằm lại ở đó).
+- Deploy bằng Remix trên Sepolia ngày 27/10/2026 10:04 UTC, ví `0x4f99DacFdFec762beFe11F98E5bA0a229297a04e`.
+- Địa chỉ: [`0x7c574216844854C04878B41D68d58F50a54cA0AF`](https://sepolia.etherscan.io/address/0x7c574216844854C04878B41D68d58F50a54cA0AF) · khối 12004406 · giao dịch [`0x30236210fe9f518f8d663745f10e02663490604481f4d3d5112c0ab7a1d62f4c`](https://sepolia.etherscan.io/tx/0x30236210fe9f518f8d663745f10e02663490604481f4d3d5112c0ab7a1d62f4c).
+- Đã đối chiếu bytecode trên chain: có `setStaff`, `checkIn(uint256,uint256)`, `cancelResale`, `isStaff`; không còn `checkIn(uint256)` cũ.
+- Kiểm thử giao diện đầu-cuối: chép **đúng bytecode trên Sepolia** sang chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối) rồi chạy 23 bước bằng 4 ví (Organizer, 2 người mua, CTV): tạo sự kiện → mua 2 vé → chặn giá 120% → rao bán / gỡ / rao lại → mua lại → cấp quyền CTV → CTV check-in → thu hồi → CTV bị từ chối → Organizer check-in → dashboard. 23/23 đạt. Hợp đồng v2 `0x0f96cafe4C603D706c786C503A5c903090706916` không dùng nữa (dữ liệu demo cũ nằm lại ở đó).
+
+### Chạy lại test giao diện
+
+1. `npx hardhat node` (cấu hình `networks.hardhat.chainId = 11155111`), rồi `node setup-local-chain.js` (đào tới khối 12004406, chép bytecode v3 từ Sepolia vào đúng địa chỉ).
+2. `python -m http.server 8765` trong `web/`.
+3. `node ui-e2e-v3.js` (cần `playwright-core` + Microsoft Edge). RPC công khai, Tenderly và `/api/metadata` được chuyển hướng về chain cục bộ / bộ nhớ trong lúc test.
