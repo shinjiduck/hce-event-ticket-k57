@@ -25,7 +25,7 @@
 
   // ---------- Config ----------
 
-  const CONTRACT_ADDRESS = "0x7c574216844854C04878B41D68d58F50a54cA0AF"; // ProjectCore.sol v3 (CTV soat ve, checkIn theo su kien, go rao ban) - Sepolia, deploy 27/10/2026
+  const CONTRACT_ADDRESS = "0x0845EEB1Ed93C373173680a859fB255f168b9Fd0"; // ProjectCore.sol v4 (tran gia + gioi han vi theo su kien, phi ban quyen 5%, CTV soat ve) - Sepolia, deploy 27/10/2026
   let CONTRACT_ABI = null; // tự nạp từ ./ProjectCore.abi.json
   const SEPOLIA_CHAIN_ID = 11155111n;
   const SEPOLIA_CHAIN_HEX = "0xaa36a7";
@@ -70,6 +70,15 @@
   function icon(name, cls) {
     return `<svg class="${cls || "icon-sm"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ""}</svg>`;
   }
+  // Quy tac v4 nam trong tung su kien (Organizer dat khi tao); phi ban quyen
+  // co dinh 5% (khop ROYALTY_BPS trong hop dong).
+  const ROYALTY_BPS = 500n;
+  function capBps(evt) { return evt && evt.maxResaleBps ? BigInt(evt.maxResaleBps) : 11000n; }
+  function capPctText(evt) { return (Number(capBps(evt)) / 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 }) + "%"; }
+  function maxResaleOf(price, evt) { return (BigInt(price) * capBps(evt)) / 10000n; }
+  function royaltyOf(amount) { return (BigInt(amount) * ROYALTY_BPS) / 10000n; }
+  function walletLimitText(evt) { const n = Number((evt && evt.maxPerWallet) || 0); return n ? `tối đa ${n} vé/ví` : "không giới hạn vé/ví"; }
+
   function categoryOf(id) {
     return CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
   }
@@ -93,7 +102,7 @@
     InvalidPrice: "Giá vé phải lớn hơn 0.",
     NothingToWithdraw: "Bạn chưa có khoản tiền nào để rút.",
     NotTicketOwner: "Bạn không phải chủ sở hữu vé này.",
-    ResalePriceTooHigh: "Giá rao bán vượt quá 110% giá gốc, không được phép.",
+    ResalePriceTooHigh: "Giá rao bán vượt trần giá bán lại của sự kiện, không được phép.",
     TicketNotForSale: "Vé này hiện không được rao bán.",
     ZeroResalePrice: "Giá rao bán phải lớn hơn 0.",
     TicketAlreadyCheckedIn: "Vé này đã được check-in rồi.",
@@ -101,6 +110,10 @@
     NotCheckInAuthorized: "Ví này không có quyền soát vé cho sự kiện này (cần là Organizer hoặc CTV được cấp quyền).",
     TicketNotInEvent: "Vé không thuộc sự kiện đang soát.",
     ZeroAddress: "Địa chỉ ví không hợp lệ.",
+    EventAlreadyStarted: "Sự kiện đã bắt đầu — không bán vé mới nữa.",
+    WalletLimitReached: "Ví này đã mua đủ số vé tối đa cho phép của sự kiện.",
+    InvalidResaleCap: "Trần giá bán lại phải từ 100% đến 200%.",
+    InvalidWalletLimit: "Số vé tối đa mỗi ví phải từ 0 (không giới hạn) đến 100.",
   };
 
   // ---------- Demo data mode ----------
@@ -132,6 +145,7 @@
   let provider, signer, contract, readContract, userAddress, chainId;
   let eventsCache = null;
   let tiersCache = null;
+  let tiersCacheAt = 0; // so ve da ban thay doi khi nguoi khac mua -> cache ngan
 
   let renderToken = 0;
 
@@ -840,7 +854,7 @@
     if (eventsCache && !force) return eventsCache;
     const ids = range(await c.nextEventId());
     const rows = await Promise.all(ids.map((i) => c.events(i)));
-    const out = rows.map((e, i) => ({ id: ids[i], name: e.name, startTime: e.startTime, organizer: e.organizer, tierCount: e.tierCount }));
+    const out = rows.map((e, i) => ({ id: ids[i], name: e.name, startTime: e.startTime, organizer: e.organizer, tierCount: e.tierCount, maxResaleBps: e.maxResaleBps, maxPerWallet: e.maxPerWallet }));
     eventsCache = out;
     return out;
   }
@@ -849,11 +863,12 @@
     if (!isConfigured()) return MOCK_TIERS;
     const c = await ensureReadContract();
     if (!c) return [];
-    if (tiersCache && !force) return tiersCache;
+    if (tiersCache && !force && Date.now() - tiersCacheAt < 15000) return tiersCache;
     const ids = range(await c.nextTierId());
     const rows = await Promise.all(ids.map((i) => c.tiers(i)));
     const out = rows.map((t, i) => ({ id: ids[i], eventId: t.eventId, name: t.name, price: t.price, maxSupply: t.maxSupply, minted: t.minted }));
     tiersCache = out;
+    tiersCacheAt = Date.now();
     return out;
   }
 
@@ -1083,7 +1098,7 @@
           <div class="section-head"><div><h2>Vì sao chọn FairTicket?</h2></div></div>
           <div class="benefit-grid">
             ${benefitHtml("shield", "Vé xác thực on-chain", "Mỗi vé là một bản ghi duy nhất trên hợp đồng ProjectCore — không thể làm giả hay nhân bản.")}
-            ${benefitHtml("scale", "Giới hạn đầu cơ", "Hợp đồng từ chối mọi giá bán lại vượt 110% giá gốc.")}
+            ${benefitHtml("scale", "Giới hạn đầu cơ", "Mỗi sự kiện có trần giá bán lại (mặc định 110%) và giới hạn số vé mỗi ví — hợp đồng tự thực thi.")}
             ${benefitHtml("eye", "Sở hữu minh bạch", "Ai đang giữ vé nào đều kiểm chứng được công khai trên Etherscan.")}
             ${benefitHtml("history", "Theo dõi giao dịch", "Mua, bán lại, check-in đều để lại lịch sử không thể sửa đổi.")}
           </div>
@@ -1167,7 +1182,7 @@
         <div class="hero-slide__content">
           <span class="hero-slide__eyebrow">FairTicket</span>
           <h2 class="hero-slide__title">Vé công bằng cho những sự kiện đáng nhớ</h2>
-          <p class="hero-slide__lead">Mua vé ghi nhận trên blockchain — chống vé giả, giá bán lại không vượt 110% giá gốc.</p>
+          <p class="hero-slide__lead">Mua vé ghi nhận trên blockchain — chống vé giả, giá bán lại có trần, giới hạn số vé mỗi ví.</p>
           <div class="hero-slide__cta">
             <a href="#/events" class="btn btn-primary btn-lg">Khám phá sự kiện</a>
             <a href="#/create" class="btn btn-secondary btn-lg">Tạo sự kiện</a>
@@ -1285,7 +1300,7 @@
   }
 
   function resaleRuleBanner() {
-    return `<div class="resale-banner">${icon("scale", "icon")}<span>Giá bán lại được <strong>giới hạn tối đa 110% giá gốc</strong> — chính hợp đồng ProjectCore từ chối mọi mức giá cao hơn, không chỉ là quy định hiển thị.</span></div>`;
+    return `<div class="resale-banner">${icon("scale", "icon")}<span>Giá bán lại <strong>không vượt trần của từng sự kiện</strong> (ban tổ chức đặt, mặc định 110%) và mỗi lần bán lại trả <strong>5% phí bản quyền</strong> cho ban tổ chức — chính hợp đồng ProjectCore thực thi, không chỉ là quy định hiển thị.</span></div>`;
   }
 
   function skeletonCards(n) {
@@ -1359,7 +1374,7 @@
     if (myToken !== renderToken) return;
     const shown = listings.slice().sort((a, b) => Number(b.id - a.id)).slice(0, limit || listings.length);
     if (shown.length === 0) {
-      el.innerHTML = emptyState("Chưa có vé nào đang được rao bán lại", "Khi chủ vé rao bán, vé sẽ xuất hiện tại đây với giá không vượt 110% giá gốc.");
+      el.innerHTML = emptyState("Chưa có vé nào đang được rao bán lại", "Khi chủ vé rao bán, vé sẽ xuất hiện tại đây với giá không vượt trần của sự kiện.");
       return;
     }
     const evtMap = new Map(evts.map((e) => [String(e.id), e]));
@@ -1421,8 +1436,9 @@
             <div class="review-row"><span class="review-row__label">Ví của bạn</span><span class="review-row__value mono">${shortAddr(userAddress)}</span></div>
             <div class="review-row"><span class="review-row__label">Mạng</span><span class="review-row__value">Ethereum Sepolia</span></div>
             <div class="review-row" style="font-size:16px;"><span class="review-row__label">Thanh toán</span><span class="review-row__value tabular-nums">${fmtEth(l.resalePrice)} ETH</span></div>
+            <div class="review-row"><span class="review-row__label">Trong đó phí bản quyền 5%</span><span class="review-row__value tabular-nums">${fmtEth(royaltyOf(l.resalePrice))} ETH → ban tổ chức</span></div>
           </div>
-          <p class="hint" style="margin-top: var(--sp-3); font-size:13px; color: var(--text-secondary);">Chưa gồm phí gas (ví sẽ hiển thị). Sau khi blockchain xác nhận, vé chuyển sang ví của bạn; nếu bán lại, giá vẫn bị giới hạn tối đa 110% giá gốc.</p>
+          <p class="hint" style="margin-top: var(--sp-3); font-size:13px; color: var(--text-secondary);">Chưa gồm phí gas (ví sẽ hiển thị). Sau khi blockchain xác nhận, vé chuyển sang ví của bạn; nếu bán lại, giá vẫn bị giới hạn theo trần của sự kiện (${evt ? capPctText(evt) : "110%"}).</p>
           <div class="wizard-actions" style="margin-top: var(--sp-4); padding-top: 0; border-top: none;">
             <button type="button" class="btn btn-ghost" data-action="cancel">Huỷ</button>
             <button type="button" class="btn btn-accent" data-action="confirm">Xác nhận mua</button>
@@ -1544,7 +1560,7 @@
       if (!list.length) {
         grid.innerHTML = listings.length
           ? emptyState("Không có vé phù hợp bộ lọc", state.past ? "Thử chọn sự kiện khác." : "Có thể vé đang rao bán thuộc sự kiện đã diễn ra — bật “Hiện vé của sự kiện đã diễn ra” để xem.")
-          : emptyState("Chưa có vé nào đang được rao bán lại", "Khi chủ vé rao bán, vé sẽ xuất hiện tại đây với giá không vượt 110% giá gốc.", `<a class="btn btn-secondary btn-sm" href="#/my-tickets" style="margin-top:16px;">Rao bán vé của tôi</a>`);
+          : emptyState("Chưa có vé nào đang được rao bán lại", "Khi chủ vé rao bán, vé sẽ xuất hiện tại đây với giá không vượt trần của sự kiện.", `<a class="btn btn-secondary btn-sm" href="#/my-tickets" style="margin-top:16px;">Rao bán vé của tôi</a>`);
         return;
       }
       grid.innerHTML = list.map((l) => resaleCardHtml(l, evtMap.get(String(l.eventId)), tierMap.get(String(l.tierId)), resoldCounts ? (resoldCounts.get(String(l.id)) || 0) : undefined)).join("");
@@ -1721,6 +1737,7 @@
     `;
 
     let evt, tiers;
+    let myMinted = 0n;
     try {
       if (!isConfigured()) { await loadAbi(); }
       if (!isConfigured()) {
@@ -1735,6 +1752,7 @@
         }
       }
       tiers = await fetchTiersForEvent(id);
+      if (userAddress && isConfigured()) myMinted = await (await ensureReadContract()).mintedBy(id, userAddress);
     } catch (err) {
       if (myToken !== renderToken) return;
       console.error("Không tải được sự kiện:", err);
@@ -1747,8 +1765,11 @@
     const meta = getMeta(id);
     const cat = categoryOf(meta.category);
     const s = salesSummary(evt, tiers);
-    // ProjectCore.mintTicket() KHONG chan mint sau gio bat dau -> chan o giao dien.
+    // v4: hop dong tu chan mint sau gio bat dau; giao dien chan som de khong bat vi.
     const eventEnded = s.ended;
+    const walletLimit = Number(evt.maxPerWallet || 0);
+    const walletLeft = walletLimit ? Math.max(0, walletLimit - Number(myMinted)) : Infinity;
+    const walletFull = walletLeft === 0;
     const isOrganizer = !!(userAddress && evt.organizer && userAddress.toLowerCase() === evt.organizer.toLowerCase());
     const firstOpen = tiers.findIndex((t) => t.minted < t.maxSupply);
     const startDate = new Date(Number(evt.startTime) * 1000);
@@ -1816,7 +1837,8 @@
               <h2>Chính sách vé &amp; bán lại</h2>
               <ul class="policy-list">
                 <li>${icon("ticket")}<span>Mỗi lần mua là 1 giao dịch trên Ethereum Sepolia, thanh toán đúng giá niêm yết của hạng vé. Vé không hoàn tiền.</span></li>
-                <li>${icon("scale")}<span>Chủ vé có thể rao bán lại, nhưng <strong>giá tối đa 110% giá gốc</strong> — hợp đồng từ chối mọi mức cao hơn.</span></li>
+                <li>${icon("scale")}<span>Chủ vé có thể rao bán lại, nhưng <strong>giá tối đa ${capPctText(evt)} giá gốc</strong> (trần do ban tổ chức đặt) — hợp đồng từ chối mọi mức cao hơn. Mỗi lần bán lại, <strong>5%</strong> giá bán là phí bản quyền cho ban tổ chức.</span></li>
+                <li>${icon("ticket")}<span>Mỗi ví được mua mới <strong>${walletLimit ? `tối đa ${walletLimit} vé` : "không giới hạn số vé"}</strong> của sự kiện này (vé mua lại trên chợ bán lại không tính).</span></li>
                 <li>${icon("shield")}<span>Vé đã check-in tại cửa bị khoá vĩnh viễn: không thể check-in lần 2 và không thể rao bán lại.</span></li>
                 <li>${icon("calendar")}<span>FairTicket ngừng bán vé (cả vé mới lẫn vé bán lại) khi sự kiện đã bắt đầu.</span></li>
               </ul>
@@ -1833,12 +1855,13 @@
                   <div class="info-row"><div class="info-row__label">Event ID</div><div class="info-row__value mono">${id}</div></div>
                   <div class="info-row"><div class="info-row__label">Tier ID</div><div class="info-row__value mono">${tiers.length ? tiers.map((t) => "#" + t.id).join(", ") : "—"}</div></div>
                   <div class="info-row"><div class="info-row__label">Dạng vé</div><div class="info-row__value">Bản ghi vé trong hợp đồng ProjectCore (không phải token ERC-721)</div></div>
-                  <div class="info-row"><div class="info-row__label">Quy tắc bán lại</div><div class="info-row__value">resalePrice ≤ originalPrice × 11000 / 10000 (MAX_RESALE_BPS)</div></div>
+                  <div class="info-row"><div class="info-row__label">Quy tắc bán lại</div><div class="info-row__value">resalePrice ≤ originalPrice × ${capBps(evt)} / 10000 (maxResaleBps của sự kiện) · phí bản quyền ROYALTY_BPS = 500 (5%)</div></div>
+                  <div class="info-row"><div class="info-row__label">Giới hạn mỗi ví</div><div class="info-row__value">maxPerWallet = ${walletLimit}${walletLimit ? "" : " (không giới hạn)"}</div></div>
                 </div>
               </details>
             </section>
 
-            ${isOrganizer ? organizerPanelHtml(id, tiers, s) : `<div id="staff-note"></div>`}
+            ${isOrganizer ? organizerPanelHtml(id, tiers, s, evt) : `<div id="staff-note"></div>`}
           </div>
 
           <aside class="ticket-panel" id="ticket-panel" aria-label="Chọn vé">
@@ -1858,10 +1881,10 @@
             </div>
             <div class="total-row"><span>Tổng cộng</span><strong id="total-val" class="tabular-nums"></strong></div>
             <p class="hint-sm" id="qty-hint"></p>` : ""}
-            <button id="btn-go-checkout" class="btn btn-accent btn-block btn-lg" ${eventEnded || firstOpen < 0 ? "disabled" : ""}>
-              ${eventEnded ? "Sự kiện đã diễn ra" : !s.hasTiers ? "Chưa mở bán" : firstOpen < 0 ? "Đã bán hết" : "Mua vé"}
+            <button id="btn-go-checkout" class="btn btn-accent btn-block btn-lg" ${eventEnded || firstOpen < 0 || walletFull ? "disabled" : ""}>
+              ${eventEnded ? "Sự kiện đã diễn ra" : !s.hasTiers ? "Chưa mở bán" : firstOpen < 0 ? "Đã bán hết" : walletFull ? `Đã mua đủ ${walletLimit} vé/ví` : "Mua vé"}
             </button>
-            <p class="hint-sm" style="text-align:center;">Thanh toán bằng ETH trên Sepolia · Giá bán lại tối đa 110%</p>
+            <p class="hint-sm" style="text-align:center;">Thanh toán bằng ETH trên Sepolia · Bán lại tối đa ${capPctText(evt)} · ${walletLimitText(evt)}</p>
           </aside>
         </div>
       </div>
@@ -1889,7 +1912,7 @@
     function maxQty() {
       if (selIdx < 0) return 0;
       const t = tiers[selIdx];
-      return Math.min(MAX_PER_ORDER, Number(t.maxSupply - t.minted));
+      return Math.min(MAX_PER_ORDER, Number(t.maxSupply - t.minted), walletLeft);
     }
     function updateTotals() {
       if (selIdx < 0) return;
@@ -1900,7 +1923,8 @@
       document.getElementById("total-val").textContent = fmtEth(tiers[selIdx].price * BigInt(qty)) + " ETH";
       document.getElementById("qty-minus").disabled = qty <= 1;
       document.getElementById("qty-plus").disabled = qty >= maxQty();
-      document.getElementById("qty-hint").textContent = qty > 1 ? `Mua ${qty} vé = ${qty} giao dịch, xác nhận lần lượt trong ví.` : `Tối đa ${maxQty()} vé mỗi lần mua.`;
+      const walletNote = walletLimit && userAddress ? ` Ví của bạn đã mua ${myMinted}/${walletLimit} vé của sự kiện.` : walletLimit ? ` Mỗi ví tối đa ${walletLimit} vé.` : "";
+      document.getElementById("qty-hint").textContent = (qty > 1 ? `Mua ${qty} vé = ${qty} giao dịch, xác nhận lần lượt trong ví.` : `Tối đa ${maxQty()} vé lần này.`) + walletNote;
     }
     $root().querySelectorAll('input[name="tier"]').forEach((radio) => radio.addEventListener("change", () => {
       selIdx = Number(radio.value);
@@ -1959,7 +1983,7 @@
     }).join("");
   }
 
-  function organizerPanelHtml(eventId, tiers, s) {
+  function organizerPanelHtml(eventId, tiers, s, evt) {
     const revenue = tiers.reduce((sum, t) => sum + t.minted * t.price, 0n);
     return `
       <section class="detail-section organizer-panel" id="sec-organizer">
@@ -1970,7 +1994,7 @@
           <div class="stat"><div class="stat__label">Vé đã bán</div><div class="stat__value tabular-nums">${s.minted} / ${s.supply}</div></div>
           <div class="stat"><div class="stat__label">Còn lại</div><div class="stat__value tabular-nums">${s.remaining}</div></div>
           <div class="stat"><div class="stat__label">Doanh thu bán lần đầu</div><div class="stat__value tabular-nums">${fmtEth(revenue)} ETH</div></div>
-          <div class="stat"><div class="stat__label">Hạng vé</div><div class="stat__value tabular-nums">${tiers.length}</div></div>
+          <div class="stat"><div class="stat__label">Quy tắc sự kiện</div><div class="stat__value" style="font-size:15px;">Trần ${capPctText(evt)} · ${walletLimitText(evt)}</div></div>
         </div>
         <p class="hint-sm">Doanh thu = số vé đã bán × giá của từng hạng (đọc từ hợp đồng). Rút tiền tại trang <a class="link" href="#/my-tickets">Vé của tôi</a>.</p>
 
@@ -2212,7 +2236,7 @@
 
   routes.create = function () {
     let step = 1;
-    let data = { name: "", category: "", description: "", startTime: "", endTime: "", location: "", province: "", ward: "", street: "", address: "", image: "", maxSupply: "", price: "" };
+    let data = { cap: "110", walletLimit: "4", name: "", category: "", description: "", startTime: "", endTime: "", location: "", province: "", ward: "", street: "", address: "", image: "", maxSupply: "", price: "" };
 
     // Lop an toan thu 2: khoi phuc nhap neu bi F5/mat ket noi mang giua chung
     // (lop thu 1 la handleWalletChange() khong con ep reload trang nua).
@@ -2260,7 +2284,7 @@
 
     // Lien ket moi o nhap voi `data` + luu nhap NGAY khi go (khong doi bam
     // "Tiep tuc") - de F5 giua chung van khong mat chu dang go dang.
-    const FIELD_MAP = { "f-name": "name", "f-cat": "category", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-prov": "province", "f-ward": "ward", "f-street": "street", "f-supply": "maxSupply", "f-price": "price" };
+    const FIELD_MAP = { "f-name": "name", "f-cat": "category", "f-desc": "description", "f-start": "startTime", "f-end": "endTime", "f-loc": "location", "f-prov": "province", "f-ward": "ward", "f-street": "street", "f-supply": "maxSupply", "f-cap": "cap", "f-limit": "walletLimit", "f-price": "price" };
     function bindLiveInputs() {
       Object.keys(FIELD_MAP).forEach((elId) => {
         const el = document.getElementById(elId);
@@ -2365,11 +2389,19 @@
             </div>
           </div>
           <p class="hint">Đây là hạng vé đầu tiên ("Standard"). Sau khi tạo sự kiện, vào trang quản lý sự kiện để thêm các hạng khác (VD: VIP) nếu muốn.</p>
-          <div class="field">
-            <label>Giới hạn bán lại (trần giá)</label>
-            <input value="Tối đa 110% giá gốc" disabled />
-            <p class="hint">Quy tắc cố định của hệ thống, áp dụng cho mọi sự kiện — không thể chỉnh ở bước này.</p>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-cap">Trần giá bán lại</label>
+              <select id="f-cap">${[100, 105, 110, 115, 120, 130, 150, 200].map((v) => `<option value="${v}" ${String(data.cap) === String(v) ? "selected" : ""}>${v}% giá gốc${v === 110 ? " (khuyến nghị)" : ""}</option>`).join("")}</select>
+              <p class="hint">Chủ vé không thể bán lại cao hơn mức này. 100% = chỉ bán lại bằng giá gốc.</p>
+            </div>
+            <div class="field">
+              <label for="f-limit">Số vé tối đa mỗi ví</label>
+              <input id="f-limit" type="number" min="0" max="100" step="1" value="${escapeAttr(data.walletLimit)}" />
+              <p class="hint">Chống gom vé. Nhập 0 = không giới hạn (tối đa 100).</p>
+            </div>
           </div>
+          <p class="hint">Hai quy tắc này ghi vĩnh viễn trên hợp đồng, không sửa được sau khi tạo. Mỗi lần bán lại, 5% giá bán tự chuyển cho bạn (phí bản quyền).</p>
           <div class="wizard-actions">
             <button id="btn-back-2" class="btn btn-ghost">← Quay lại</button>
             <button id="btn-next-2" class="btn btn-primary">Tiếp tục →</button>
@@ -2380,6 +2412,10 @@
         document.getElementById("btn-next-2").addEventListener("click", () => {
           data.maxSupply = document.getElementById("f-supply").value;
           data.price = document.getElementById("f-price").value;
+          data.cap = document.getElementById("f-cap").value;
+          data.walletLimit = document.getElementById("f-limit").value;
+          const lim = Number(data.walletLimit);
+          if (data.walletLimit === "" || !Number.isInteger(lim) || lim < 0 || lim > 100) { toast("Số vé tối đa mỗi ví phải là số nguyên từ 0 đến 100.", "error"); return; }
           if (!data.maxSupply || Number(data.maxSupply) < 1) { toast("Nhập tổng số vé hợp lệ.", "error"); return; }
           if (!data.price || Number(data.price) <= 0) { toast("Nhập giá vé hợp lệ.", "error"); return; }
           step = 3; render();
@@ -2396,7 +2432,8 @@
               <div class="review-row"><span class="review-row__label">Địa điểm</span><span class="review-row__value">${escapeHtml(data.location || "—")}</span></div>
               ${joinAddress(data) ? `<div class="review-row"><span class="review-row__label">Địa chỉ</span><span class="review-row__value">${escapeHtml(joinAddress(data))}</span></div>` : ""}
               <div class="review-row"><span class="review-row__label">Hạng Standard</span><span class="review-row__value">${escapeHtml(data.maxSupply)} vé × ${escapeHtml(data.price)} ETH</span></div>
-              <div class="review-row"><span class="review-row__label">Giới hạn bán lại</span><span class="review-row__value">110%</span></div>
+              <div class="review-row"><span class="review-row__label">Trần giá bán lại</span><span class="review-row__value">${escapeHtml(data.cap)}% giá gốc · phí bản quyền 5%</span></div>
+              <div class="review-row"><span class="review-row__label">Tối đa mỗi ví</span><span class="review-row__value">${Number(data.walletLimit) ? escapeHtml(data.walletLimit) + " vé" : "Không giới hạn"}</span></div>
               <div class="review-row"><span class="review-row__label">Organizer wallet</span><span class="review-row__value mono">${userAddress ? shortAddr(userAddress) : "Chưa kết nối ví"}</span></div>
               <div class="review-row"><span class="review-row__label">Network</span><span class="review-row__value">Ethereum Sepolia</span></div>
             </div>
@@ -2415,7 +2452,7 @@
           requireRightNetwork();
 
           toast("Đang tạo sự kiện… (giao dịch 1/2)", "info");
-          const tx1 = await contract.createEvent(data.name, startTs);
+          const tx1 = await contract.createEvent(data.name, startTs, BigInt(Math.round(Number(data.cap) * 100)), BigInt(Number(data.walletLimit) || 0));
           const receipt1 = await tx1.wait();
           const log1 = receipt1.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
           const newEventId = log1 ? log1.args.eventId : null;
@@ -2708,22 +2745,22 @@
       </article>`;
   }
 
-  // Rao ban / doi gia: kiem tra gia o client (>0, <= 110%) truoc khi gui; hop
+  // Rao ban / doi gia: kiem tra gia o client (>0, <= tran cua su kien) truoc khi gui; hop
   // dong van la lop chan cuoi cung (ResalePriceTooHigh).
   async function resellFlow(row) {
     const { t } = row;
-    const max = (t.originalPrice * 11000n) / 10000n;
+    const max = maxResaleOf(t.originalPrice, row.evt);
     const input = await promptPriceModal({
       title: t.forSale ? "Đổi giá rao bán" : "Rao bán lại vé",
       label: "Giá rao bán (ETH)",
-      hint: `Giá gốc ${fmtEth(t.originalPrice)} ETH · tối đa ${fmtEth(max)} ETH (110%). Vé thuộc về người đầu tiên trả đúng giá; trước đó bạn có thể đổi giá hoặc gỡ rao bán.`,
+      hint: `Giá gốc ${fmtEth(t.originalPrice)} ETH · tối đa ${fmtEth(max)} ETH (trần ${capPctText(row.evt)}). Khi bán được, bạn nhận 95%, 5% là phí bản quyền cho ban tổ chức. Trước khi có người mua, bạn có thể đổi giá hoặc gỡ rao bán.`,
       confirmText: t.forSale ? "Cập nhật giá" : "Rao bán",
     });
     if (!input) return;
     let price;
     try { price = ethers.parseEther(String(input).trim()); } catch { throw userError("Giá không hợp lệ."); }
     if (price <= 0n) throw userError("Giá rao bán phải lớn hơn 0.");
-    if (price > max) throw userError(`Giá vượt quá 110% giá gốc (tối đa ${fmtEth(max)} ETH).`);
+    if (price > max) throw userError(`Giá vượt trần ${capPctText(row.evt)} giá gốc (tối đa ${fmtEth(max)} ETH).`);
     requireWallet(); requireContract(); requireRightNetwork();
     toast("Vui lòng xác nhận giao dịch trong ví…", "info");
     const tx = await contract.listForResale(t.id, price);
@@ -2739,7 +2776,7 @@
   // cho phep CORS - da kiem tra), quet tu khoi chua log dau tien cua hop dong
   // (EventCreated #0), chia khuc de khong vuot gioi han khi chain dai ra.
   const LOGS_RPC_URL = "https://sepolia.gateway.tenderly.co";
-  const FIRST_LOG_BLOCK = 12004406; // khoi deploy hop dong v3
+  const FIRST_LOG_BLOCK = 12004619; // khoi deploy hop dong v4
   const LOG_CHUNK = 100_000;
   let logsProvider = null;
   function getLogsProvider() {
@@ -2837,7 +2874,7 @@
     let evts, tiers, pending;
     try {
       const c = await ensureReadContract();
-      [evts, tiers, pending] = await Promise.all([fetchAllEvents(), fetchAllTiers(), c.pendingWithdrawals(userAddress)]);
+      [evts, tiers, pending] = await Promise.all([fetchAllEvents(), fetchAllTiers(true), c.pendingWithdrawals(userAddress)]);
     } catch (err) {
       if (myToken !== renderToken) return;
       console.error(err);
@@ -2875,7 +2912,7 @@
       <div class="kpi-grid">
         <div class="stat"><div class="stat__label">Sự kiện</div><div class="stat__value tabular-nums">${kpi.events}</div><div class="stat__sub">${kpi.selling} đang bán</div></div>
         <div class="stat"><div class="stat__label">Vé đã bán</div><div class="stat__value tabular-nums">${kpi.minted} / ${kpi.supply}</div><div class="stat__sub">còn ${kpi.supply - kpi.minted} vé</div></div>
-        <div class="stat"><div class="stat__label">Doanh thu bán lần đầu</div><div class="stat__value tabular-nums">${fmtEth(kpi.revenue)} ETH</div><div class="stat__sub">vé đã bán × giá hạng</div></div>
+        <div class="stat"><div class="stat__label">Doanh thu bán lần đầu</div><div class="stat__value tabular-nums">${fmtEth(kpi.revenue)} ETH</div><div class="stat__sub" id="org-royalty">+ phí bản quyền bán lại: đang tính…</div></div>
         <div class="stat"><div class="stat__label">Tiền chờ rút của ví</div><div class="stat__value tabular-nums">${fmtEth(pending)} ETH</div><div class="stat__sub"><a class="link" href="#/my-tickets">Rút tiền</a></div></div>
       </div>
 
@@ -2942,7 +2979,7 @@
           TierCreated: `Thêm hạng vé “${escapeHtml(a.name)}”`,
           TicketMinted: `Bán vé #${a.ticketId} · ${fmtEth(a.price)} ETH`,
           TicketListedForResale: `Vé #${a.ticketId} được rao bán lại · ${fmtEth(a.resalePrice)} ETH`,
-          TicketResold: `Vé #${a.ticketId} đổi chủ · ${fmtEth(a.amount)} ETH`,
+          TicketResold: `Vé #${a.ticketId} đổi chủ · ${fmtEth(a.amount)} ETH${a.royalty !== undefined ? ` (phí bản quyền ${fmtEth(a.royalty)} ETH)` : ""}`,
           TicketCheckedIn: `Check-in vé #${a.ticketId}`,
           TicketResaleCancelled: `Vé #${a.ticketId} gỡ rao bán`,
           StaffUpdated: a.staff ? `${a.allowed ? "Cấp quyền" : "Thu hồi quyền"} CTV ${shortAddr(a.staff)}` : "",
@@ -2950,6 +2987,10 @@
         if (!map[l.name]) return null;
         return { text: map[l.name], ev: evName(evId), l };
       }).filter(Boolean).sort((x, y) => y.l.blockNumber - x.l.blockNumber || y.l.index - x.l.index).slice(0, 15);
+      const royaltyTotal = logs.filter((l) => l.name === "TicketResold" && myIds.has(ticketEvent.get(String(l.args.ticketId)) || "") && l.args.royalty !== undefined)
+        .reduce((sum, l) => sum + l.args.royalty, 0n);
+      const royEl = root.querySelector("#org-royalty");
+      if (royEl) royEl.textContent = "+ phí bản quyền bán lại: " + fmtEth(royaltyTotal) + " ETH";
       const act = root.querySelector("#org-activity");
       act.innerHTML = items.length ? items.map(({ text, ev, l }) => `
         <div class="event-row">
@@ -3424,7 +3465,7 @@
       } else {
         const c = await ensureReadContract();
         const [e, t, nTier] = await Promise.all([c.events(eventId), c.tiers(tierId), c.nextTierId()]);
-        if (e.organizer !== ethers.ZeroAddress) evt = { id: eventId, name: e.name, startTime: e.startTime, organizer: e.organizer };
+        if (e.organizer !== ethers.ZeroAddress) evt = { id: eventId, name: e.name, startTime: e.startTime, organizer: e.organizer, maxResaleBps: e.maxResaleBps, maxPerWallet: e.maxPerWallet };
         if (tierId < nTier) tier = { id: tierId, eventId: t.eventId, name: t.name, price: t.price, maxSupply: t.maxSupply, minted: t.minted };
       }
     } catch (err) {
@@ -3491,7 +3532,7 @@
             <div class="checkout-divider"></div>
             <div class="checkout-row"><span class="text-secondary">Mạng</span><span>Ethereum Sepolia</span></div>
             <div class="checkout-row"><span class="text-secondary">Ví thanh toán</span><span class="mono" id="pay-wallet">${userAddress ? shortAddr(userAddress) : "—"}</span></div>
-            <p class="hint-sm">${qty > 1 ? `Mua ${qty} vé = ${qty} giao dịch, xác nhận lần lượt trong ví. ` : ""}Vé không hoàn tiền; bán lại tối đa 110% giá gốc.</p>
+            <p class="hint-sm">${qty > 1 ? `Mua ${qty} vé = ${qty} giao dịch, xác nhận lần lượt trong ví. ` : ""}Vé không hoàn tiền; bán lại tối đa ${capPctText(evt)} giá gốc; ${walletLimitText(evt)}.</p>
             <button id="btn-pay" class="btn btn-accent btn-block btn-lg" style="margin-top: var(--sp-3);" disabled>Xác nhận &amp; thanh toán</button>
             <a href="#/events/${eventId}" class="btn btn-ghost btn-block" id="btn-back" style="margin-top: var(--sp-2);">Quay lại</a>
           </aside>
@@ -3522,6 +3563,12 @@
         const remaining = t.maxSupply - t.minted;
         if (remaining >= BigInt(qty)) add("ok", `Còn ${remaining} vé hạng ${escapeHtml(tier.name)} — đủ cho ${qty} vé.`);
         else add("bad", remaining === 0n ? "Hạng vé này vừa bán hết." : `Chỉ còn ${remaining} vé — giảm số lượng ở trang sự kiện.`);
+        const limit = Number(evt.maxPerWallet || 0);
+        if (limit && userAddress) {
+          const minted = Number(await c.mintedBy(eventId, userAddress));
+          if (minted + qty <= limit) add("ok", `Ví đã mua ${minted}/${limit} vé của sự kiện — mua thêm ${qty} vé vẫn trong giới hạn.`);
+          else add("bad", minted >= limit ? `Ví đã mua đủ ${limit} vé/ví của sự kiện.` : `Ví đã mua ${minted}/${limit} vé — chỉ được mua thêm ${limit - minted} vé.`);
+        }
       } catch {
         add("bad", "Không đọc được số vé còn lại (mạng/RPC). Thử tải lại trang.");
       }

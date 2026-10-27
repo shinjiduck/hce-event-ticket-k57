@@ -9,11 +9,11 @@
 | Mục | Trạng thái |
 |---|---|
 | DApp công khai | ✅ https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app |
-| Hợp đồng | ✅ `ProjectCore.sol` **v3** trên Sepolia — [`0x7c574216844854C04878B41D68d58F50a54cA0AF`](https://sepolia.etherscan.io/address/0x7c574216844854C04878B41D68d58F50a54cA0AF) (deploy 27/10, [giao dịch](https://sepolia.etherscan.io/tx/0x30236210fe9f518f8d663745f10e02663490604481f4d3d5112c0ab7a1d62f4c)) |
+| Hợp đồng | ✅ `ProjectCore.sol` **v4** trên Sepolia — [`0x0845EEB1Ed93C373173680a859fB255f168b9Fd0`](https://sepolia.etherscan.io/address/0x0845EEB1Ed93C373173680a859fB255f168b9Fd0) (deploy 27/10, [giao dịch](https://sepolia.etherscan.io/tx/0x69af8ed83e21fd2ffba929d63ec7d3f64c413082814831921765558b916fc2b2)) |
 | Mốc bắt buộc Lab 8 → 15 | ✅ Lab 8–14 xong · ⚠️ Lab 15 còn thiếu kế hoạch thuyết trình (tên người + mã giao dịch) và tag `v0.1-demo` |
 | Giao diện V2 (8 phase theo master prompt) | ✅ Cả 8 phase đã có phần chạy được, đã deploy |
-| Giao dịch thật trên chain | Hợp đồng v3 mới deploy, **chưa có sự kiện** — cần tạo lại dữ liệu demo. Lịch sử v2 (13–20/10) ở mục 9 |
-| Việc gấp nhất | Tạo sự kiện demo trên v3 và chạy luồng đầy đủ bằng ví thật, có CTV (mục 7) |
+| Giao dịch thật trên chain | Hợp đồng v4 mới deploy, **chưa có sự kiện** — cần tạo lại dữ liệu demo. Lịch sử v2 (13–20/10) ở mục 9 |
+| Việc gấp nhất | Tạo sự kiện demo trên v4 và chạy luồng đầy đủ bằng ví thật, có CTV và bán lại có phí 5% (mục 7) |
 
 ## 2. Mốc bắt buộc của môn học
 
@@ -28,15 +28,18 @@
 | 14 | Audit chéo | ✅ | `evidence/lab-14/`, `docs/AI_JOURNAL.md` (Lab 14) |
 | 15 | URL DApp công khai + kế hoạch thuyết trình | ⚠️ | URL ✅ · `docs/PRESENTATION_PLAN.md` còn *(điền tên)* và chưa có mã giao dịch · chưa gắn tag `v0.1-demo` |
 
-## 3. Hợp đồng `ProjectCore.sol` v3
+## 3. Hợp đồng `ProjectCore.sol` v4
 
-v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)**: thêm CTV soát vé, chặn vé sai sự kiện ngay trên hợp đồng, gỡ rao bán. Test Hardhat **13/13** ca đạt: `evidence/lab-15-v3/projectcore-v3-test-log.txt`. Ngoài ra đã chạy trọn luồng giao diện trên chain cục bộ dùng **đúng bytecode đang chạy trên Sepolia** (23/23 bước).
+v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)**: thêm CTV soát vé, chặn vé sai sự kiện ngay trên hợp đồng, gỡ rao bán. **v4 (27/10)**: trần giá bán lại và số vé tối đa mỗi ví do Organizer đặt cho từng sự kiện, hợp đồng tự chặn mua vé sau giờ bắt đầu, phí bản quyền 5% khi bán lại. Test Hardhat **19/19** ca đạt: `evidence/lab-15-v4/projectcore-v4-test-log.txt`. Đã chạy trọn luồng giao diện trên chain cục bộ dùng **đúng bytecode v4 đang chạy trên Sepolia** (28/28 bước, `evidence/lab-15-v4/ui-e2e-v4-log.txt`).
 
 | Quy tắc (SPEC) | Hàm | Trạng thái |
 |---|---|---|
 | R1 Organizer tạo hạng vé (giá + tổng cung) | `createEvent`, `createTier` | ✅ |
 | R1b Ai cũng tự mua vé đúng giá, không vượt tổng cung | `mintTicket` | ✅ |
-| R3/R4 Chủ vé rao bán lại, tối đa 110% giá gốc | `listForResale`, `buyResaleTicket` | ✅ (hợp đồng chặn bằng `ResalePriceTooHigh`) |
+| R1c Số vé tối đa mỗi ví (Organizer đặt, 0 = không giới hạn) | `mintTicket`, `mintedBy` | ✅ v4 (`WalletLimitReached`) |
+| R1d Không bán vé mới sau giờ bắt đầu | `mintTicket` | ✅ v4 (`EventAlreadyStarted`) |
+| R3/R4 Chủ vé rao bán lại, tối đa trần của sự kiện (100–200%, mặc định 110%) | `listForResale`, `buyResaleTicket` | ✅ (hợp đồng chặn bằng `ResalePriceTooHigh`) |
+| R3b Phí bản quyền 5% cho Organizer mỗi lần bán lại | `buyResaleTicket` | ✅ v4 |
 | R5 Check-in 1 lần, chỉ Organizer **hoặc CTV được cấp quyền**, vé phải thuộc đúng sự kiện | `checkIn(eventId, ticketId)` | ✅ (v3: `TicketNotInEvent`, `NotCheckInAuthorized`) |
 | CTV soát vé: Organizer cấp/thu hồi theo từng sự kiện; CTV chỉ check-in được | `setStaff`, `isStaff` | ✅ v3 |
 | Chủ vé gỡ rao bán | `cancelResale` | ✅ v3 |
@@ -45,7 +48,7 @@ v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)
 | R7 Hạn bán lại theo thời gian | — | ❌ chưa làm |
 | R8 Cấm chuyển nhượng ngoài hệ thống | — | ✅ ngầm định: hợp đồng **không có hàm chuyển vé**, chỉ đổi chủ qua `buyResaleTicket` |
 
-Địa chỉ cũ **không dùng nữa**: v2 `0x0f96cafe4C603D706c786C503A5c903090706916` (dữ liệu demo 13–20/10), v1 `0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`.
+Địa chỉ cũ **không dùng nữa**: v3 `0x7c574216844854C04878B41D68d58F50a54cA0AF`, v2 `0x0f96cafe4C603D706c786C503A5c903090706916` (dữ liệu demo 13–20/10), v1 `0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`.
 
 ## 4. Giao diện FairTicket V2 (17–20/10/2026)
 
@@ -61,7 +64,8 @@ v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)
 | 7 | Check-in bằng mã QR ký số, hết hạn 5 phút; màn hình quét camera / tải ảnh / nhập tay | `6903674` |
 | + | Nhãn danh mục trên thẻ vé · Google Maps khi tạo sự kiện và ở trang chi tiết · Ô địa chỉ kiểu TMĐT (Tỉnh/Thành → Phường/Xã, 34 tỉnh theo đơn vị hành chính mới) + lọc theo tỉnh | `f2ceaa3` → `15b0fcd` |
 | + | Sửa quét QR (lề trắng, mã thưa hơn, đọc ảnh camera lớn) · Chế độ quét liên tục | `dfd4090`, `562801d` |
-| v3 | Quản lý CTV trong trang sự kiện (cấp/thu hồi) · màn hình check-in mở cho CTV · nút Gỡ rao bán · giải mã lỗi hợp đồng thành tiếng Việt | (27/10) |
+| v3 | Quản lý CTV trong trang sự kiện (cấp/thu hồi) · màn hình check-in mở cho CTV · nút Gỡ rao bán · giải mã lỗi hợp đồng thành tiếng Việt | `9bd7353` |
+| v4 | Wizard tạo sự kiện có ô trần giá bán lại + số vé tối đa mỗi ví · trang sự kiện/thanh toán hiện "đã mua x/n vé" và khoá nút khi đủ · rao bán/mua lại theo trần từng sự kiện, ghi rõ phí 5% · dashboard có doanh thu phí bản quyền | (27/10) |
 
 ## 5. Kiến trúc hiện tại
 
@@ -101,12 +105,13 @@ Bí mật (`BLOB_READ_WRITE_TOKEN`) chỉ nằm trong `web/.env` (không commit)
 | 27/10 | Rao bán xong vé biến khỏi tab "Sắp diễn ra" → không thấy nút gỡ | Tab Sắp diễn ra gồm cả vé đang rao bán | (v3) |
 | 27/10 | Lỗi hợp đồng hiện "unknown custom error" khi ví bọc dữ liệu lỗi | Tự tìm và giải mã mã lỗi theo ABI | (v3) |
 | 27/10 | Dashboard hiện hoạt động cũ ngay sau thao tác (cache 30s) | Dashboard và lịch sử vé luôn đọc log mới | (v3) |
+| 27/10 | Tab Organizer mở sẵn: người khác mua vé nhưng dashboard vẫn hiện "0 vé đã bán" tới khi tải lại trang (cache hạng vé không hết hạn) | Cache hạng vé hết hạn sau 15 giây, dashboard luôn đọc mới | (v4) |
 
 ## 7. Việc còn lại
 
 | # | Việc | Ai | Ghi chú |
 |---|---|---|---|
-| 1 | **Tạo lại dữ liệu demo trên v3 và test bằng ví thật**: tạo sự kiện (ngày tương lai) → ví B mua 2 vé → B rao bán, gỡ, rao lại → ví C mua lại → Organizer cấp quyền CTV cho ví D → C tạo mã check-in → D quét bằng điện thoại → thu hồi quyền D | Cả nhóm | Lưu mã giao dịch vào `PRESENTATION_PLAN.md` (mã hiện tại thuộc hợp đồng v2) |
+| 1 | **Tạo lại dữ liệu demo trên v4 và test bằng ví thật**: tạo sự kiện (ngày tương lai, VD trần 120%, tối đa 2 vé/ví) → ví B mua 2 vé (thử vé thứ 3 phải bị chặn) → B rao bán, gỡ, rao lại → ví C mua lại → Organizer cấp quyền CTV cho ví D → C tạo mã check-in → D quét bằng điện thoại → thu hồi quyền D | Cả nhóm | Lưu mã giao dịch vào `PRESENTATION_PLAN.md` (mã hiện tại thuộc hợp đồng v2); kiểm tra Dashboard có phí bản quyền |
 | 2 | ~~Điền `docs/PRESENTATION_PLAN.md`~~ | **Đã xong** | Đã phân vai Linh & Thảo, gắn link Vercel và các mã txn Sepolia thật |
 | 3 | ~~Gán danh mục cho sự kiện cũ~~ | — | Không cần nữa: sự kiện cũ nằm ở hợp đồng v2 |
 | 4 | ~~Ghi phần FairTicket V2 vào `docs/AI_JOURNAL.md`~~ | **Đã xong** | Đã cập nhật đầy đủ chi tiết kiến trúc V2, Vercel Blob và QR ký số |
@@ -115,9 +120,11 @@ Bí mật (`BLOB_READ_WRITE_TOKEN`) chỉ nằm trong `web/.env` (không commit)
 
 ## 8. Giới hạn đã biết (nên nói rõ khi thuyết trình)
 
-- **Vé không phải token ERC-721**: là bản ghi trong `mapping(tickets)` của ProjectCore. Ưu điểm: không có hàm chuyển vé nên không lách được trần 110%.
-- **Hợp đồng không chặn mua vé sau giờ bắt đầu**: giao diện chặn thay. Gọi thẳng hợp đồng (Remix/Etherscan) thì vẫn mua được. (v3 đã chuyển việc kiểm tra vé thuộc đúng sự kiện khi check-in vào hợp đồng.)
-- **Doanh thu Organizer chỉ từ lần bán đầu**: tiền bán lại đi thẳng cho người bán, Organizer không có phần trăm.
+- **Vé không phải token ERC-721**: là bản ghi trong `mapping(tickets)` của ProjectCore. Ưu điểm: không có hàm chuyển vé nên không lách được trần giá.
+- ~~Hợp đồng không chặn mua vé sau giờ bắt đầu~~ — v4 hợp đồng tự chặn (`EventAlreadyStarted`). Rao bán / mua lại vẫn mở sau giờ bắt đầu (R7 chưa làm).
+- **Giới hạn vé/ví đếm theo ví, không theo người**: một người dùng nhiều ví vẫn mua được nhiều hơn. Giới hạn làm việc gom vé tốn công hơn, không chặn tuyệt đối.
+- **Trần giá và giới hạn ví không sửa được** sau khi tạo sự kiện (cố ý — người mua biết trước luật chơi).
+- **Phí bản quyền cố định 5%** cho mọi sự kiện (hằng số `ROYALTY_BPS` trong hợp đồng), Organizer không tự chỉnh.
 - **Check-in**: mã QR có hạn 5 phút. Nếu chủ vé tự gửi mã cho người khác trong 5 phút đó thì người kia vẫn vào được, nhưng hợp đồng chỉ cho check-in 1 lần.
 - **Hợp đồng chỉ có giờ bắt đầu, không có giờ kết thúc**, nên check-in vẫn mở sau giờ bắt đầu.
 - **Phụ thuộc dịch vụ ngoài**: Vercel (web + metadata), Tenderly (lịch sử), publicnode (đọc chain khi chưa có ví), Google Maps. Hỏng dịch vụ nào thì phần tương ứng báo lỗi kèm nút "Thử lại", không ảnh hưởng dữ liệu trên chain.
@@ -125,7 +132,9 @@ Bí mật (`BLOB_READ_WRITE_TOKEN`) chỉ nằm trong `web/.env` (không commit)
 
 ## 9. Giao dịch thật trên Sepolia (bằng chứng on-chain)
 
-**Hợp đồng v3** — deploy 27/10/2026 10:04 UTC, khối 12004406, ví `0x4f99…a04e`: [`0x30236210…`](https://sepolia.etherscan.io/tx/0x30236210fe9f518f8d663745f10e02663490604481f4d3d5112c0ab7a1d62f4c). Giao dịch nghiệp vụ sẽ bổ sung sau khi tạo dữ liệu demo.
+**Hợp đồng v4** — deploy 27/10/2026 10:47 UTC, khối 12004619, ví `0x4f99…a04e`: [`0x69af8ed8…`](https://sepolia.etherscan.io/tx/0x69af8ed83e21fd2ffba929d63ec7d3f64c413082814831921765558b916fc2b2). Giao dịch nghiệp vụ sẽ bổ sung sau khi tạo dữ liệu demo.
+
+**Hợp đồng v3 (lịch sử, không dùng nữa)** — `0x7c574216844854C04878B41D68d58F50a54cA0AF`, deploy khối 12004406: [`0x30236210…`](https://sepolia.etherscan.io/tx/0x30236210fe9f518f8d663745f10e02663490604481f4d3d5112c0ab7a1d62f4c). Không có giao dịch nghiệp vụ.
 
 **Hợp đồng v2 (lịch sử, không dùng nữa)** — `0x0f96cafe4C603D706c786C503A5c903090706916`:
 

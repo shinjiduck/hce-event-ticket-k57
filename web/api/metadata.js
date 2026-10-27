@@ -12,10 +12,10 @@
 const { put, head, BlobNotFoundError } = require("@vercel/blob");
 const { ethers } = require("ethers");
 
-const CONTRACT_ADDRESS = "0x7c574216844854C04878B41D68d58F50a54cA0AF"; // ProjectCore v3
+const CONTRACT_ADDRESS = "0x0845EEB1Ed93C373173680a859fB255f168b9Fd0"; // ProjectCore v4
 const SEPOLIA_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
 const EVENTS_ABI = [
-  "function events(uint256) view returns (string name, uint256 startTime, address organizer, uint256 tierCount)",
+  "function events(uint256) view returns (string name, uint256 startTime, address organizer, uint256 tierCount, uint256 maxResaleBps, uint256 maxPerWallet)",
 ];
 const MAX_SIGNATURE_AGE_MS = 5 * 60 * 1000; // 5 phut, chong phat lai chu ky cu
 // Phai khop danh sach CATEGORIES trong web/app.js.

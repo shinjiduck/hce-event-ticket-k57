@@ -1,6 +1,6 @@
 # TIẾN ĐỘ WEBSITE — FairTicket
 
-> Cập nhật: **27/10/2026** — website đã chuyển sang hợp đồng **v3** `0x7c574216844854C04878B41D68d58F50a54cA0AF`: các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v3.
+> Cập nhật: **27/10/2026** — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (28/28, `evidence/lab-15-v4/`).
 > URL công khai: https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
 > Mã nguồn: thư mục `web/` · Tiến độ chung của cả dự án (Lab, hợp đồng): [PROGRESS.md](PROGRESS.md)
 
@@ -96,7 +96,7 @@
 | Thẻ vé điện tử, chia tab Sắp diễn ra / Đã sử dụng / Đang bán lại / Tất cả (có đếm) | ✅ (kiểm tra trên Vercel) |
 | Modal vé: QR, chủ sở hữu kiểm tra lại trên chain, CA, lịch sử riêng của vé, chỉ đường | 🟢 |
 | **Tạo mã check-in có chữ ký** (hết hạn 5 phút, đếm ngược) | 🟢 |
-| Rao bán lại / đổi giá (chặn giá > 110% ngay trên giao diện) | ✅ Vé #3 rao bán 0.0055 ETH = đúng 110% giá gốc (20/10) |
+| Rao bán lại / đổi giá (chặn giá vượt trần của sự kiện ngay trên giao diện; ghi rõ người bán nhận 95%) | ✅ Vé #3 rao bán 0.0055 ETH = đúng 110% giá gốc (20/10, v2) · v4: chạy trên chain cục bộ |
 | Rút tiền | ✅ Ví `0x4f99…` đã rút thật 0.005 ETH ngày 20/10 |
 | Lịch sử giao dịch của ví | ✅ (kiểm tra trên Vercel) |
 
@@ -133,14 +133,14 @@
 
 | # | Việc | Ai |
 |---|---|---|
-| 1 | **Test bằng ví thật** theo thứ tự: tạo sự kiện ở ngày tương lai → ví B mua 2 vé → B rao bán lại (thử giá > 110% phải bị chặn) → ví C mua lại → C tạo mã check-in → Organizer quét bằng camera điện thoại → kiểm tra Dashboard | Cả nhóm |
+| 1 | **Test bằng ví thật** theo thứ tự: tạo sự kiện ở ngày tương lai → ví B mua 2 vé → B rao bán lại (thử giá vượt trần phải bị chặn) → ví C mua lại (hộp xác nhận ghi phí bản quyền 5%) → C tạo mã check-in → Organizer quét bằng camera điện thoại → kiểm tra Dashboard | Cả nhóm |
 | 2 | Gán danh mục và địa chỉ cho sự kiện cũ (đang hiện "Khác"): #0 và #2 bằng ví `0x4f99…`, #1 bằng ví `0x82d0…19A7` | Thảo + chủ ví #1 |
 | 3 | Lưu mã giao dịch từ bước 1 vào `docs/PRESENTATION_PLAN.md` | Cả nhóm |
 | 4 | (Tuỳ chọn) Thêm lọc theo khoảng giá / khoảng ngày ở trang Khám phá | — |
 
 ## 4. Giới hạn của website (nói rõ khi demo)
 
-- Giao diện chặn một số việc mà **hợp đồng không chặn**: mua vé sau giờ bắt đầu, check-in nhầm vé của sự kiện khác. Gọi thẳng hợp đồng (Remix/Etherscan) thì vẫn làm được.
+- ~~Giao diện chặn một số việc mà hợp đồng không chặn~~ — v3 hợp đồng chặn check-in vé sai sự kiện, v4 chặn mua vé sau giờ bắt đầu. Đồng hồ trình duyệt và đồng hồ chain có thể lệch vài phút quanh giờ bắt đầu; khi đó hợp đồng là bên quyết định.
 - ~~Không có nút gỡ rao bán~~ — v3 đã có `cancelResale`, nút **Gỡ rao bán** ở trang Vé của tôi.
 - Mã check-in còn hạn 5 phút: nếu chủ vé tự gửi mã cho người khác trong 5 phút đó thì người kia vào được. Hợp đồng vẫn chỉ cho check-in 1 lần.
 - Website phụ thuộc Vercel, Tenderly, publicnode và Google Maps. Dịch vụ nào lỗi thì phần tương ứng báo lỗi kèm nút "Thử lại"; dữ liệu trên chain không bị ảnh hưởng.

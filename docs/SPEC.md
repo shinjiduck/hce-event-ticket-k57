@@ -50,12 +50,21 @@ Chỉ địa chỉ Organizer của một event mới tạo được hạng vé (
 ### R2 — Quyền sở hữu duy nhất
 Tại một thời điểm, một `ticketId` chỉ có đúng một `owner`. Chỉ owner hiện tại được thao tác trên vé của mình.
 
-### R3 — Trần giá bán lại
-`resalePrice` không được vượt quá 110% `originalPrice`.
+### R3 — Trần giá bán lại (theo từng sự kiện, v4)
+Organizer đặt `maxResaleBps` khi `createEvent()` — từ 10000 (100%) đến 20000 (200%), giao diện gợi ý 11000 (110%). Không sửa được sau khi tạo.
 ```
-maxResalePrice = originalPrice * 110 / 100
+maxResalePrice = originalPrice * maxResaleBps / 10000
 ```
-Đặt giá bán lại vượt trần → revert.
+Đặt giá bán lại vượt trần → revert `ResalePriceTooHigh`. Trần ngoài khoảng 100–200% → revert `InvalidResaleCap`.
+
+### R3b — Phí bản quyền khi bán lại (v4)
+Mỗi lần `buyResaleTicket()`, 5% giá bán (`ROYALTY_BPS = 500`, làm tròn xuống) cộng vào số dư chờ rút của Organizer, phần còn lại cho người bán. Tổng hai phần luôn bằng đúng số tiền người mua trả.
+
+### R1c — Giới hạn vé mỗi ví (v4)
+Organizer đặt `maxPerWallet` khi `createEvent()` (0 = không giới hạn, tối đa 100). Mỗi ví chỉ `mintTicket()` được tối đa `maxPerWallet` vé của sự kiện (cộng dồn mọi hạng vé, đếm bằng `mintedBy[eventId][ví]`). Vượt → revert `WalletLimitReached`. Vé mua lại trên chợ bán lại **không tính** (đã có trần giá chặn lời).
+
+### R1d — Ngừng bán vé mới khi sự kiện bắt đầu (v4)
+`mintTicket()` revert `EventAlreadyStarted` khi `block.timestamp >= startTime`. Rao bán, mua lại và check-in vẫn được.
 
 ### R4 — Quyền bán lại
 Chỉ owner hiện tại của vé được gọi `listForResale()` cho vé đó. Người khác gọi → revert.
@@ -77,7 +86,7 @@ Không cung cấp hàm transfer tự do (kiểu `transferFrom`/`safeTransferFrom
 
 ## Test case tối thiểu
 
-Giả định: `originalPrice = 0.01 ETH`, trần resale = 110% → `maxResalePrice = 0.011 ETH`.
+Giả định: `originalPrice = 0.01 ETH`, sự kiện đặt trần 110% (`maxResaleBps = 11000`) → `maxResalePrice = 0.011 ETH`.
 
 1. Bất kỳ ai `mintTicket(tierId)` đúng giá, hạng còn cung → PASS (R1b)
 2. Mint sai giá → REVERT (IncorrectPayment)
@@ -89,12 +98,16 @@ Giả định: `originalPrice = 0.01 ETH`, trần resale = 110% → `maxResalePr
 8. Organizer check-in Ticket #1 lần 2 → REVERT (R5)
 9. Alice cố bán vé đã `checkedIn = true` → REVERT (R6)
 10. Người không phải Organizer gọi `checkIn()` → REVERT (R5)
+11. Sự kiện giới hạn 2 vé/ví: ví mua vé thứ 3 → REVERT `WalletLimitReached` (R1c)
+12. Mua vé sau giờ bắt đầu → REVERT `EventAlreadyStarted` (R1d)
+13. Mua lại vé 0.011 ETH → Organizer +0.00055 ETH, người bán +0.01045 ETH (R3b)
 
 ## Function hiện có
 
 ```
-Organizer: createEvent(), createTier(), checkIn(), withdrawProceeds()
-Bất kỳ ai: mintTicket(tierId), listForResale(), buyResaleTicket(), withdrawProceeds()
+Organizer: createEvent(name, startTime, maxResaleBps, maxPerWallet), createTier(), setStaff(), checkIn(), withdrawProceeds()
+CTV (được cấp quyền): checkIn(eventId, ticketId)
+Bất kỳ ai: mintTicket(tierId), listForResale(), cancelResale(), buyResaleTicket(), withdrawProceeds()
 ```
 
 ## Ngoài phạm vi hiện tại

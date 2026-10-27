@@ -18,11 +18,11 @@ Buyer B --giá resale--> Contract (pendingWithdrawals[Buyer A])
 Buyer A --Ticket (chuyển owner)--> Buyer B
 ```
 
-Resale price = 100% chuyển vào số dư chờ rút (`pendingWithdrawals`) của người bán cũ (Buyer A) khi Buyer B gọi `buyResaleTicket()`, không thu phí/commission ở Lab 8–15 để giữ contract đơn giản và minh bạch.
+Từ v4 (27/10/2026): khi Buyer B gọi `buyResaleTicket()`, **95%** giá bán vào số dư chờ rút (`pendingWithdrawals`) của người bán cũ (Buyer A), **5%** là phí bản quyền vào số dư của Organizer (`ROYALTY_BPS = 500`, làm tròn xuống — phần lẻ thuộc người bán, không mất wei). FairTicket không thu phí nền tảng. (Lab 8–15 bản v1–v3: 100% về người bán.)
 
 ## II. Giới hạn chống lạm dụng
 
-1. Giá resale ≤ 110% giá gốc của hạng vé (R3).
+1. Giá resale ≤ trần của sự kiện × giá gốc (R3). Organizer chọn trần 100–200% khi tạo sự kiện (mặc định 110%), ghi vĩnh viễn trên hợp đồng.
 2. Chỉ chủ sở hữu hiện tại được rao bán lại vé (R4).
 3. Vé đã check-in không được bán/chuyển (R6).
 4. Mỗi vé chỉ check-in một lần (R5).
@@ -30,6 +30,8 @@ Resale price = 100% chuyển vào số dư chờ rút (`pendingWithdrawals`) c�
 6. Vé chỉ resale được trước khi sự kiện bắt đầu (R7, *ngoài phạm vi demo hiện tại*).
 7. Không cho phép transfer ngoài cơ chế resale của hệ thống (R8).
 8. Tổng vé mint của mỗi hạng không vượt `maxSupply`, cố định khi tạo hạng vé `createTier()` (R9).
+9. Mỗi ví mua mới tối đa `maxPerWallet` vé mỗi sự kiện (R1c, mặc định 4, 0 = không giới hạn) — chống gom vé. Lưu ý: một người có thể dùng nhiều ví; giới hạn này làm việc gom vé tốn công hơn, không chặn tuyệt đối.
+10. Không bán vé mới sau giờ bắt đầu sự kiện (R1d) — hợp đồng tự chặn.
 
 ## III. Quyền quản trị
 
@@ -50,7 +52,7 @@ Organizer **không** được:
 Giải pháp: thanh toán và chuyển quyền sở hữu nằm trong cùng một transaction (`mintTicket()`/`buyResaleTicket()`), không tách thành hai bước.
 
 ### TH2 — Người bán nâng giá vé quá cao
-Giải pháp: contract kiểm tra `resalePrice <= maxResalePrice` (tối đa 110% `originalPrice`) trước khi cho phép `listForResale()` (R3).
+Giải pháp: contract kiểm tra `resalePrice <= originalPrice × maxResaleBps / 10000` (trần của sự kiện, mặc định 110%) trước khi cho phép `listForResale()` (R3). Kết hợp giới hạn vé/ví (R1c) để hạn chế gom vé ngay từ lúc mở bán.
 
 ### TH3 — Mua phải vé đã sử dụng
 Giải pháp: `checkedIn == true` thì không thể `listForResale()` hoặc `buyResaleTicket()` (R6).
@@ -70,7 +72,7 @@ Prompt sử dụng để phản biện:
 ### Kết quả phản biện và cách nhóm xử lý
 
 **Abuse 1 — Giao dịch ngoài hệ thống rồi transfer thẳng vé**
-Người bán nhận tiền ngoài chuỗi (cao hơn 110%) rồi transfer vé trực tiếp cho người mua, bỏ qua trần giá.
+Người bán nhận tiền ngoài chuỗi (cao hơn trần) rồi transfer vé trực tiếp cho người mua, bỏ qua trần giá.
 → Quy tắc chưa đủ chặt trước khi thêm: không có gì cấm transfer tự do.
 → **Xử lý:** thêm R8 — cấm transfer ngoài cơ chế resale của hệ thống; mọi đổi chủ phải qua `mintTicket()`/`buyResaleTicket()`.
 
