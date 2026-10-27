@@ -15,14 +15,24 @@ pragma solidity ^0.8.20;
 ///         v3: them vai tro CTV soat ve (setStaff - Organizer cap/thu hoi theo
 ///         tung su kien), checkIn(eventId, ticketId) tu chan ve sai su kien,
 ///         cancelResale cho chu ve go rao ban.
+///         v4: Organizer tu dat tran gia ban lai (100-200%) va so ve toi da
+///         moi vi cho tung su kien; khong mint duoc sau gio bat dau; moi lan
+///         ban lai tra 5% phi ban quyen cho Organizer.
 contract ProjectCore {
-    uint256 public constant MAX_RESALE_BPS = 11_000; // 110% = 11000 / 10000
+    uint256 public constant BPS = 10_000;
+    uint256 public constant DEFAULT_RESALE_BPS = 11_000; // goi y cho giao dien: 110%
+    uint256 public constant MIN_RESALE_BPS = 10_000; // 100%: khong cho ban lai cao hon gia goc
+    uint256 public constant MAX_RESALE_CAP_BPS = 20_000; // tran cao nhat Organizer duoc dat: 200%
+    uint256 public constant ROYALTY_BPS = 500; // 5% gia ban lai ve Organizer
+    uint256 public constant MAX_PER_WALLET_LIMIT = 100;
 
     struct EventInfo {
         string name;
         uint256 startTime;
         address organizer;
         uint256 tierCount;
+        uint256 maxResaleBps; // tran gia ban lai cua su kien nay (vd 11000 = 110%)
+        uint256 maxPerWallet; // so ve toi da 1 vi duoc mua moi (mint) - 0 = khong gioi han
     }
 
     struct Tier {
@@ -55,13 +65,16 @@ contract ProjectCore {
     ///         nay (CTV soat ve). Chi co quyen check-in - khong rut tien, khong
     ///         tao hang ve, khong cap quyen cho nguoi khac.
     mapping(uint256 => mapping(address => bool)) public isStaff;
+    /// @notice mintedBy[eventId][vi]: so ve vi nay da mua moi (mint) cua su kien.
+    ///         Ve mua lai tren cho ban lai khong tinh (da co tran gia chan loi).
+    mapping(uint256 => mapping(address => uint256)) public mintedBy;
 
-    event EventCreated(uint256 indexed eventId, address indexed organizer, uint256 startTime);
+    event EventCreated(uint256 indexed eventId, address indexed organizer, uint256 startTime, uint256 maxResaleBps, uint256 maxPerWallet);
     event TierCreated(uint256 indexed tierId, uint256 indexed eventId, string name, uint256 price, uint256 maxSupply);
     event TicketMinted(uint256 indexed ticketId, uint256 indexed tierId, uint256 indexed eventId, address buyer, uint256 price);
     event ProceedsWithdrawn(address indexed organizer, uint256 amount);
     event TicketListedForResale(uint256 indexed ticketId, address indexed seller, uint256 resalePrice);
-    event TicketResold(uint256 indexed ticketId, address indexed from, address indexed to, uint256 amount);
+    event TicketResold(uint256 indexed ticketId, address indexed from, address indexed to, uint256 amount, uint256 royalty);
     event TicketCheckedIn(uint256 indexed ticketId, address indexed owner);
     event StaffUpdated(uint256 indexed eventId, address indexed staff, bool allowed);
     event TicketResaleCancelled(uint256 indexed ticketId, address indexed seller);
@@ -85,18 +98,36 @@ contract ProjectCore {
     error NotCheckInAuthorized();
     error TicketNotInEvent();
     error ZeroAddress();
+    error InvalidResaleCap(uint256 bps);
+    error InvalidWalletLimit(uint256 limit);
+    error EventAlreadyStarted();
+    error WalletLimitReached(uint256 limit);
 
     /// @notice Ai cung tao duoc su kien, nguoi goi tu dong thanh Organizer.
-    function createEvent(string calldata name, uint256 startTime) external returns (uint256 eventId) {
+    /// @param maxResaleBps tran gia ban lai, tinh theo phan van (10000 = 100% .. 20000 = 200%).
+    /// @param maxPerWallet so ve toi da moi vi duoc mua moi; 0 = khong gioi han.
+    function createEvent(
+        string calldata name,
+        uint256 startTime,
+        uint256 maxResaleBps,
+        uint256 maxPerWallet
+    ) external returns (uint256 eventId) {
+        // 1. Checks
+        if (maxResaleBps < MIN_RESALE_BPS || maxResaleBps > MAX_RESALE_CAP_BPS) revert InvalidResaleCap(maxResaleBps);
+        if (maxPerWallet > MAX_PER_WALLET_LIMIT) revert InvalidWalletLimit(maxPerWallet);
+
+        // 2. Effects
         eventId = nextEventId++;
         events[eventId] = EventInfo({
             name: name,
             startTime: startTime,
             organizer: msg.sender,
-            tierCount: 0
+            tierCount: 0,
+            maxResaleBps: maxResaleBps,
+            maxPerWallet: maxPerWallet
         });
 
-        emit EventCreated(eventId, msg.sender, startTime);
+        emit EventCreated(eventId, msg.sender, startTime, maxResaleBps, maxPerWallet);
     }
 
     /// @notice R9: chi Organizer cua event duoc tao hang ve (gia + tong cung co dinh).
@@ -138,8 +169,15 @@ contract ProjectCore {
         if (msg.value != tier.price) revert IncorrectPayment(tier.price, msg.value);
 
         EventInfo storage evt = events[tier.eventId];
+        // Su kien da bat dau thi ngung ban ve moi (truoc v4 chi giao dien chan).
+        if (block.timestamp >= evt.startTime) revert EventAlreadyStarted();
+        // Chong gom ve: moi vi chi mua moi toi da maxPerWallet ve cua su kien.
+        if (evt.maxPerWallet != 0 && mintedBy[tier.eventId][msg.sender] >= evt.maxPerWallet) {
+            revert WalletLimitReached(evt.maxPerWallet);
+        }
 
         // 2. Effects
+        mintedBy[tier.eventId][msg.sender]++;
         tier.minted++;
         ticketId = nextTicketId++;
         tickets[ticketId] = Ticket({
@@ -156,7 +194,7 @@ contract ProjectCore {
         emit TicketMinted(ticketId, tierId, tier.eventId, msg.sender, tier.price);
     }
 
-    /// @notice R3 + R4: chu ve hien tai rao ban lai, gia toi da 110% gia goc.
+    /// @notice R3 + R4: chu ve hien tai rao ban lai, gia toi da = tran cua su kien (Organizer dat, mac dinh 110%).
     /// R6: ve da check-in thi khoa, khong rao ban lai duoc nua.
     function listForResale(uint256 ticketId, uint256 price) external {
         // 1. Checks
@@ -166,7 +204,7 @@ contract ProjectCore {
         if (t.checkedIn) revert TicketCheckedInCannotResell();
         if (price == 0) revert ZeroResalePrice();
 
-        uint256 maxResalePrice = (t.originalPrice * MAX_RESALE_BPS) / 10_000;
+        uint256 maxResalePrice = (t.originalPrice * events[t.eventId].maxResaleBps) / BPS;
         if (price > maxResalePrice) revert ResalePriceTooHigh(price, maxResalePrice);
 
         // 2. Effects
@@ -176,7 +214,8 @@ contract ProjectCore {
         emit TicketListedForResale(ticketId, msg.sender, price);
     }
 
-    /// @notice Mua lai ve dang rao ban, doi chu va tra tien cho chu cu qua pull-payment.
+    /// @notice Mua lai ve dang rao ban, doi chu va tra tien qua pull-payment:
+    /// 5% (ROYALTY_BPS) ve Organizer, phan con lai ve chu cu.
     /// R6: kiem tra lai checkedIn phong truong hop ve bi check-in sau khi da rao ban.
     function buyResaleTicket(uint256 ticketId) external payable {
         // 1. Checks
@@ -187,14 +226,16 @@ contract ProjectCore {
         if (msg.value != t.resalePrice) revert IncorrectPayment(t.resalePrice, msg.value);
 
         address seller = t.owner;
+        uint256 royalty = (msg.value * ROYALTY_BPS) / BPS;
 
-        // 2. Effects - doi chu va ghi nhan tien cho nguoi ban rut sau
+        // 2. Effects - doi chu va ghi nhan tien cho nguoi ban + Organizer rut sau
         t.owner = msg.sender;
         t.forSale = false;
         t.resalePrice = 0;
-        pendingWithdrawals[seller] += msg.value;
+        pendingWithdrawals[events[t.eventId].organizer] += royalty;
+        pendingWithdrawals[seller] += msg.value - royalty;
 
-        emit TicketResold(ticketId, seller, msg.sender, msg.value);
+        emit TicketResold(ticketId, seller, msg.sender, msg.value, royalty);
     }
 
     /// @notice Organizer cap (allowed = true) hoac thu hoi (false) quyen soat ve

@@ -1,0 +1,57 @@
+PASS Wizard bước 2 có ô trần giá (mặc định 110%) và số vé/ví (mặc định 4)
+PASS Số vé/ví 101 bị chặn trên giao diện — Số vé tối đa mỗi ví phải là số nguyên từ 0 đến 100.
+PASS Trang xem lại ghi 120% và 2 vé/ví
+PASS A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet = 2 — 12000 / 2
+PASS Bảng Organizer hiện quy tắc sự kiện
+PASS Trang sự kiện ghi trần 120% và giới hạn 2 vé/ví
+PASS Nút + dừng ở 2 vé (giới hạn ví) — Mua 2 vé = 2 giao dịch, xác nhận lần lượt trong ví. Ví của bạn đã mua 0/2 vé của sự kiện.
+PASS Thanh toán kiểm tra trước: ví đã mua 0/2
+PASS B mua 2 vé thành công — Vé 1/2Thành công · Vé #0 · xemVé 2/2Thành công · Vé #1 · xem
+PASS Đủ 2 vé: nút mua đổi thành 'Đã mua đủ 2 vé/ví' và bị khoá
+PASS Vào thẳng trang thanh toán: báo ví đã mua đủ, không cho trả tiền
+PASS Gọi thẳng hợp đồng (bỏ qua giao diện) → WalletLimitReached
+PASS Hộp rao bán ghi tối đa 0.012 ETH (trần 120%) và nhận 95% — Rao bán lại vé Giá rao bán (ETH) Giá gốc 0.01 ETH · tối đa 0.012 ETH (trần 120%). Khi bán được, bạn nhận 95%, 5% là phí bản quyền cho ban tổ chức. Trước khi có người mua, bạn có thể đổi giá hoặc gỡ rao bán. Hủy Rao bán
+PASS Giá 121% bị chặn ngay trên giao diện — Giá vượt trần 120% giá gốc (tối đa 0.012 ETH).
+PASS Gọi thẳng hợp đồng giá 121% → ResalePriceTooHigh
+PASS Rao bán vé #0 đúng 120% (0.012 ETH) thành công — Đã rao bán vé.
+PASS Hộp xác nhận mua lại ghi phí bản quyền 0.0006 ETH — Xác nhận mua lại vé Sự kiệnFairTicket Demo v4 Hạng véStandard · Vé #0 Giá gốc0.01 ETH Người bán0x7099…79C8 Ví của bạn0x3C44…93BC MạngEthereum Sepolia Thanh toán0.012 ETH Trong đó phí bản quyền 5%0.0006 ETH → ban tổ chức Chưa gồm phí gas (ví sẽ hiển thị). Sau khi blockchain xác nhận, vé chuyển sang v
+PASS C mua lại vé #0 (0.012 ETH) — Mua lại vé thành công — vé đã chuyển vào ví của bạn.
+PASS Trên chain: Organizer +0.0006 ETH (5%), người bán B 0.0114 ETH (95%) — 0.0006 / 0.0114
+PASS Vé mua lại không tính vào giới hạn ví (mintedBy C = 0)
+PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. Gửi họ link màn hình check-in.
+PASS CTV quét mã của C → check-in ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
+PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
+PASS Dashboard: vé đã bán 2/10, doanh thu bán lần đầu 0.02 ETH (dù tab Organizer mở từ trước khi B mua) — Sự kiện11 đang bán Vé đã bán2 / 10còn 8 vé Doanh thu bán lần đầu0.02 ETH+ phí bản quyền bán lại: 0.0006 ETH Tiền chờ rút của ví0.0206 ETHRút tiền
+PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in vé #0FairTicket Demo v4 · khối 12004627 0x0cf09373… Cấp quyền CTV 0x90F7…b906FairTicket Demo v4 · khối 12004626 0x87595325… Vé #0 đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)FairTicket Demo
+PASS Qua giờ bắt đầu: mintTicket → EventAlreadyStarted
+PASS Qua giờ bắt đầu: vẫn rao bán và mua lại được
+PASS Tạo sự kiện với trần 99.99% → InvalidResaleCap
+PASS Wizard bước 2 có ô trần giá (mặc định 110%) và số vé/ví (mặc định 4)
+PASS Số vé/ví 101 bị chặn trên giao diện — Số vé tối đa mỗi ví phải là số nguyên từ 0 đến 100.
+PASS Trang xem lại ghi 120% và 2 vé/ví
+PASS A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet = 2 — 12000 / 2
+PASS Bảng Organizer hiện quy tắc sự kiện
+PASS Trang sự kiện ghi trần 120% và giới hạn 2 vé/ví
+PASS Nút + dừng ở 2 vé (giới hạn ví) — Mua 2 vé = 2 giao dịch, xác nhận lần lượt trong ví. Ví của bạn đã mua 0/2 vé của sự kiện.
+PASS Thanh toán kiểm tra trước: ví đã mua 0/2
+PASS B mua 2 vé thành công — Vé 1/2Thành công · Vé #0 · xemVé 2/2Thành công · Vé #1 · xem
+PASS Đủ 2 vé: nút mua đổi thành 'Đã mua đủ 2 vé/ví' và bị khoá
+PASS Vào thẳng trang thanh toán: báo ví đã mua đủ, không cho trả tiền
+PASS Gọi thẳng hợp đồng (bỏ qua giao diện) → WalletLimitReached
+PASS Hộp rao bán ghi tối đa 0.012 ETH (trần 120%) và nhận 95% — Rao bán lại vé Giá rao bán (ETH) Giá gốc 0.01 ETH · tối đa 0.012 ETH (trần 120%). Khi bán được, bạn nhận 95%, 5% là phí bản quyền cho ban tổ chức. Trước khi có người mua, bạn có thể đổi giá hoặc gỡ rao bán. Hủy Rao bán
+PASS Giá 121% bị chặn ngay trên giao diện — Giá vượt trần 120% giá gốc (tối đa 0.012 ETH).
+PASS Gọi thẳng hợp đồng giá 121% → ResalePriceTooHigh
+PASS Rao bán vé #0 đúng 120% (0.012 ETH) thành công — Đã rao bán vé.
+PASS Hộp xác nhận mua lại ghi phí bản quyền 0.0006 ETH — Xác nhận mua lại vé Sự kiệnFairTicket Demo v4 Hạng véStandard · Vé #0 Giá gốc0.01 ETH Người bán0x7099…79C8 Ví của bạn0x3C44…93BC MạngEthereum Sepolia Thanh toán0.012 ETH Trong đó phí bản quyền 5%0.0006 ETH → ban tổ chức Chưa gồm phí gas (ví sẽ hiển thị). Sau khi blockchain xác nhận, vé chuyển sang v
+PASS C mua lại vé #0 (0.012 ETH) — Mua lại vé thành công — vé đã chuyển vào ví của bạn.
+PASS Trên chain: Organizer +0.0006 ETH (5%), người bán B 0.0114 ETH (95%) — 0.0006 / 0.0114
+PASS Vé mua lại không tính vào giới hạn ví (mintedBy C = 0)
+PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. Gửi họ link màn hình check-in.
+PASS CTV quét mã của C → check-in ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
+PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
+PASS Dashboard: vé đã bán 2/10, doanh thu bán lần đầu 0.02 ETH (dù tab Organizer mở từ trước khi B mua) — Sự kiện11 đang bán Vé đã bán2 / 10còn 8 vé Doanh thu bán lần đầu0.02 ETH+ phí bản quyền bán lại: 0.0006 ETH Tiền chờ rút của ví0.0206 ETHRút tiền
+PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in vé #0FairTicket Demo v4 · khối 12004627 0x0cf09373… Cấp quyền CTV 0x90F7…b906FairTicket Demo v4 · khối 12004626 0x87595325… Vé #0 đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)FairTicket Demo
+PASS Qua giờ bắt đầu: mintTicket → EventAlreadyStarted
+PASS Qua giờ bắt đầu: vẫn rao bán và mua lại được
+PASS Tạo sự kiện với trần 99.99% → InvalidResaleCap
+NO_PAGE_ERRORS

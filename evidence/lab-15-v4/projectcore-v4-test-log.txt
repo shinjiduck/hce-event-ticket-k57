@@ -1,0 +1,61 @@
+
+
+  ProjectCore v4 - tran gia & gioi han vi theo su kien, chan mint sau gio bat dau, phi ban quyen 5%
+  [OK] Buyer tu mint ve hang Standard thanh cong
+    ✔ Ca hop le: AI CUNG tu mint duoc ve (khong can Organizer phat hanh ho)
+  [OK] Mint sai gia -> revert IncorrectPayment
+    ✔ Ca vi pham: mint sai gia bi tu choi IncorrectPayment
+  [OK] Mint vuot cung Standard (2/2) -> revert TierSupplyReached
+    ✔ Ca vi pham: mint vuot tong cung cua hang ve bi tu choi TierSupplyReached
+  [OK] Rao ban + mua lai dung 110% thanh cong, doi chu dung
+  [OK] Rao ban gia 120% -> revert ResalePriceTooHigh
+    ✔ R3+R4: rao ban lai gia <=110% thanh cong, >110% bi tu choi
+  [OK] Nguoi la goi checkIn() -> revert NotCheckInAuthorized
+  [OK] Organizer check-in thanh cong, checkedIn = true
+  [OK] Check-in lan 2 cho cung 1 ve -> revert TicketAlreadyCheckedIn
+    ✔ R5: Organizer check-in duoc, nguoi la bi tu choi, check-in lan 2 bi tu choi
+  [OK] Ve da check-in -> listForResale() revert TicketCheckedInCannotResell
+    ✔ R6: ve da check-in roi thi khong rao ban lai duoc nua
+  [OK] Goi lai withdrawProceeds() trong receive() -> khong rut duoc lan 2 (pull-payment)
+    ✔ Reentrancy: Organizer doc goi lai withdrawProceeds() van khong rut duoc 2 lan
+  [OK] Vi CTV chua duoc cap quyen -> revert NotCheckInAuthorized
+  [OK] Organizer cap quyen -> CTV check-in ve #0 thanh cong
+  [OK] Thu hoi quyen -> CTV check-in ve #1 bi tu choi ngay
+    ✔ CTV: Organizer cap quyen -> CTV check-in duoc; thu hoi -> bi tu choi ngay
+  [OK] CTV goi createTier / setStaff -> NotOrganizer; withdrawProceeds -> NothingToWithdraw; tien van cua Organizer
+    ✔ CTV chi co quyen check-in: khong tao hang ve, khong cap quyen, khong rut tien
+  [OK] setStaff boi nguoi ngoai / dia chi 0 / su kien #9 -> NotOrganizer / ZeroAddress / EventDoesNotExist
+    ✔ setStaff: nguoi ngoai, dia chi 0, su kien khong ton tai deu bi tu choi
+  [OK] Organizer dung o cong su kien A check-in ve cua su kien B -> revert TicketNotInEvent
+  [OK] CTV cua su kien A check-in ve su kien B (dung eventId) -> revert NotCheckInAuthorized
+  [OK] Dung su kien -> check-in thanh cong
+    ✔ Ve sai su kien bi hop dong tu choi (ke ca Organizer to chuc ca 2 su kien); CTV su kien A khong soat duoc su kien B
+  [OK] Go rao ban khi chua rao -> revert TicketNotForSale
+  [OK] Nguoi khong phai chu ve go rao ban -> revert NotTicketOwner
+  [OK] Chu ve go rao ban -> forSale = false; nguoi khac mua -> revert TicketNotForSale
+  [OK] Rao lai sau khi go -> mua lai binh thuong
+    ✔ cancelResale: chu ve go rao ban; nguoi khac khong go duoc; go xong khong ai mua duoc, rao lai duoc
+  [OK] CTV check-in ve dang rao ban -> buyResaleTicket revert TicketCheckedInCannotResell
+    ✔ Ve dang rao ban bi check-in -> khong ai mua duoc nua (R6 van giu sau khi them CTV)
+  [OK] Tran 99.99% / 200.01% / 101 ve/vi bi tu choi; 200% + khong gioi han duoc chap nhan va luu tren chain
+    ✔ createEvent: tran gia phai trong 100-200%, so ve/vi toi da 100
+  [OK] Su kien tran 150%: rao 150% duoc, 151% bi tu choi
+  [OK] Su kien tran 100%: chi duoc ban lai toi da bang gia goc
+    ✔ Tran gia theo tung su kien: su kien 150% va su kien 100%
+  [OK] Vi A mua 2 ve (Std + VIP) roi ve thu 3 -> revert WalletLimitReached(2)
+  [OK] Vi A da du 2 ve mua moi van mua lai duoc tren cho ban lai (tran gia da chan loi)
+  [OK] Vi khac van mua binh thuong
+    ✔ Gioi han ve moi vi: toi da 2 ve/vi (tinh chung cac hang), vi khac van mua duoc, mua lai khong tinh
+  [OK] Gioi han = 0 -> 1 vi mua 6 ve van duoc
+    ✔ maxPerWallet = 0: khong gioi han
+  [OK] Qua gio bat dau -> mintTicket revert EventAlreadyStarted
+  [OK] Sau gio bat dau van rao ban, mua lai va check-in duoc
+    ✔ Sau gio bat dau: khong mint duoc nua, nhung van rao ban / mua lai / check-in duoc
+  [OK] Ban lai 1.1 ETH: Organizer nhan them 0.055 ETH, nguoi ban 1.045 ETH
+  [OK] Gia 1099 wei: phi 54 wei (lam tron xuong), nguoi ban 1045 wei, tong khop 1099
+  [OK] Nguoi ban rut dung 1.045 ETH (pull-payment)
+    ✔ Phi ban quyen 5%: mua lai 1.1 ETH -> Organizer +0.055, nguoi ban +1.045; lam tron xuong khong mat wei
+
+
+  19 passing (1s)
+
