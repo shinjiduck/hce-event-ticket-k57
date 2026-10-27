@@ -12,6 +12,9 @@ pragma solidity ^0.8.20;
 ///         tung cai mot. Dong thoi them R5 + R6 (check-in va khoa ve sau
 ///         check-in). R7, R8 (han resale theo thoi gian, cam transfer tu do
 ///         ngoai he thong) van de danh cho lab sau.
+///         v3: them vai tro CTV soat ve (setStaff - Organizer cap/thu hoi theo
+///         tung su kien), checkIn(eventId, ticketId) tu chan ve sai su kien,
+///         cancelResale cho chu ve go rao ban.
 contract ProjectCore {
     uint256 public constant MAX_RESALE_BPS = 11_000; // 110% = 11000 / 10000
 
@@ -48,6 +51,10 @@ contract ProjectCore {
     mapping(uint256 => Tier) public tiers;
     mapping(uint256 => Ticket) public tickets;
     mapping(address => uint256) public pendingWithdrawals;
+    /// @notice isStaff[eventId][vi] = true: vi do duoc check-in ve cua su kien
+    ///         nay (CTV soat ve). Chi co quyen check-in - khong rut tien, khong
+    ///         tao hang ve, khong cap quyen cho nguoi khac.
+    mapping(uint256 => mapping(address => bool)) public isStaff;
 
     event EventCreated(uint256 indexed eventId, address indexed organizer, uint256 startTime);
     event TierCreated(uint256 indexed tierId, uint256 indexed eventId, string name, uint256 price, uint256 maxSupply);
@@ -56,6 +63,8 @@ contract ProjectCore {
     event TicketListedForResale(uint256 indexed ticketId, address indexed seller, uint256 resalePrice);
     event TicketResold(uint256 indexed ticketId, address indexed from, address indexed to, uint256 amount);
     event TicketCheckedIn(uint256 indexed ticketId, address indexed owner);
+    event StaffUpdated(uint256 indexed eventId, address indexed staff, bool allowed);
+    event TicketResaleCancelled(uint256 indexed ticketId, address indexed seller);
 
     error EventDoesNotExist();
     error TierDoesNotExist();
@@ -73,6 +82,9 @@ contract ProjectCore {
     error ZeroResalePrice();
     error TicketAlreadyCheckedIn();
     error TicketCheckedInCannotResell();
+    error NotCheckInAuthorized();
+    error TicketNotInEvent();
+    error ZeroAddress();
 
     /// @notice Ai cung tao duoc su kien, nguoi goi tu dong thanh Organizer.
     function createEvent(string calldata name, uint256 startTime) external returns (uint256 eventId) {
@@ -185,20 +197,51 @@ contract ProjectCore {
         emit TicketResold(ticketId, seller, msg.sender, msg.value);
     }
 
-    /// @notice R5: chi Organizer cua su kien duoc check-in ve thuoc su kien do.
+    /// @notice Organizer cap (allowed = true) hoac thu hoi (false) quyen soat ve
+    ///         cua 1 vi CTV cho rieng su kien cua minh. Thu hoi co hieu luc ngay.
+    function setStaff(uint256 eventId, address staff, bool allowed) external {
+        // 1. Checks
+        if (eventId >= nextEventId) revert EventDoesNotExist();
+        if (msg.sender != events[eventId].organizer) revert NotOrganizer();
+        if (staff == address(0)) revert ZeroAddress();
+
+        // 2. Effects
+        isStaff[eventId][staff] = allowed;
+
+        emit StaffUpdated(eventId, staff, allowed);
+    }
+
+    /// @notice R5: Organizer hoac CTV cua su kien check-in ve thuoc su kien do.
+    /// Truyen kem eventId (su kien dang soat o cong): ve cua su kien khac bi
+    /// tu choi ngay tren hop dong, ke ca khi nguoi goi to chuc ca 2 su kien.
     /// Moi ve chi check-in duoc dung 1 lan (khong co ham nao dat lai false).
-    function checkIn(uint256 ticketId) external {
+    function checkIn(uint256 eventId, uint256 ticketId) external {
         // 1. Checks
         if (ticketId >= nextTicketId) revert TicketDoesNotExist();
         Ticket storage t = tickets[ticketId];
-        EventInfo storage evt = events[t.eventId];
-        if (msg.sender != evt.organizer) revert NotOrganizer();
+        if (t.eventId != eventId) revert TicketNotInEvent();
+        if (msg.sender != events[eventId].organizer && !isStaff[eventId][msg.sender]) revert NotCheckInAuthorized();
         if (t.checkedIn) revert TicketAlreadyCheckedIn();
 
         // 2. Effects
         t.checkedIn = true;
 
         emit TicketCheckedIn(ticketId, t.owner);
+    }
+
+    /// @notice Chu ve go rao ban (truoc day hop dong khong co cach go).
+    function cancelResale(uint256 ticketId) external {
+        // 1. Checks
+        if (ticketId >= nextTicketId) revert TicketDoesNotExist();
+        Ticket storage t = tickets[ticketId];
+        if (msg.sender != t.owner) revert NotTicketOwner();
+        if (!t.forSale) revert TicketNotForSale();
+
+        // 2. Effects
+        t.forSale = false;
+        t.resalePrice = 0;
+
+        emit TicketResaleCancelled(ticketId, msg.sender);
     }
 
     /// @notice Organizer tu rut tien ban ve cua minh (pull-payment).

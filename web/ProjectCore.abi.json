@@ -32,6 +32,11 @@
   },
   {
     "inputs": [],
+    "name": "NotCheckInAuthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotOrganizer",
     "type": "error"
   },
@@ -83,6 +88,11 @@
   },
   {
     "inputs": [],
+    "name": "TicketNotInEvent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "TierDoesNotExist",
     "type": "error"
   },
@@ -94,6 +104,11 @@
   {
     "inputs": [],
     "name": "WithdrawFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ZeroAddress",
     "type": "error"
   },
   {
@@ -143,6 +158,31 @@
       }
     ],
     "name": "ProceedsWithdrawn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "staff",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "allowed",
+        "type": "bool"
+      }
+    ],
+    "name": "StaffUpdated",
     "type": "event"
   },
   {
@@ -224,6 +264,25 @@
       }
     ],
     "name": "TicketMinted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "ticketId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "seller",
+        "type": "address"
+      }
+    ],
+    "name": "TicketResaleCancelled",
     "type": "event"
   },
   {
@@ -322,6 +381,24 @@
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ticketId",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelResale",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      },
       {
         "internalType": "uint256",
         "name": "ticketId",
@@ -429,6 +506,30 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "isStaff",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "ticketId",
         "type": "uint256"
       },
@@ -518,6 +619,29 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "staff",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "allowed",
+        "type": "bool"
+      }
+    ],
+    "name": "setStaff",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
