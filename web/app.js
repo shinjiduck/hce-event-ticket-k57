@@ -1299,8 +1299,13 @@
     return `<div class="benefit-card"><div class="benefit-card__icon">${icon(iconName, "icon")}</div><h3>${title}</h3><p>${text}</p></div>`;
   }
 
-  function resaleRuleBanner() {
-    return `<div class="resale-banner">${icon("scale", "icon")}<span>Giá bán lại <strong>không vượt trần của từng sự kiện</strong> (ban tổ chức đặt, mặc định 110%) và mỗi lần bán lại trả <strong>5% phí bản quyền</strong> cho ban tổ chức — chính hợp đồng ProjectCore thực thi, không chỉ là quy định hiển thị.</span></div>`;
+  // Co su kien -> hien dung quy tac cua su kien do; khong co -> cau chung ngan gon.
+  function resaleRuleText(evt) {
+    if (evt) return `<strong>${escapeHtml(evt.name)}</strong>: bán lại tối đa <strong>${capPctText(evt)}</strong> giá gốc · ${walletLimitText(evt)} · 5% phí bản quyền cho ban tổ chức.`;
+    return `Mỗi sự kiện có <strong>trần giá bán lại</strong> riêng do ban tổ chức đặt · 5% mỗi lần bán lại về ban tổ chức · hợp đồng tự kiểm tra.`;
+  }
+  function resaleRuleBanner(evt) {
+    return `<div class="resale-banner">${icon("scale", "icon")}<span id="resale-rule">${resaleRuleText(evt)}</span></div>`;
   }
 
   function skeletonCards(n) {
@@ -1411,6 +1416,7 @@
           <div class="price-compare">
             <div class="price-compare__row"><span>Giá gốc</span><span class="tabular-nums">${fmtEth(l.originalPrice)} ETH</span></div>
             <div class="price-compare__row"><span>Giá bán lại</span><span class="price-compare__resale">${fmtEth(l.resalePrice)} ETH</span></div>
+            ${evt && evt.maxResaleBps !== undefined ? `<div class="price-compare__row"><span>Trần giá sự kiện</span><span class="tabular-nums">${capPctText(evt)} · tối đa ${fmtEth(maxResaleOf(l.originalPrice, evt))} ETH</span></div>` : ""}
             <div class="price-compare__row"><span>Chênh lệch</span><span class="${diffBps > 0 ? "diff-up" : "diff-down"} tabular-nums">${diffBps > 0 ? "+" : ""}${pct}%</span></div>
           </div>
           <div class="resale-card__foot">
@@ -1567,7 +1573,9 @@
       wireResaleBuy(grid, list, evtMap, tierMap);
     }
 
-    evSelect.addEventListener("change", () => { state.ev = evSelect.value; syncUrl(); apply(); });
+    const syncRule = () => { const el = document.getElementById("resale-rule"); if (el) el.innerHTML = resaleRuleText(state.ev ? evtMap.get(state.ev) : null); };
+    syncRule();
+    evSelect.addEventListener("change", () => { state.ev = evSelect.value; syncUrl(); syncRule(); apply(); });
     document.getElementById("rs-sort").addEventListener("change", (e) => { state.sort = e.target.value; syncUrl(); apply(); });
     document.getElementById("rs-past").addEventListener("change", (e) => { state.past = e.target.checked; syncUrl(); apply(); });
     apply();
