@@ -1815,6 +1815,7 @@
               <h2>Thông tin sự kiện</h2>
               <div class="info-list">
                 <div class="info-row"><div class="info-row__label">Thời gian bắt đầu</div><div class="info-row__value">${startDate.toLocaleString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div></div>
+                ${Number(meta.endTime) > Number(evt.startTime) ? `<div class="info-row"><div class="info-row__label">Thời gian kết thúc</div><div class="info-row__value">${new Date(Number(meta.endTime) * 1000).toLocaleString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div></div>` : ""}
                 <div class="info-row"><div class="info-row__label">Địa điểm</div><div class="info-row__value">${escapeHtml(meta.location || "Cập nhật sau")}</div></div>
                 <div class="info-row"><div class="info-row__label">Danh mục</div><div class="info-row__value">${cat.label}</div></div>
                 <div class="info-row"><div class="info-row__label">Đơn vị tổ chức</div><div class="info-row__value"><a class="mono link" href="${ETHERSCAN}/address/${evt.organizer}" target="_blank" rel="noopener">${shortAddr(evt.organizer)}</a>${isOrganizer ? ` <span class="badge badge-primary">Bạn</span>` : ""}</div></div>
@@ -2093,6 +2094,7 @@
         location: overlay.querySelector("#em-loc").value.trim(),
         description: overlay.querySelector("#em-desc").value.trim(),
         image: newImage || meta.image || "",
+        endTime: Number(meta.endTime) || 0,
         });
       });
     });
@@ -2262,6 +2264,7 @@
       saveDraft();
       $root().innerHTML = h`
         <div class="page container create-page">
+          ${data.createdEventId ? `<div class="banner" style="margin-top: var(--sp-4);">Sự kiện #${escapeHtml(data.createdEventId)} đã được tạo ở lần trước nhưng chưa có hạng vé. Bấm Deploy ở bước 3 sẽ <strong>chỉ tạo tiếp hạng vé</strong> cho sự kiện này, không tạo sự kiện mới.</div>` : ""}
           <header class="create-hero">
             <div>
               <span class="create-hero__eyebrow">${icon("ticket")} Dành cho ban tổ chức</span>
@@ -2466,8 +2469,13 @@
           data.description = document.getElementById("f-desc").value.trim();
           data.startTime = document.getElementById("f-start").value;
           data.endTime = document.getElementById("f-end").value;
+          if (data.createdEventId) { toast(`Sự kiện #${data.createdEventId} đã ghi trên chain — tên và giờ bắt đầu không đổi được nữa; thay đổi ở đây chỉ áp dụng cho phần mô tả.`, "info"); }
           data.location = document.getElementById("f-loc").value.trim();
           if (!data.name || !data.startTime) { toast("Điền tên sự kiện và thời gian bắt đầu.", "error"); return; }
+          // Hop dong chan mua ve tu luc startTime -> su kien da qua gio thi khong ai mua duoc nua.
+          const startMs = new Date(data.startTime).getTime();
+          if (!Number.isFinite(startMs) || startMs < Date.now() + 10 * 60 * 1000) { toast("Thời gian bắt đầu phải sau thời điểm hiện tại ít nhất 10 phút — sau giờ bắt đầu hợp đồng không bán vé nữa.", "error"); return; }
+          if (data.endTime && new Date(data.endTime).getTime() <= startMs) { toast("Thời gian kết thúc phải sau thời gian bắt đầu.", "error"); return; }
           const addr = await readAddressFields("f");
           if (!addr.ok) { toast(addr.error, "error"); return; }
           Object.assign(data, addr.parts);
@@ -2527,8 +2535,13 @@
           data.walletLimit = document.getElementById("f-limit").value;
           const lim = Number(data.walletLimit);
           if (data.walletLimit === "" || !Number.isInteger(lim) || lim < 0 || lim > 100) { toast("Số vé tối đa mỗi ví phải là số nguyên từ 0 đến 100.", "error"); return; }
-          if (!data.maxSupply || Number(data.maxSupply) < 1) { toast("Nhập tổng số vé hợp lệ.", "error"); return; }
-          if (!data.price || Number(data.price) <= 0) { toast("Nhập giá vé hợp lệ.", "error"); return; }
+          const supply = Number(data.maxSupply);
+          if (!/^\d+$/.test(String(data.maxSupply).trim()) || !Number.isInteger(supply) || supply < 1 || supply > 1000000) { toast("Tổng số vé phải là số nguyên từ 1 đến 1.000.000.", "error"); return; }
+          data.maxSupply = String(supply);
+          let wei;
+          try { wei = ethers.parseEther(String(data.price).trim()); } catch { wei = 0n; }
+          if (wei <= 0n) { toast("Nhập giá vé hợp lệ (lớn hơn 0, tối đa 18 chữ số thập phân, VD 0.02).", "error"); return; }
+          data.price = String(data.price).trim();
           step = 3; render();
         });
       } else {
@@ -2539,7 +2552,7 @@
             <div class="review-list">
               <div class="review-row"><span class="review-row__label">Tên sự kiện</span><span class="review-row__value">${escapeHtml(data.name)}</span></div>
               <div class="review-row"><span class="review-row__label">Danh mục</span><span class="review-row__value">${categoryOf(data.category).label}</span></div>
-              <div class="review-row"><span class="review-row__label">Thời gian</span><span class="review-row__value">${data.startTime ? new Date(data.startTime).toLocaleString("vi-VN") : "—"}</span></div>
+              <div class="review-row"><span class="review-row__label">Thời gian</span><span class="review-row__value">${data.startTime ? new Date(data.startTime).toLocaleString("vi-VN") : "—"}${data.endTime ? " → " + new Date(data.endTime).toLocaleString("vi-VN") : ""}</span></div>
               <div class="review-row"><span class="review-row__label">Địa điểm</span><span class="review-row__value">${escapeHtml(data.location || "—")}</span></div>
               ${joinAddress(data) ? `<div class="review-row"><span class="review-row__label">Địa chỉ</span><span class="review-row__value">${escapeHtml(joinAddress(data))}</span></div>` : ""}
               <div class="review-row"><span class="review-row__label">Hạng Standard</span><span class="review-row__value">${escapeHtml(data.maxSupply)} vé × ${escapeHtml(data.price)} ETH</span></div>
@@ -2562,17 +2575,40 @@
           requireContract();
           requireRightNetwork();
 
-          toast("Đang tạo sự kiện… (giao dịch 1/2)", "info");
-          const tx1 = await contract.createEvent(data.name, startTs, BigInt(Math.round(Number(data.cap) * 100)), BigInt(Number(data.walletLimit) || 0));
-          const receipt1 = await tx1.wait();
-          const log1 = receipt1.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
-          const newEventId = log1 ? log1.args.eventId : null;
-          if (newEventId === null) throw new Error("Không đọc được eventId vừa tạo.");
-          const newMeta = { description: data.description, location: data.location, province: data.province, ward: data.ward, street: data.street, address: joinAddress(data), image: data.image, category: categoryOf(data.category).id };
+          // Doc gia/so ve TRUOC giao dich 1: loi dinh dang khong duoc no ra sau khi su kien da tao.
+          const tierPrice = ethers.parseEther(data.price);
+          const tierSupply = BigInt(data.maxSupply);
+          if (startTs * 1000 < Date.now() + 60 * 1000) throw userError("Thời gian bắt đầu đã qua hoặc quá sát — quay lại bước 1 để chọn giờ khác.");
+
+          // Lan bam truoc da tao su kien nhung giao dich 2 loi/bi tu choi -> dung lai su kien do,
+          // khong tao su kien trung. Chi dung lai khi chac chan la su kien cua vi nay va chua co hang ve.
+          let newEventId = null;
+          let reused = false;
+          if (data.createdEventId) {
+            const prev = await (await ensureReadContract()).events(BigInt(data.createdEventId));
+            if (sameAddr(prev.organizer, userAddress) && prev.tierCount === 0n) {
+              newEventId = BigInt(data.createdEventId);
+              reused = true;
+            } else {
+              data.createdEventId = "";
+              saveDraft();
+            }
+          }
+          if (newEventId === null) {
+            toast("Đang tạo sự kiện… (giao dịch 1/2)", "info");
+            const tx1 = await contract.createEvent(data.name, startTs, BigInt(Math.round(Number(data.cap) * 100)), BigInt(Number(data.walletLimit) || 0));
+            const receipt1 = await tx1.wait();
+            const log1 = receipt1.logs.map((l) => { try { return contract.interface.parseLog(l); } catch { return null; } }).find((l) => l && l.name === "EventCreated");
+            newEventId = log1 ? log1.args.eventId : null;
+            if (newEventId === null) throw new Error("Không đọc được eventId vừa tạo.");
+            data.createdEventId = newEventId.toString();
+            saveDraft();
+          }
+          const newMeta = { endTime: data.endTime ? Math.floor(new Date(data.endTime).getTime() / 1000) : 0, description: data.description, location: data.location, province: data.province, ward: data.ward, street: data.street, address: joinAddress(data), image: data.image, category: categoryOf(data.category).id };
           saveMeta(newEventId, newMeta);
 
-          toast("Đang tạo hạng vé Standard… (giao dịch 2/2)", "info");
-          const tx2 = await contract.createTier(newEventId, "Standard", ethers.parseEther(data.price), BigInt(data.maxSupply));
+          toast(reused ? `Dùng lại sự kiện #${newEventId} đã tạo ở lần trước — đang tạo hạng vé Standard…` : "Đang tạo hạng vé Standard… (giao dịch 2/2)", "info");
+          const tx2 = await contract.createTier(newEventId, "Standard", tierPrice, tierSupply);
           await tx2.wait();
 
           // Ky metadata SAU khi 2 giao dich xong, de MetaMask khong bat 2 yeu cau chong nhau.

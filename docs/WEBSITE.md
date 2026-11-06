@@ -1,6 +1,6 @@
 # TIẾN ĐỘ WEBSITE — FairTicket
 
-> Cập nhật: **27/10/2026** — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (28/28, `evidence/lab-15-v4/`).
+> Cập nhật: **27/10/2026** — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (37/37, `evidence/lab-15-v4/`).
 > URL công khai: https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
 > Mã nguồn: thư mục `web/` · Tiến độ chung của cả dự án (Lab, hợp đồng): [PROGRESS.md](PROGRESS.md)
 

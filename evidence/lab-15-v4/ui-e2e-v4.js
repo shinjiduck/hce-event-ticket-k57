@@ -22,6 +22,11 @@ const walletMock = (addr) => `
     isMetaMask: true, on: () => {}, removeListener: () => {},
     request: async ({ method, params }) => {
       if (method === "eth_accounts" || method === "eth_requestAccounts") return ["${addr}"];
+      // Gia lap nguoi dung bam "Tu choi" o giao dich thu N (window.__rejectTxNo)
+      if (method === "eth_sendTransaction" && window.__rejectTxNo) {
+        window.__txCount = (window.__txCount || 0) + 1;
+        if (window.__txCount === window.__rejectTxNo) { window.__rejectTxNo = 0; const e = new Error("User rejected the request."); e.code = 4001; throw e; }
+      }
       const r = await fetch("${NODE}", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params: params || [] }) });
       const j = await r.json();
       if (j.error) { const e = new Error(j.error.message); e.code = j.error.code; e.data = j.error.data; throw e; }
@@ -79,16 +84,30 @@ const metaStore = {};
   await a.p.fill("#f-name", "FairTicket Demo v4");
   await a.p.selectOption("#f-cat", "music");
   await a.p.fill("#f-desc", "Sự kiện test hợp đồng v4");
-  await a.p.fill("#f-start", "2026-12-20T19:00");
+  await a.p.fill("#f-start", "2025-01-01T10:00");
   await a.p.fill("#f-loc", "Nhà văn hóa Trung tâm");
   await a.p.selectOption("#f-prov", "Thành phố Huế");
   await a.p.fill("#f-ward", "Phường An Cựu");
   await a.p.fill("#f-street", "99 Hồ Đắc Di");
   await a.p.click("#btn-next-1");
+  check("Giờ bắt đầu đã qua bị chặn (hợp đồng sẽ không bán vé được)", await waitText(a.p, "#toast", "phải sau thời điểm hiện tại", 5000), await text(a.p, "#toast"));
+  await a.p.fill("#f-start", "2026-12-20T19:00");
+  await a.p.fill("#f-end", "2026-12-20T18:00");
+  await a.p.click("#btn-next-1");
+  check("Giờ kết thúc trước giờ bắt đầu bị chặn", await waitText(a.p, "#toast", "kết thúc phải sau", 5000), await text(a.p, "#toast"));
+  await a.p.fill("#f-end", "2026-12-20T22:30");
+  await a.p.click("#btn-next-1");
   await a.p.waitForSelector("#f-cap");
   check("Wizard bước 2 có ô trần giá (mặc định 110%) và số vé/ví (mặc định 4)",
     (await a.p.inputValue("#f-cap")) === "110" && (await a.p.inputValue("#f-limit")) === "4");
+  await a.p.fill("#f-supply", "1.5");
+  await a.p.fill("#f-price", "0.01");
+  await a.p.click("#btn-next-2");
+  check("Số vé lẻ (1.5) bị chặn trước khi gửi giao dịch", await waitText(a.p, "#toast", "số nguyên", 5000), await text(a.p, "#toast"));
   await a.p.fill("#f-supply", "10");
+  await a.p.fill("#f-price", "0.0000000000000000001");
+  await a.p.click("#btn-next-2");
+  check("Giá quá 18 chữ số thập phân bị chặn", await waitText(a.p, "#toast", "giá vé hợp lệ", 5000), await text(a.p, "#toast"));
   await a.p.fill("#f-price", "0.01");
   await a.p.fill("#f-limit", "101");
   await a.p.click("#btn-next-2");
@@ -99,12 +118,32 @@ const metaStore = {};
   await a.p.waitForSelector("#btn-deploy");
   const review = await text(a.p, "#app-root");
   check("Trang xem lại ghi 120% và 2 vé/ví", review.includes("120% giá gốc") && review.includes("2 vé"));
+  // Lan 1: giao dich 1 (tao su kien) xong, nguoi dung TU CHOI giao dich 2 (tao hang ve)
+  await a.p.evaluate(() => { window.__rejectTxNo = 2; window.__txCount = 0; });
+  await a.p.click("#btn-deploy");
+  await a.p.waitForFunction(() => { const b = document.getElementById("btn-deploy"); return b && !b.disabled; }, null, { timeout: 60000 });
+  const afterReject = await (await core(A)).events(0);
+  check("Từ chối giao dịch 2: sự kiện #0 đã có trên chain, chưa có hạng vé", (await (await core(A)).nextEventId()) === 1n && afterReject.tierCount === 0n);
+  // Lan 2: bam Deploy lai -> dung lai su kien #0, khong tao su kien trung.
+  // Chain cuc bo chay rat nhanh, toast sau de toast truoc -> ghi lai moi toast da hien.
+  await a.p.evaluate(() => {
+    window.__toasts = [];
+    const seen = () => { const t = document.getElementById("toast"); if (t && !t.hidden) window.__toasts.push(t.textContent); };
+    new MutationObserver(seen).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["hidden", "class"] });
+  });
   await a.p.click("#btn-deploy");
   await a.p.waitForURL(/#\/events\/0/, { timeout: 60000 }).catch(() => {});
+  const toasts = await a.p.evaluate(() => window.__toasts.join(" | "));
+  check("Bấm Deploy lại: báo dùng lại sự kiện #0", toasts.includes("Dùng lại sự kiện #0"), toasts.slice(0, 160));
+  await a.p.waitForURL(/#\/events\/0/, { timeout: 60000 }).catch(() => {});
+  check("Không tạo sự kiện trùng: vẫn chỉ 1 sự kiện, sự kiện #0 có 1 hạng vé",
+    (await (await core(A)).nextEventId()) === 1n && (await (await core(A)).events(0)).tierCount === 1n);
+  check("Giờ kết thúc được lưu vào metadata", Number(metaStore[0] && metaStore[0].endTime) === Math.floor(new Date("2026-12-20T22:30").getTime() / 1000), JSON.stringify(metaStore[0] && metaStore[0].endTime));
   const e0 = await (await core(A)).events(0);
   check("A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet = 2", e0.maxResaleBps === 12000n && e0.maxPerWallet === 2n, `${e0.maxResaleBps} / ${e0.maxPerWallet}`);
   await waitText(a.p, "#app-root", "Trần 120%", 30000);
   check("Bảng Organizer hiện quy tắc sự kiện", (await text(a.p, "#app-root")).includes("Trần 120% · tối đa 2 vé/ví"));
+  check("Trang sự kiện hiện thời gian kết thúc", (await text(a.p, "#app-root")).includes("Thời gian kết thúc"));
 
   // ===== 2. B: toi da 2 ve/vi =====
   const b = await as(B);

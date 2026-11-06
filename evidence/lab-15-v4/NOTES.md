@@ -50,12 +50,13 @@ Hardhat 2.29, Solidity 0.8.20: **19/19 ca đạt** (`projectcore-v4.test.js`, lo
 
 ## Kiểm thử giao diện đầu-cuối
 
-Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **28/28 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
+Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **37/37 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
 
 1. Tạo sự kiện:
    - Wizard có ô trần giá (mặc định 110%) và ô số vé/ví (mặc định 4).
-   - Nhập 101 vé/ví bị chặn.
-   - Tạo sự kiện với trần 120% và 2 vé/ví; trên chain lưu `12000 / 2`.
+   - Giờ bắt đầu đã qua, giờ kết thúc trước giờ bắt đầu, số vé lẻ (1.5), giá quá 18 chữ số thập phân, 101 vé/ví: đều bị chặn trước khi gửi giao dịch.
+   - Người dùng **từ chối giao dịch 2** (tạo hạng vé): sự kiện #0 đã có trên chain nhưng chưa có hạng vé. Bấm Deploy lại thì web **dùng lại sự kiện #0**, chỉ tạo tiếp hạng vé — không có sự kiện trùng.
+   - Tạo sự kiện với trần 120% và 2 vé/ví; trên chain lưu `12000 / 2`; giờ kết thúc lưu vào metadata và hiện ở trang sự kiện.
 2. Giới hạn ví:
    - Trang sự kiện và trang thanh toán hiện "đã mua 0/2".
    - Nút + dừng ở 2.

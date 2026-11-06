@@ -1,8 +1,17 @@
+PASS Giờ bắt đầu đã qua bị chặn (hợp đồng sẽ không bán vé được) — Thời gian bắt đầu phải sau thời điểm hiện tại ít nhất 10 phút — sau giờ bắt đầu hợp đồng không bán vé nữa.
+PASS Giờ kết thúc trước giờ bắt đầu bị chặn — Thời gian kết thúc phải sau thời gian bắt đầu.
 PASS Wizard bước 2 có ô trần giá (mặc định 110%) và số vé/ví (mặc định 4)
+PASS Số vé lẻ (1.5) bị chặn trước khi gửi giao dịch — Tổng số vé phải là số nguyên từ 1 đến 1.000.000.
+PASS Giá quá 18 chữ số thập phân bị chặn — Nhập giá vé hợp lệ (lớn hơn 0, tối đa 18 chữ số thập phân, VD 0.02).
 PASS Số vé/ví 101 bị chặn trên giao diện — Số vé tối đa mỗi ví phải là số nguyên từ 0 đến 100.
 PASS Trang xem lại ghi 120% và 2 vé/ví
+PASS Từ chối giao dịch 2: sự kiện #0 đã có trên chain, chưa có hạng vé
+PASS Bấm Deploy lại: báo dùng lại sự kiện #0 — Bạn đã từ chối giao dịch trong ví. | Dùng lại sự kiện #0 đã tạo ở lần trước — đang tạo hạng vé Standard… | Ký xác nhận (miễn phí) để lưu ảnh & mô tả cho mọi ngư
+PASS Không tạo sự kiện trùng: vẫn chỉ 1 sự kiện, sự kiện #0 có 1 hạng vé
+PASS Giờ kết thúc được lưu vào metadata — 1797780600
 PASS A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet = 2 — 12000 / 2
 PASS Bảng Organizer hiện quy tắc sự kiện
+PASS Trang sự kiện hiện thời gian kết thúc
 PASS Trang sự kiện ghi trần 120% và giới hạn 2 vé/ví
 PASS Nút + dừng ở 2 vé (giới hạn ví) — Mua 2 vé = 2 giao dịch, xác nhận lần lượt trong ví. Ví của bạn đã mua 0/2 vé của sự kiện.
 PASS Thanh toán kiểm tra trước: ví đã mua 0/2
@@ -22,15 +31,24 @@ PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. G�
 PASS CTV quét mã của C → check-in ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
 PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
 PASS Dashboard: vé đã bán 2/10, doanh thu bán lần đầu 0.02 ETH (dù tab Organizer mở từ trước khi B mua) — Sự kiện11 đang bán Vé đã bán2 / 10còn 8 vé Doanh thu bán lần đầu0.02 ETH+ phí bản quyền bán lại: 0.0006 ETH Tiền chờ rút của ví0.0206 ETHRút tiền
-PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in vé #0FairTicket Demo v4 · khối 12004627 0x0cf09373… Cấp quyền CTV 0x90F7…b906FairTicket Demo v4 · khối 12004626 0x87595325… Vé #0 đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)FairTicket Demo
+PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in vé #0FairTicket Demo v4 · khối 12004627 0xfde9742c… Cấp quyền CTV 0x90F7…b906FairTicket Demo v4 · khối 12004626 0xe49876c5… Vé #0 đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)FairTicket Demo
 PASS Qua giờ bắt đầu: mintTicket → EventAlreadyStarted
 PASS Qua giờ bắt đầu: vẫn rao bán và mua lại được
 PASS Tạo sự kiện với trần 99.99% → InvalidResaleCap
+PASS Giờ bắt đầu đã qua bị chặn (hợp đồng sẽ không bán vé được) — Thời gian bắt đầu phải sau thời điểm hiện tại ít nhất 10 phút — sau giờ bắt đầu hợp đồng không bán vé nữa.
+PASS Giờ kết thúc trước giờ bắt đầu bị chặn — Thời gian kết thúc phải sau thời gian bắt đầu.
 PASS Wizard bước 2 có ô trần giá (mặc định 110%) và số vé/ví (mặc định 4)
+PASS Số vé lẻ (1.5) bị chặn trước khi gửi giao dịch — Tổng số vé phải là số nguyên từ 1 đến 1.000.000.
+PASS Giá quá 18 chữ số thập phân bị chặn — Nhập giá vé hợp lệ (lớn hơn 0, tối đa 18 chữ số thập phân, VD 0.02).
 PASS Số vé/ví 101 bị chặn trên giao diện — Số vé tối đa mỗi ví phải là số nguyên từ 0 đến 100.
 PASS Trang xem lại ghi 120% và 2 vé/ví
+PASS Từ chối giao dịch 2: sự kiện #0 đã có trên chain, chưa có hạng vé
+PASS Bấm Deploy lại: báo dùng lại sự kiện #0 — Bạn đã từ chối giao dịch trong ví. | Dùng lại sự kiện #0 đã tạo ở lần trước — đang tạo hạng vé Standard… | Ký xác nhận (miễn phí) để lưu ảnh & mô tả cho mọi ngư
+PASS Không tạo sự kiện trùng: vẫn chỉ 1 sự kiện, sự kiện #0 có 1 hạng vé
+PASS Giờ kết thúc được lưu vào metadata — 1797780600
 PASS A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet = 2 — 12000 / 2
 PASS Bảng Organizer hiện quy tắc sự kiện
+PASS Trang sự kiện hiện thời gian kết thúc
 PASS Trang sự kiện ghi trần 120% và giới hạn 2 vé/ví
 PASS Nút + dừng ở 2 vé (giới hạn ví) — Mua 2 vé = 2 giao dịch, xác nhận lần lượt trong ví. Ví của bạn đã mua 0/2 vé của sự kiện.
 PASS Thanh toán kiểm tra trước: ví đã mua 0/2
@@ -50,7 +68,7 @@ PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. G�
 PASS CTV quét mã của C → check-in ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
 PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
 PASS Dashboard: vé đã bán 2/10, doanh thu bán lần đầu 0.02 ETH (dù tab Organizer mở từ trước khi B mua) — Sự kiện11 đang bán Vé đã bán2 / 10còn 8 vé Doanh thu bán lần đầu0.02 ETH+ phí bản quyền bán lại: 0.0006 ETH Tiền chờ rút của ví0.0206 ETHRút tiền
-PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in vé #0FairTicket Demo v4 · khối 12004627 0x0cf09373… Cấp quyền CTV 0x90F7…b906FairTicket Demo v4 · khối 12004626 0x87595325… Vé #0 đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)FairTicket Demo
+PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in vé #0FairTicket Demo v4 · khối 12004627 0xfde9742c… Cấp quyền CTV 0x90F7…b906FairTicket Demo v4 · khối 12004626 0xe49876c5… Vé #0 đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)FairTicket Demo
 PASS Qua giờ bắt đầu: mintTicket → EventAlreadyStarted
 PASS Qua giờ bắt đầu: vẫn rao bán và mua lại được
 PASS Tạo sự kiện với trần 99.99% → InvalidResaleCap

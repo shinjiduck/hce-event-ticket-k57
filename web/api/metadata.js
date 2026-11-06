@@ -3,7 +3,7 @@
 // (luu string dai + anh base64 on-chain qua ton gas). Du lieu nay khong anh huong
 // logic hop dong - mat di cung khong lam sai ve/tien, chi mat phan trang tri.
 //
-// GET  /api/metadata?eventId=3        -> { description, location, address, province, ward, street, image, category } (hoac {} neu chua co)
+// GET  /api/metadata?eventId=3        -> { description, location, address, province, ward, street, image, category, endTime } (hoac {} neu chua co)
 // POST /api/metadata { eventId, data, timestamp, signature }
 //      -> chi Organizer cua su kien (theo dia chi tren contract) moi duoc ghi.
 //         signature = ky message duoc server tu dung lai tu (eventId, timestamp)
@@ -119,6 +119,7 @@ async function handlePost(req, res) {
     street: typeof data.street === "string" ? data.street.slice(0, 120) : "",
     image: typeof data.image === "string" && SAFE_IMAGE_RE.test(data.image) ? data.image : "",
     category: CATEGORY_IDS.includes(data.category) ? data.category : "other",
+    endTime: Number.isSafeInteger(data.endTime) && data.endTime > 0 ? data.endTime : 0,
   };
 
   try {

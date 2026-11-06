@@ -30,7 +30,7 @@
 
 ## 3. Hợp đồng `ProjectCore.sol` v4
 
-v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)**: thêm CTV soát vé, chặn vé sai sự kiện ngay trên hợp đồng, gỡ rao bán. **v4 (27/10)**: trần giá bán lại và số vé tối đa mỗi ví do Organizer đặt cho từng sự kiện, hợp đồng tự chặn mua vé sau giờ bắt đầu, phí bản quyền 5% khi bán lại. Test Hardhat **19/19** ca đạt: `evidence/lab-15-v4/projectcore-v4-test-log.txt`. Đã chạy trọn luồng giao diện trên chain cục bộ dùng **đúng bytecode v4 đang chạy trên Sepolia** (28/28 bước, `evidence/lab-15-v4/ui-e2e-v4-log.txt`).
+v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)**: thêm CTV soát vé, chặn vé sai sự kiện ngay trên hợp đồng, gỡ rao bán. **v4 (27/10)**: trần giá bán lại và số vé tối đa mỗi ví do Organizer đặt cho từng sự kiện, hợp đồng tự chặn mua vé sau giờ bắt đầu, phí bản quyền 5% khi bán lại. Test Hardhat **19/19** ca đạt: `evidence/lab-15-v4/projectcore-v4-test-log.txt`. Đã chạy trọn luồng giao diện trên chain cục bộ dùng **đúng bytecode v4 đang chạy trên Sepolia** (37/37 bước, `evidence/lab-15-v4/ui-e2e-v4-log.txt`).
 
 | Quy tắc (SPEC) | Hàm | Trạng thái |
 |---|---|---|
@@ -106,6 +106,10 @@ Bí mật (`BLOB_READ_WRITE_TOKEN`) chỉ nằm trong `web/.env` (không commit)
 | 27/10 | Lỗi hợp đồng hiện "unknown custom error" khi ví bọc dữ liệu lỗi | Tự tìm và giải mã mã lỗi theo ABI | (v3) |
 | 27/10 | Dashboard hiện hoạt động cũ ngay sau thao tác (cache 30s) | Dashboard và lịch sử vé luôn đọc log mới | (v3) |
 | 27/10 | Tab Organizer mở sẵn: người khác mua vé nhưng dashboard vẫn hiện "0 vé đã bán" tới khi tải lại trang (cache hạng vé không hết hạn) | Cache hạng vé hết hạn sau 15 giây, dashboard luôn đọc mới | (v4) |
+| 06/11 | Giao dịch 2 (tạo hạng vé) lỗi/bị từ chối → bấm Deploy lại tạo **sự kiện trùng** | Lưu mã sự kiện ngay sau giao dịch 1; bấm lại chỉ tạo tiếp hạng vé | (audit 06/11) |
+| 06/11 | Số vé lẻ (1.5) / giá quá 18 chữ số thập phân chỉ báo lỗi **sau khi** sự kiện đã tạo | Kiểm tra số vé và giá trước giao dịch 1 | (audit 06/11) |
+| 06/11 | Tạo được sự kiện có giờ bắt đầu đã qua → không ai mua vé được | Wizard yêu cầu giờ bắt đầu sau hiện tại ít nhất 10 phút | (audit 06/11) |
+| 06/11 | Ô "Thời gian kết thúc" nhập vào nhưng bị bỏ đi | Lưu vào metadata, hiện ở trang sự kiện; kiểm tra phải sau giờ bắt đầu | (audit 06/11) |
 
 ## 7. Việc còn lại
 
@@ -126,7 +130,11 @@ Bí mật (`BLOB_READ_WRITE_TOKEN`) chỉ nằm trong `web/.env` (không commit)
 - **Trần giá và giới hạn ví không sửa được** sau khi tạo sự kiện (cố ý — người mua biết trước luật chơi).
 - **Phí bản quyền cố định 5%** cho mọi sự kiện (hằng số `ROYALTY_BPS` trong hợp đồng), Organizer không tự chỉnh.
 - **Check-in**: mã QR có hạn 5 phút. Nếu chủ vé tự gửi mã cho người khác trong 5 phút đó thì người kia vẫn vào được, nhưng hợp đồng chỉ cho check-in 1 lần.
-- **Hợp đồng chỉ có giờ bắt đầu, không có giờ kết thúc**, nên check-in vẫn mở sau giờ bắt đầu.
+- **Hợp đồng chỉ có giờ bắt đầu, không có giờ kết thúc** (giờ kết thúc chỉ lưu trong metadata để hiển thị), nên check-in vẫn mở sau giờ bắt đầu.
+- **`createEvent` không kiểm tra giờ bắt đầu ở tương lai**: web chặn, nhưng gọi thẳng hợp đồng vẫn tạo được sự kiện trong quá khứ (không ai mua vé được).
+- **Vẫn rao bán / mua lại được sau khi sự kiện diễn ra** (R7 chưa làm): web ẩn nút mua với sự kiện đã diễn ra, gọi thẳng hợp đồng thì vẫn mua được.
+- **Chữ ký QR check-in chỉ được kiểm tra trên web**: hợp đồng chỉ kiểm tra người gọi là Organizer/CTV, nên Organizer/CTV có thể check-in bất kỳ vé nào của sự kiện (kể cả trước ngày diễn ra). Đây là giả định "ban tổ chức đáng tin" (Abuse 2 trong `ECONOMIC_RULES.md`).
+- **Chữ ký cập nhật metadata không gắn với nội dung**: trong 5 phút, ai lấy được chữ ký thì ghi được nội dung khác cho sự kiện đó (khó xảy ra vì gửi qua HTTPS).
 - **Phụ thuộc dịch vụ ngoài**: Vercel (web + metadata), Tenderly (lịch sử), publicnode (đọc chain khi chưa có ví), Google Maps. Hỏng dịch vụ nào thì phần tương ứng báo lỗi kèm nút "Thử lại", không ảnh hưởng dữ liệu trên chain.
 - Dữ liệu tỉnh/thành lấy từ provinces.open-api.vn ghi Quảng Ninh, Bắc Ninh, Đồng Nai là "Thành phố" — chưa đối chiếu với văn bản chính thức.
 

@@ -45,7 +45,7 @@ npx solc --bin --abi contracts/project/ProjectCore.sol
 
 ## Giao diện web (`web/`) — kết nối Sepolia
 
-> ✅ **Đang dùng hợp đồng v4** (27/10/2026): Organizer **tự đặt trần giá bán lại** (100–200%, mặc định 110%) và **số vé tối đa mỗi ví** cho từng sự kiện; hợp đồng **tự chặn mua vé mới sau giờ bắt đầu**; mỗi lần bán lại trả **5% phí bản quyền** cho Organizer. Giữ nguyên CTV soát vé, chặn vé sai sự kiện, gỡ rao bán từ v3. Test 19/19 + giao diện 28/28: `evidence/lab-15-v4/`. Địa chỉ cũ không dùng nữa: v3 `0x7c574216844854C04878B41D68d58F50a54cA0AF`, v2 `0x0f96cafe4C603D706c786C503A5c903090706916` (dữ liệu demo 13–20/10 nằm lại ở đó), v1 `0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`.
+> ✅ **Đang dùng hợp đồng v4** (27/10/2026): Organizer **tự đặt trần giá bán lại** (100–200%, mặc định 110%) và **số vé tối đa mỗi ví** cho từng sự kiện; hợp đồng **tự chặn mua vé mới sau giờ bắt đầu**; mỗi lần bán lại trả **5% phí bản quyền** cho Organizer. Giữ nguyên CTV soát vé, chặn vé sai sự kiện, gỡ rao bán từ v3. Test 19/19 + giao diện 37/37: `evidence/lab-15-v4/`. Địa chỉ cũ không dùng nữa: v3 `0x7c574216844854C04878B41D68d58F50a54cA0AF`, v2 `0x0f96cafe4C603D706c786C503A5c903090706916` (dữ liệu demo 13–20/10 nằm lại ở đó), v1 `0x09967aeeb595236e74BD5F283a9Ff1960e695AF2`.
 
 | Thành phần | Giá trị của nhóm |
 |---|---|
