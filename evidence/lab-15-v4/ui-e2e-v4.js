@@ -35,6 +35,14 @@ const walletMock = (addr) => `
   };
 })();`;
 
+// Ngay tinh theo luc chay test (web chan ngay da qua): su kien dien ra sau 45 ngay.
+const localInput = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+const atDay = (days, h, m) => { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(h, m, 0, 0); return localInput(d); };
+const PAST_START = atDay(-1, 10, 0);
+const EVENT_START = atDay(45, 19, 0);
+const EVENT_END_BAD = atDay(45, 18, 0);
+const EVENT_END = atDay(45, 22, 30);
+
 const metaStore = {};
 (async () => {
   const provider = new ethers.JsonRpcProvider(NODE);
@@ -84,18 +92,18 @@ const metaStore = {};
   await a.p.fill("#f-name", "FairTicket Demo v4");
   await a.p.selectOption("#f-cat", "music");
   await a.p.fill("#f-desc", "Sự kiện test hợp đồng v4");
-  await a.p.fill("#f-start", "2025-01-01T10:00");
+  await a.p.fill("#f-start", PAST_START);
   await a.p.fill("#f-loc", "Nhà văn hóa Trung tâm");
   await a.p.selectOption("#f-prov", "Thành phố Huế");
   await a.p.fill("#f-ward", "Phường An Cựu");
   await a.p.fill("#f-street", "99 Hồ Đắc Di");
   await a.p.click("#btn-next-1");
   check("Giờ bắt đầu đã qua bị chặn (hợp đồng sẽ không bán vé được)", await waitText(a.p, "#toast", "phải sau thời điểm hiện tại", 5000), await text(a.p, "#toast"));
-  await a.p.fill("#f-start", "2026-12-20T19:00");
-  await a.p.fill("#f-end", "2026-12-20T18:00");
+  await a.p.fill("#f-start", EVENT_START);
+  await a.p.fill("#f-end", EVENT_END_BAD);
   await a.p.click("#btn-next-1");
   check("Giờ kết thúc trước giờ bắt đầu bị chặn", await waitText(a.p, "#toast", "kết thúc phải sau", 5000), await text(a.p, "#toast"));
-  await a.p.fill("#f-end", "2026-12-20T22:30");
+  await a.p.fill("#f-end", EVENT_END);
   await a.p.click("#btn-next-1");
   await a.p.waitForSelector("#f-cap");
   check("Wizard bước 2 có ô trần giá (mặc định 110%) và số vé/ví (mặc định 4)",
@@ -138,7 +146,7 @@ const metaStore = {};
   await a.p.waitForURL(/#\/events\/0/, { timeout: 60000 }).catch(() => {});
   check("Không tạo sự kiện trùng: vẫn chỉ 1 sự kiện, sự kiện #0 có 1 hạng vé",
     (await (await core(A)).nextEventId()) === 1n && (await (await core(A)).events(0)).tierCount === 1n);
-  check("Giờ kết thúc được lưu vào metadata", Number(metaStore[0] && metaStore[0].endTime) === Math.floor(new Date("2026-12-20T22:30").getTime() / 1000), JSON.stringify(metaStore[0] && metaStore[0].endTime));
+  check("Giờ kết thúc được lưu vào metadata", Number(metaStore[0] && metaStore[0].endTime) === Math.floor(new Date(EVENT_END).getTime() / 1000), JSON.stringify(metaStore[0] && metaStore[0].endTime));
   const e0 = await (await core(A)).events(0);
   check("A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet = 2", e0.maxResaleBps === 12000n && e0.maxPerWallet === 2n, `${e0.maxResaleBps} / ${e0.maxPerWallet}`);
   await waitText(a.p, "#app-root", "Trần 120%", 30000);

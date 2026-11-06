@@ -8,7 +8,7 @@ PASS Trang xem lại ghi 120% và 2 vé/ví
 PASS Từ chối giao dịch 2: sự kiện #0 đã có trên chain, chưa có hạng vé
 PASS Bấm Deploy lại: báo dùng lại sự kiện #0 — Bạn đã từ chối giao dịch trong ví. | Dùng lại sự kiện #0 đã tạo ở lần trước — đang tạo hạng vé Standard… | Ký xác nhận (miễn phí) để lưu ảnh & mô tả cho mọi ngư
 PASS Không tạo sự kiện trùng: vẫn chỉ 1 sự kiện, sự kiện #0 có 1 hạng vé
-PASS Giờ kết thúc được lưu vào metadata — 1797780600
+PASS Giờ kết thúc được lưu vào metadata — 1797867000
 PASS A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet = 2 — 12000 / 2
 PASS Bảng Organizer hiện quy tắc sự kiện
 PASS Trang sự kiện hiện thời gian kết thúc
@@ -45,7 +45,7 @@ PASS Trang xem lại ghi 120% và 2 vé/ví
 PASS Từ chối giao dịch 2: sự kiện #0 đã có trên chain, chưa có hạng vé
 PASS Bấm Deploy lại: báo dùng lại sự kiện #0 — Bạn đã từ chối giao dịch trong ví. | Dùng lại sự kiện #0 đã tạo ở lần trước — đang tạo hạng vé Standard… | Ký xác nhận (miễn phí) để lưu ảnh & mô tả cho mọi ngư
 PASS Không tạo sự kiện trùng: vẫn chỉ 1 sự kiện, sự kiện #0 có 1 hạng vé
-PASS Giờ kết thúc được lưu vào metadata — 1797780600
+PASS Giờ kết thúc được lưu vào metadata — 1797867000
 PASS A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet = 2 — 12000 / 2
 PASS Bảng Organizer hiện quy tắc sự kiện
 PASS Trang sự kiện hiện thời gian kết thúc
