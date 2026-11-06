@@ -12,7 +12,7 @@ Theo phân vai Lab 12–15 trong `docs/PROJECT_PLAN.md` (Mai Bá Linh: Giao di�
 | 2 phút | Demo trực tiếp trên URL công khai: kết nối ví, chạy luồng thành công (tạo sự kiện → tạo hạng vé → mint vé → xem QR) | **Mai Bá Linh** | `web/` (DApp frontend đã deploy) |
 | 1.5 phút | Demo ca bị từ chối (rao bán vượt trần của sự kiện revert `ResalePriceTooHigh`, mua quá số vé/ví revert `WalletLimitReached`, người lạ check-in revert `NotCheckInAuthorized`, CTV bị thu hồi quyền quét vé bị từ chối) | **Mai Bá Linh** & **Nguyễn Hoàng Thảo** | `contracts/project/ProjectCore.sol` (quy tắc R3/R5) |
 | 1 phút | Hành trình audit/vá lỗi bảo mật đã làm (Lab 10, 13, 14) — phòng chống Reentrancy bằng Pull-Payment | **Nguyễn Hoàng Thảo** | `docs/AI_JOURNAL.md` + `evidence/lab-13/`, `evidence/lab-14/` |
-| 1 phút | Hướng phát triển tiếp theo (QR động chống chụp màn hình, phí bản quyền) + câu hỏi thảo luận | **Cả 2** (Linh & Thảo) | `docs/ECONOMIC_RULES.md` |
+| 1 phút | Đã làm thêm ngoài đề (CTV soát vé, trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%, QR check-in ký bằng ví) · hướng tiếp theo (hạn bán lại R7, kiểm tra chữ ký check-in ngay trên hợp đồng) + câu hỏi thảo luận | **Cả 2** (Linh & Thảo) | `docs/ECONOMIC_RULES.md` |
 
 **Tổng thời lượng:** 6.5 phút — nếu đề bài quy định đúng khung thời gian khác, giãn/co lại các mục trên.
 

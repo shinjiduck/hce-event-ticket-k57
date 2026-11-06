@@ -1,6 +1,6 @@
 # TIẾN ĐỘ DỰ ÁN — FairTicket
 
-> Cập nhật: **27/10/2026** · Người cập nhật: Nguyễn Hoàng Thảo (soạn cùng Claude Code)
+> Cập nhật: **06/11/2026** · Người cập nhật: Nguyễn Hoàng Thảo (soạn cùng Claude Code)
 > Chi tiết từng trang của website: [WEBSITE.md](WEBSITE.md)
 > Tài liệu này ghi trạng thái thật của dự án tại thời điểm cập nhật: cái gì đã chạy, bằng chứng ở đâu, cái gì còn thiếu. Khi làm thêm, cập nhật bảng ở mục 6 và 7.
 
@@ -10,7 +10,7 @@
 |---|---|
 | DApp công khai | ✅ https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app |
 | Hợp đồng | ✅ `ProjectCore.sol` **v4** trên Sepolia — [`0x0845EEB1Ed93C373173680a859fB255f168b9Fd0`](https://sepolia.etherscan.io/address/0x0845EEB1Ed93C373173680a859fB255f168b9Fd0) (deploy 27/10, [giao dịch](https://sepolia.etherscan.io/tx/0x69af8ed83e21fd2ffba929d63ec7d3f64c413082814831921765558b916fc2b2)) |
-| Mốc bắt buộc Lab 8 → 15 | ✅ Lab 8–14 xong · ⚠️ Lab 15 còn thiếu kế hoạch thuyết trình (tên người + mã giao dịch) và tag `v0.1-demo` |
+| Mốc bắt buộc Lab 8 → 15 | ✅ Lab 8–14 xong · ⚠️ Lab 15 còn thiếu mã giao dịch demo trên v4 và tag `v0.1-demo` (kế hoạch thuyết trình đã có tên người) |
 | Giao diện V2 (8 phase theo master prompt) | ✅ Cả 8 phase đã có phần chạy được, đã deploy |
 | Giao dịch thật trên chain | Hợp đồng v4 mới deploy, **chưa có sự kiện** — cần tạo lại dữ liệu demo. Lịch sử v2 (13–20/10) ở mục 9 |
 | Việc gấp nhất | Tạo sự kiện demo trên v4 và chạy luồng đầy đủ bằng ví thật, có CTV và bán lại có phí 5% (mục 7) |
@@ -26,7 +26,7 @@
 | 12 | Gate Review 1 | ✅ | `docs/GATE_REVIEW_1.md`, `evidence/lab-12/` |
 | 13 | Test ca tấn công / gian lận | ✅ | `evidence/lab-13/` (reentrancy + negative test). Hợp đồng luyện tập `VulnerableBank`, `Attacker` (commit `fbcb92d`, Linh) |
 | 14 | Audit chéo | ✅ | `evidence/lab-14/`, `docs/AI_JOURNAL.md` (Lab 14) |
-| 15 | URL DApp công khai + kế hoạch thuyết trình | ⚠️ | URL ✅ · `docs/PRESENTATION_PLAN.md` còn *(điền tên)* và chưa có mã giao dịch · chưa gắn tag `v0.1-demo` |
+| 15 | URL DApp công khai + kế hoạch thuyết trình | ⚠️ | URL ✅ · `docs/PRESENTATION_PLAN.md` đã phân vai, còn thiếu mã giao dịch demo trên v4 · chưa gắn tag `v0.1-demo` |
 
 ## 3. Hợp đồng `ProjectCore.sol` v4
 

@@ -247,3 +247,72 @@ Sau khi sửa: chụp lại toàn bộ 6 trang (desktop 1440px + mobile 390px) k
 - Chọn Vercel làm nền tảng deploy chính thức để hỗ trợ cả web tĩnh lẫn Serverless Function `/api/metadata`.
 
 **Kết quả:** DApp hoàn thiện đầy đủ, trực quan và chạy ổn định trên mạng Sepolia tại [https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app](https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app).
+
+## Lab 15+ — Hợp đồng v3/v4, thiết kế lại giao diện và audit (27/10 – 06/11/2026)
+
+**Công cụ:** Claude (Claude Code)
+
+### Hợp đồng v3 — CTV soát vé (27/10)
+
+**Bối cảnh:** khi làm màn hình check-in, nhóm hỏi cách "phân luồng CTV và thu hồi". Trước đó chỉ ví Organizer check-in được, nên muốn có người soát vé ở cửa thì phải đưa ví Organizer cho họ, mà ví này còn có quyền rút tiền và tạo hạng vé.
+
+**Thay đổi:** `setStaff(eventId, ví, allowed)` để Organizer cấp hoặc thu hồi quyền soát vé cho từng sự kiện, có hiệu lực ngay. CTV **chỉ** check-in được, không rút tiền, không tạo hạng vé. Nhân lúc phải deploy lại, nhóm gộp thêm 2 lỗ hổng đã ghi từ trước: `checkIn(eventId, ticketId)` để hợp đồng tự chặn vé của sự kiện khác (`TicketNotInEvent`), và `cancelResale` cho chủ vé gỡ rao bán. Test Hardhat 13/13 (`evidence/lab-15-v3/`).
+
+**Cách kiểm thử mới:** chép **đúng bytecode đang chạy trên Sepolia** sang chain Hardhat cục bộ (cùng địa chỉ, cùng chainId, cùng số khối), rồi dùng Playwright chạy giao diện thật với 4 ví giả lập. Vòng test đầu tiên bắt được 3 lỗi giao diện:
+- rao bán xong thì vé biến khỏi tab "Sắp diễn ra", nên không thấy nút gỡ;
+- lỗi hợp đồng hiện "unknown custom error" khi ví bọc dữ liệu lỗi nhiều lớp;
+- dashboard hiện hoạt động cũ do cache 30 giây.
+
+### Hợp đồng v4 — luật chơi theo từng sự kiện (27/10)
+
+**Bối cảnh:** nhóm chọn 3 tính năng từ danh sách AI gợi ý: chặn mua vé sau giờ bắt đầu ngay trên hợp đồng, giới hạn số vé mỗi ví, phí bản quyền 5% khi bán lại. Nhóm cũng đề xuất **bỏ hẳn trần giá** vì đã có giới hạn vé/ví.
+
+**AI phản biện:** một người có thể dùng nhiều ví, nên giới hạn vé/ví chỉ làm việc gom vé tốn công hơn. Nếu bỏ trần thì không còn gì chặn việc bán lại giá cao, và quy tắc cốt lõi R3 của đề tài mất tác dụng.
+
+**Thay đổi:** `createEvent(name, startTime, maxResaleBps, maxPerWallet)`.
+- Trần giá bán lại do Organizer chọn, từ 100% đến 200%.
+- Giới hạn vé/ví: 0 nghĩa là không giới hạn, tối đa 100.
+- `mintTicket` revert `EventAlreadyStarted` khi sự kiện đã bắt đầu.
+- `buyResaleTicket` chia 5% cho Organizer, 95% cho người bán, làm tròn xuống nên không mất wei.
+
+Test Hardhat 19/19. Bài test giao diện bắt được thêm một lỗi có từ trước: dashboard của tab Organizer mở sẵn không cập nhật số vé đã bán, vì cache hạng vé không bao giờ hết hạn.
+
+**Một lỗi của chính môi trường test:** `hardhat_mine` mặc định cộng 1 giây cho mỗi khối, nên đào 12 triệu khối đẩy đồng hồ chain đi khoảng 139 ngày. Vì vậy v4 báo `EventAlreadyStarted` cho một sự kiện ở tương lai. Cách xử lý là đào với khoảng cách 0 giây giữa các khối.
+
+### Thiết kế lại giao diện (06/11)
+
+- Hiệu ứng chuyển động: phần tử hiện dần khi cuộn, thẻ nổi lên khi rê chuột, modal và toast bật lên. Tất cả tôn trọng `prefers-reduced-motion`.
+- Trang tạo sự kiện chia 2 cột, có thẻ xem trước cập nhật ngay khi gõ và khung tóm tắt quy tắc on-chain.
+- Nhóm đưa vào một prompt thiết kế "Cinematic Dark Neon Purple". AI đổi toàn bộ hệ màu bằng design token, làm hero mới và thẻ sự kiện kính tối.
+  - Thẻ số liệu ở hero chỉ đọc số thật từ hợp đồng. Prompt cũng yêu cầu không bịa số.
+  - Mã QR giữ nền trắng để máy quét đọc được.
+- Mỗi lần đổi giao diện đều chạy lại bài test đầu-cuối. Đợt này test bắt được:
+  - bản đồ xem trước chạy sau khi đã rời bước 1, gây lỗi `null`;
+  - header bị trắng khi cuộn, do một quy tắc CSS cũ ghi đè nền mới;
+  - nút lọc đang chọn bị chữ trắng trên nền trắng khi chuyển sang nền tối.
+
+### Audit tổng thể (06/11)
+
+AI đọc lại hợp đồng, API metadata và các luồng chính trên web. Không có lỗi làm mất tiền hay mất vé. Tìm được 4 lỗi logic ở web, nhóm quyết định **chỉ sửa phía web, không deploy lại hợp đồng**:
+1. Giao dịch 2 (tạo hạng vé) lỗi hoặc bị từ chối, bấm Deploy lại sẽ tạo sự kiện trùng. Đã sửa: lưu mã sự kiện ngay sau giao dịch 1.
+2. Số vé lẻ hoặc giá sai định dạng chỉ báo lỗi sau khi sự kiện đã tạo. Đã sửa: kiểm tra trước giao dịch 1.
+3. Tạo được sự kiện có giờ bắt đầu đã qua.
+4. Ô "Thời gian kết thúc" nhập vào nhưng bị bỏ đi.
+
+Bài test thêm 9 bước, trong đó có kịch bản giả lập người dùng bấm "Từ chối" ở giao dịch 2. Tổng cộng 37/37 bước đạt.
+
+Các giới hạn của hợp đồng ghi vào `PROGRESS.md` mục 8:
+- không kiểm tra giờ bắt đầu khi gọi thẳng hợp đồng;
+- vẫn bán lại được sau khi sự kiện đã diễn ra;
+- chữ ký QR chỉ được kiểm tra trên web;
+- chữ ký metadata không gắn với nội dung.
+
+**Phần do nhóm tự quyết định (không phải AI đề xuất):**
+- Thêm vai trò CTV soát vé, và chọn hướng "cấp/thu hồi quyền theo từng sự kiện" thay vì dùng chung ví Organizer.
+- Chọn 3 tính năng v4 trong danh sách gợi ý.
+- Sau phản biện, chọn **Organizer tự đặt trần cho từng sự kiện** (mặc định 110%) thay vì bỏ trần hoặc giữ trần cố định.
+- Chọn **Organizer tự đặt số vé tối đa mỗi ví** thay vì dùng một con số cố định.
+- Chọn **chỉ chặn mua vé mới** sau giờ bắt đầu; rao bán, mua lại và check-in vẫn được.
+- Đưa ra hướng thiết kế và prompt "Cinematic Dark Neon Purple".
+- Sau audit, chọn chỉ sửa web; các giới hạn của hợp đồng được ghi rõ để nói khi thuyết trình.
+

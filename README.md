@@ -41,7 +41,10 @@ Contract chính: [contracts/project/ProjectCore.sol](contracts/project/ProjectCo
 npx solc --bin --abi contracts/project/ProjectCore.sol
 ```
 
-**Kiểm thử tự động (ca hợp lệ + ca vi phạm quy tắc R3):** xem [evidence/lab-11/resale.test.js](evidence/lab-11/resale.test.js) và log kết quả tại [evidence/lab-11/test-log.txt](evidence/lab-11/test-log.txt).
+**Kiểm thử tự động:**
+- Hợp đồng v4 (bản đang dùng) — 19 ca Hardhat: [evidence/lab-15-v4/projectcore-v4.test.js](evidence/lab-15-v4/projectcore-v4.test.js), log [projectcore-v4-test-log.txt](evidence/lab-15-v4/projectcore-v4-test-log.txt).
+- Giao diện đầu-cuối — 37 bước trên chain cục bộ chạy đúng bytecode Sepolia: [evidence/lab-15-v4/ui-e2e-v4.js](evidence/lab-15-v4/ui-e2e-v4.js), log [ui-e2e-v4-log.txt](evidence/lab-15-v4/ui-e2e-v4-log.txt), cách chạy lại ở [NOTES.md](evidence/lab-15-v4/NOTES.md).
+- Bản gốc Lab 11 (ca hợp lệ + vi phạm R3): [evidence/lab-11/resale.test.js](evidence/lab-11/resale.test.js), log [test-log.txt](evidence/lab-11/test-log.txt).
 
 ## Giao diện web (`web/`) — kết nối Sepolia
 

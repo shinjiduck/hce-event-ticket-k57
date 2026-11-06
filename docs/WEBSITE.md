@@ -1,6 +1,6 @@
 # TIẾN ĐỘ WEBSITE — FairTicket
 
-> Cập nhật: **27/10/2026** — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (37/37, `evidence/lab-15-v4/`).
+> Cập nhật: **06/11/2026** (giao diện tối tím neon, audit logic) — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (37/37, `evidence/lab-15-v4/`).
 > URL công khai: https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
 > Mã nguồn: thư mục `web/` · Tiến độ chung của cả dự án (Lab, hợp đồng): [PROGRESS.md](PROGRESS.md)
 
@@ -21,6 +21,15 @@
 
 ## 2. Từng trang
 
+### 2.0 Giao diện (thiết kế lại 06/11)
+
+| Hạng mục | Chi tiết |
+|---|---|
+| Phong cách | Tối, tím neon (Cinematic Dark Neon Purple): nền `#090911`, thẻ `#1C162B`, tím `#9657FF`/`#7C3AED`. Đổi qua design token ở đầu khối theme trong `styles.css`, nên mọi trang đổi theo |
+| Font | Tiêu đề lớn: Barlow Condensed in hoa · khẩu hiệu: Playfair Display nghiêng · chữ thường: Be Vietnam Pro (hiển thị tiếng Việt tốt hơn Inter) |
+| Hiệu ứng | Đổi trang trượt lên · thẻ hiện dần khi cuộn · thẻ nổi lên + ảnh zoom khi rê chuột · thẻ vé ở hero lơ lửng · nút gradient chuyển màu · modal/toast bật lên. Tắt hết khi máy bật `prefers-reduced-motion` |
+| Giữ nguyên | Mã QR luôn nền trắng để máy quét đọc được; mọi id ô nhập, luồng và lệnh gọi hợp đồng không đổi (bài test đầu-cuối 37/37) |
+
 ### 2.1 Phần chung (header, footer, ví)
 
 | Chức năng | Trạng thái |
@@ -36,11 +45,13 @@
 
 | Chức năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Thanh danh mục (Nhạc sống, Nghệ thuật, Thể thao, Workshop, Hội thảo, Trải nghiệm, Khác) | ✅ | |
-| Carousel sự kiện sắp diễn ra (tự chuyển, dừng khi rê chuột, vuốt trên mobile) | ✅ | Hiện chỉ có slide giới thiệu vì chưa có sự kiện nào ở tương lai |
-| Sự kiện nổi bật · Sắp diễn ra · Khám phá theo danh mục (có đếm) | ✅ | Dữ liệu thật; không có xếp hạng hay số liệu tự đặt ra |
+| Hero "FEEL THE EVENT. / Own the Moment." + 2 nút (Khám phá sự kiện · Tìm hiểu FairTicket) | 🟢 | Thay carousel cũ (06/11) |
+| Thẻ vé nổi ở hero | 🟢 | Lấy sự kiện sắp diễn ra gần nhất đã mở bán; chưa có thì ghi rõ "Vé mẫu" |
+| Thẻ số liệu ở hero (số sự kiện, vé đã phát hành, sắp diễn ra) | 🟢 | Đọc thẳng từ hợp đồng, chỉ hiện khi đã có sự kiện — không tự đặt số |
+| Thanh danh mục (Âm nhạc, Nghệ thuật, Thể thao, Workshop, Hội thảo, Trải nghiệm, Khác) | ✅ | Khối "Khám phá theo danh mục" cũ đã bỏ (trùng chức năng) |
+| Sự kiện nổi bật · Sắp diễn ra | ✅ | Dữ liệu thật |
 | Vé bán lại minh bạch | ✅ | Đang trống vì chưa có vé nào được rao bán |
-| Vì sao chọn FairTicket | ✅ | |
+| Vì sao chọn FairTicket (3 lợi ích: vé xác minh · mua bán lại minh bạch · quản lý vé bằng ví) | ✅ | Mô tả đúng tính năng đã làm |
 
 ### 2.3 Khám phá sự kiện — `#/events`
 
@@ -83,7 +94,12 @@
 
 | Chức năng | Trạng thái | Ghi chú |
 |---|---|---|
-| 3 bước: Thông tin → Cấu hình vé → Triển khai (2 giao dịch + 1 chữ ký) | ✅ | Sự kiện #3 tạo thật ngày 20/10, ảnh và mô tả đã lưu lên server |
+| 3 bước: Thông tin → Cấu hình vé → Triển khai (2 giao dịch + 1 chữ ký) | ✅ | Sự kiện #3 tạo thật ngày 20/10 (v2), ảnh và mô tả đã lưu lên server |
+| Bố cục 2 cột: form chia khối + thẻ xem trước cập nhật khi gõ + khung quy tắc on-chain (giá bán lại tối đa, doanh thu nếu bán hết) | 🟢 | 06/11 |
+| Trần giá bán lại (100–200%) và số vé tối đa mỗi ví | 🟢 | v4 |
+| Chặn giờ bắt đầu đã qua (ít nhất 10 phút sau hiện tại), giờ kết thúc trước giờ bắt đầu, số vé lẻ, giá sai định dạng | 🟢 | Audit 06/11 — kiểm tra trước khi gửi giao dịch |
+| Giao dịch 2 lỗi/bị từ chối → bấm Deploy lại chỉ tạo tiếp hạng vé, không tạo sự kiện trùng | 🟢 | Audit 06/11 — test giả lập bấm "Từ chối" |
+| Giờ kết thúc lưu vào metadata, hiện ở trang sự kiện | 🟢 | Audit 06/11 |
 | Danh mục, mô tả, ảnh (tự nén ≤1600px) | ✅ | |
 | **Địa chỉ kiểu TMĐT:** Tỉnh/Thành → Phường/Xã (gõ để tìm) → số nhà; chặn phường không thuộc tỉnh | 🟢 | 34 tỉnh / 3.321 phường-xã theo đơn vị hành chính mới |
 | Bản đồ xem trước, cập nhật khi đang gõ | 🟢 | |
@@ -134,7 +150,7 @@
 | # | Việc | Ai |
 |---|---|---|
 | 1 | **Test bằng ví thật** theo thứ tự: tạo sự kiện ở ngày tương lai → ví B mua 2 vé → B rao bán lại (thử giá vượt trần phải bị chặn) → ví C mua lại (hộp xác nhận ghi phí bản quyền 5%) → C tạo mã check-in → Organizer quét bằng camera điện thoại → kiểm tra Dashboard | Cả nhóm |
-| 2 | Gán danh mục và địa chỉ cho sự kiện cũ (đang hiện "Khác"): #0 và #2 bằng ví `0x4f99…`, #1 bằng ví `0x82d0…19A7` | Thảo + chủ ví #1 |
+| 2 | ~~Gán danh mục cho sự kiện cũ~~ — không cần: sự kiện cũ nằm ở hợp đồng v2 | — |
 | 3 | Lưu mã giao dịch từ bước 1 vào `docs/PRESENTATION_PLAN.md` | Cả nhóm |
 | 4 | (Tuỳ chọn) Thêm lọc theo khoảng giá / khoảng ngày ở trang Khám phá | — |
 
@@ -153,5 +169,5 @@
 | Công nghệ | HTML/CSS/JS thuần, không cần build; ethers.js 6.13.4, qrcode-generator, jsQR (CDN) |
 | Định tuyến | Hash router: `#/`, `#/events`, `#/events/:id`, `#/checkout/...`, `#/resale`, `#/create`, `#/my-tickets`, `#/my-events` (`#/organizer`), `#/check-in` |
 | Tệp chính | `web/index.html`, `web/styles.css`, `web/app.js`, `web/api/metadata.js`, `web/assets/vn-units.json`, `web/ProjectCore.abi.json` |
-| Đọc chain | Ví (nếu đúng Sepolia) → không có thì publicnode; lịch sử qua Tenderly từ khối `11904408` |
+| Đọc chain | Ví (nếu đúng Sepolia) → không có thì publicnode; lịch sử qua Tenderly từ khối `12004619` (khối deploy v4) |
 | Bảo mật | Không có private key hay API key trên frontend; token Blob chỉ nằm ở Vercel / `web/.env` (không commit); ảnh và thuộc tính HTML được lọc chống XSS |
