@@ -50,7 +50,7 @@ Hardhat 2.29, Solidity 0.8.20: **19/19 ca đạt** (`projectcore-v4.test.js`, lo
 
 ## Kiểm thử giao diện đầu-cuối
 
-Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **37/37 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
+Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **40/40 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
 
 1. Tạo sự kiện:
    - Wizard có ô trần giá (mặc định 110%) và ô số vé/ví (mặc định 4).
@@ -71,7 +71,11 @@ Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hard
    - Hộp xác nhận ghi "phí bản quyền 5%: 0.0006 ETH".
    - Trên chain, Organizer nhận thêm 0.0006 ETH và người bán nhận 0.0114 ETH.
    - Vé mua lại không tính vào giới hạn ví.
-5. Check-in: cấp quyền CTV, CTV quét mã QR, check-in được ghi lên chain.
+5. Check-in:
+   - Cấp quyền CTV.
+   - Giải mã chính ảnh QR trong hộp vé: ra đúng link `…/?checkin=FT1:…&event=0`.
+   - Mở link trên trình duyệt không có ví: hiện nút "Mở bằng ứng dụng MetaMask", link vẫn giữ nguyên mã.
+   - CTV mở link (giống quét bằng app camera): trang tự điền mã, tự kiểm tra, check-in được ghi lên chain; sau đó mã bị xoá khỏi URL.
 6. Dashboard: có dòng "phí bản quyền bán lại: 0.0006 ETH", và mục hoạt động đổi chủ ghi kèm phí.
 7. Sau giờ bắt đầu (tua giờ chain):
    - Mua vé mới thì nhận `EventAlreadyStarted`.

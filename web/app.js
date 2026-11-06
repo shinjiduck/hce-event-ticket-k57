@@ -384,7 +384,7 @@
     el.setAttribute("role", "dialog");
     el.setAttribute("aria-label", "Mã check-in phóng to");
     el.innerHTML = `<div class="qr-fullscreen__code"></div><div class="qr-fullscreen__label">${escapeHtml(label)} · tăng độ sáng màn hình · chạm để đóng</div>`;
-    renderQrInto(el.querySelector(".qr-fullscreen__code"), code, "Alphanumeric");
+    renderQrInto(el.querySelector(".qr-fullscreen__code"), code, /^FT1:/.test(code) ? "Alphanumeric" : "Byte");
     const close = () => el.remove();
     el.addEventListener("click", close);
     el.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
@@ -447,18 +447,19 @@
     overlay.querySelector('[data-action="goto"]').addEventListener("click", close);
 
     overlay.querySelector("#tm-zoom")?.addEventListener("click", () => {
-      const code = overlay.querySelector("#modal-qr").dataset.code;
-      if (code) showQrFullscreen(code, "Vé #" + t.id);
+      const qrEl = overlay.querySelector("#modal-qr");
+      if (qrEl.dataset.link || qrEl.dataset.code) showQrFullscreen(qrEl.dataset.link || qrEl.dataset.code, "Vé #" + t.id);
     });
     const makeBtn = overlay.querySelector("#tm-make-code");
     makeBtn?.addEventListener("click", () => withBusy(makeBtn, async () => {
       requireWallet();
-      const { code, expiresAt } = await createCheckinCode(t.id);
+      const { code, link, expiresAt } = await createCheckinCode(t.id, t.eventId);
       const qrEl = overlay.querySelector("#modal-qr");
       qrEl.classList.add("is-dynamic");
       qrEl.classList.remove("is-expired");
       qrEl.dataset.code = code;
-      renderQrInto(qrEl, code, "Alphanumeric");
+      qrEl.dataset.link = link;
+      renderQrInto(qrEl, link);
       overlay.querySelector("#tm-zoom").hidden = false;
       makeBtn.textContent = "Tạo mã mới";
       clearInterval(codeTimer);
@@ -3162,16 +3163,45 @@
     return `FairTicket check-in: vé #${ticketId} lúc ${ts}`;
   }
 
-  async function createCheckinCode(ticketId) {
+  async function createCheckinCode(ticketId, eventId) {
     if (!signer) throw userError("Kết nối ví chủ vé để tạo mã check-in.");
     const ts = Date.now();
     const sig = await signer.signMessage(checkinMessage(ticketId, ts));
-    return { code: `FT1:${ticketId}:${ts}:${sig.slice(2).toUpperCase()}`, expiresAt: ts + CHECKIN_TTL_MS };
+    const code = `FT1:${ticketId}:${ts}:${sig.slice(2).toUpperCase()}`;
+    return { code, link: checkinLink(code, eventId), expiresAt: ts + CHECKIN_TTL_MS };
+  }
+
+  // QR chua LINK thay vi chi chuoi FT1: quet bang app camera bat ky cung mo
+  // dung trang check-in voi ma dien san. Dung tham so ?checkin= (khong dung #)
+  // de link con nguyen khi di qua deep link mo app MetaMask. Bao mat khong doi:
+  // link chi cho ma di, trang check-in van kiem chu ky + han 5 phut + chu ve.
+  function checkinLink(code, eventId) {
+    const base = location.origin + location.pathname.replace(/index\.html$/, "");
+    return `${base}?checkin=${encodeURIComponent(code)}${eventId !== undefined && eventId !== null ? "&event=" + eventId : ""}`;
+  }
+  // Link mo trang hien tai ben trong ung dung MetaMask (trinh duyet co san vi).
+  function metamaskDeepLink(url) {
+    return "https://metamask.app.link/dapp/" + String(url).replace(/^https?:\/\//, "");
+  }
+  // Nhan ca 3 dang: chuoi FT1, link ?checkin=..., link cu #/check-in?code=...
+  function extractCheckinCode(text) {
+    const t = String(text || "").trim();
+    if (/^https?:\/\//i.test(t)) {
+      try {
+        const u = new URL(t);
+        const fromSearch = u.searchParams.get("checkin");
+        if (fromSearch) return fromSearch;
+        const q = u.hash.split("?")[1];
+        const fromHash = q ? new URLSearchParams(q).get("code") : null;
+        if (fromHash) return fromHash;
+      } catch {}
+    }
+    return t;
   }
 
   // Tra ve ket qua kiem tra (khong gui giao dich). raw: ma QR dong hoac so ve.
   async function verifyCheckinInput(raw, eventId) {
-    const text = String(raw || "").trim();
+    const text = extractCheckinCode(raw);
     let ticketId, signed = null;
     // Nhan ca dang cu "0x..." chu thuong lan dang moi viet HOA khong "0x".
     const m = /^FT1:(\d+):(\d+):(?:0x)?([0-9a-f]{130})$/i.exec(text);
@@ -3271,7 +3301,16 @@
     const myToken = renderToken;
     $root().innerHTML = `<div class="page container"><div class="skel" style="height:320px;margin-top:var(--sp-5);"></div></div>`;
     if (!userAddress) {
-      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Kết nối ví Organizer hoặc CTV</h3><p>Chỉ ví Organizer của sự kiện, hoặc ví CTV được Organizer cấp quyền, mới check-in được vé.</p><button type="button" class="btn btn-primary" id="ci-connect" style="margin-top:16px;">Kết nối ví</button></div></div>`;
+      const pending = query.get("code");
+      const noWallet = !window.ethereum;
+      const mmLink = metamaskDeepLink(pending ? checkinLink(pending, query.get("event")) : location.href);
+      $root().innerHTML = `<div class="page container"><div class="empty-state"><h3>Kết nối ví Organizer hoặc CTV</h3><p>Chỉ ví Organizer của sự kiện, hoặc ví CTV được Organizer cấp quyền, mới check-in được vé.</p>
+        ${pending ? `<p class="text-sm" style="margin-top:8px;">Đã nhận mã check-in của khách — kết nối ví xong sẽ kiểm tra ngay.</p>` : ""}
+        ${noWallet
+          ? `<p class="text-sm" style="margin-top:8px;">Trình duyệt này không có ví. Trên điện thoại, mở trang bằng ứng dụng MetaMask:</p><a class="btn btn-primary" href="${escapeAttr(mmLink)}" style="margin-top:16px;">Mở bằng ứng dụng MetaMask</a>`
+          : `<button type="button" class="btn btn-primary" id="ci-connect" style="margin-top:16px;">Kết nối ví</button>`}
+      </div></div>`;
+      if (noWallet) return;
       document.getElementById("ci-connect").addEventListener("click", (e) => withBusy(e.currentTarget, connectWallet, { keepContentOnSuccess: true }));
       return;
     }
@@ -3518,6 +3557,13 @@
     }
 
     document.getElementById("ci-check").addEventListener("click", () => handleInput(document.getElementById("ci-manual").value));
+    const preCode = query.get("code");
+    if (preCode) {
+      // Bo ma khoi URL: F5 khong kiem tra lai, ma khong nam lai trong lich su trinh duyet.
+      history.replaceState(null, "", "#/check-in?event=" + eventId);
+      document.getElementById("ci-manual").value = preCode;
+      handleInput(preCode);
+    }
     document.getElementById("ci-manual").addEventListener("keydown", (e) => { if (e.key === "Enter") handleInput(e.target.value); });
 
     document.getElementById("ci-file").addEventListener("change", async (e) => {
@@ -3845,6 +3891,11 @@
       }
     }
     await trySilentReconnect();
+    const sp = new URLSearchParams(location.search);
+    if (sp.get("checkin")) {
+      const ev = /^\d+$/.test(sp.get("event") || "") ? sp.get("event") : "";
+      history.replaceState(null, "", location.pathname + "#/check-in?" + (ev ? "event=" + ev + "&" : "") + "code=" + encodeURIComponent(sp.get("checkin")));
+    }
     route();
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", handleWalletChange);

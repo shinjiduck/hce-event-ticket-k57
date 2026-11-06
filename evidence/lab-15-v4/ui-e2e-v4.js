@@ -219,12 +219,33 @@ const metaStore = {};
   await c.p.click("#tm-make-code");
   await c.p.waitForFunction(() => !!document.getElementById("modal-qr").dataset.code, null, { timeout: 15000 });
   const codeC = await c.p.getAttribute("#modal-qr", "data-code");
+  const linkC = await c.p.getAttribute("#modal-qr", "data-link");
+  // Giai ma chinh anh QR dang hien (nhu app camera) -> phai ra dung link
+  const decoded = await c.p.evaluate(async () => {
+    if (!window.jsQR) await new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
+    const svg = document.querySelector("#modal-qr svg");
+    const img = new Image();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+    await img.decode();
+    const cv = document.createElement("canvas"); cv.width = 600; cv.height = 600;
+    const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 600, 600); ctx.drawImage(img, 0, 0, 600, 600);
+    const r = window.jsQR(ctx.getImageData(0, 0, 600, 600).data, 600, 600);
+    return r ? r.data : null;
+  });
+  check("Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR", !!decoded && decoded === linkC && /\?checkin=FT1%3A0%3A\d+%3A[0-9A-F]{130}&event=0$/.test(decoded), (decoded || "").slice(0, 90));
+  // Mo link tren trinh duyet KHONG co vi (vd app camera mo bang Chrome) -> nut mo bang app MetaMask
+  const bare = await browser.newContext();
+  const bp = await bare.newPage();
+  await bp.goto(linkC.replace(/^http:\/\/localhost:8765\//, BASE.replace("index.html", "")), { waitUntil: "domcontentloaded" });
+  await bp.waitForSelector("a[href^='https://metamask.app.link/dapp/']", { timeout: 30000 }).catch(() => {});
+  const mm = await bp.getAttribute("a[href^='https://metamask.app.link/dapp/']", "href").catch(() => null);
+  check("Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã", !!mm && mm.includes("checkin=FT1%3A0%3A") && mm.includes("&event=0"), (mm || "").slice(0, 90));
+  await bare.close();
+  // CTV mo thang link (nhu quet bang app camera) -> trang tu dien ma, tu kiem tra va check-in
   const s = await as(S);
-  await s.p.goto(BASE + "#/check-in?event=0", { waitUntil: "domcontentloaded" });
-  await s.p.waitForSelector("#ci-manual", { timeout: 30000 });
-  await s.p.fill("#ci-manual", codeC);
-  await s.p.click("#ci-check");
-  check("CTV quét mã của C → check-in ghi lên chain", await waitText(s.p, "#ci-log", "✓ đã ghi", 40000), await text(s.p, "#ci-status"));
+  await s.p.goto(linkC, { waitUntil: "domcontentloaded" });
+  check("CTV mở link trong QR → tự kiểm tra và check-in, ghi lên chain", await waitText(s.p, "#ci-log", "✓ đã ghi", 40000), await text(s.p, "#ci-status"));
+  check("Sau khi xử lý, mã bị xoá khỏi URL (F5 không kiểm tra lại)", !s.p.url().includes("code=") && !s.p.url().includes("checkin="), s.p.url());
 
   // ===== 6. Dashboard: doanh thu + phi ban quyen =====
   await a.p.goto(BASE + "#/my-events", { waitUntil: "domcontentloaded" });

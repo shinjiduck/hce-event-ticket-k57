@@ -299,7 +299,13 @@ AI đọc lại hợp đồng, API metadata và các luồng chính trên web. K
 3. Tạo được sự kiện có giờ bắt đầu đã qua.
 4. Ô "Thời gian kết thúc" nhập vào nhưng bị bỏ đi.
 
-Bài test thêm 9 bước, trong đó có kịch bản giả lập người dùng bấm "Từ chối" ở giao dịch 2. Tổng cộng 37/37 bước đạt.
+Bài test thêm 9 bước, trong đó có kịch bản giả lập người dùng bấm "Từ chối" ở giao dịch 2.
+
+### QR check-in dạng link (06/11)
+
+Nhóm gặp lỗi "data not usable" khi quét mã check-in bằng máy quét của MetaMask: mã chỉ là chuỗi `FT1:…`, ngoài trang Check-in của FairTicket không app nào hiểu. Giờ QR chứa một đường link `…/?checkin=FT1:…&event=…`, nên quét bằng app camera bất kỳ cũng mở đúng trang Check-in với mã điền sẵn.
+
+Link dùng tham số thường (`?checkin=`) thay vì `#` để không bị mất phần mã khi đi qua deep link mở app MetaMask. Trình duyệt không có ví thì trang hiện nút "Mở bằng ứng dụng MetaMask". Cơ chế bảo mật không đổi: web vẫn kiểm tra chữ ký, hạn 5 phút và chủ vé hiện tại; xử lý xong thì mã bị xoá khỏi URL. Bài test thêm 3 bước, tổng cộng 40/40 bước đạt.
 
 Các giới hạn của hợp đồng ghi vào `PROGRESS.md` mục 8:
 - không kiểm tra giờ bắt đầu khi gọi thẳng hợp đồng;

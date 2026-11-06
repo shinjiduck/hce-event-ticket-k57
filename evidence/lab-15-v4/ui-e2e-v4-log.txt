@@ -28,7 +28,10 @@ PASS C mua lại vé #0 (0.012 ETH) — Mua lại vé thành công — vé đã 
 PASS Trên chain: Organizer +0.0006 ETH (5%), người bán B 0.0114 ETH (95%) — 0.0006 / 0.0114
 PASS Vé mua lại không tính vào giới hạn ví (mintedBy C = 0)
 PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. Gửi họ link màn hình check-in.
-PASS CTV quét mã của C → check-in ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
+PASS Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR — http://localhost:8765/?checkin=FT1%3A0%3A1793953853001%3A1E31B6713D798C4183B9E7075E414C7AD
+PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/localhost:8765/?checkin=FT1%3A0%3A1793953853001%3A1E31B6713
+PASS CTV mở link trong QR → tự kiểm tra và check-in, ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
+PASS Sau khi xử lý, mã bị xoá khỏi URL (F5 không kiểm tra lại) — http://localhost:8765/#/check-in?event=0
 PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
 PASS Dashboard: vé đã bán 2/10, doanh thu bán lần đầu 0.02 ETH (dù tab Organizer mở từ trước khi B mua) — Sự kiện11 đang bán Vé đã bán2 / 10còn 8 vé Doanh thu bán lần đầu0.02 ETH+ phí bản quyền bán lại: 0.0006 ETH Tiền chờ rút của ví0.0206 ETHRút tiền
 PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in vé #0FairTicket Demo v4 · khối 12004627 0xfde9742c… Cấp quyền CTV 0x90F7…b906FairTicket Demo v4 · khối 12004626 0xe49876c5… Vé #0 đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)FairTicket Demo
@@ -65,7 +68,10 @@ PASS C mua lại vé #0 (0.012 ETH) — Mua lại vé thành công — vé đã 
 PASS Trên chain: Organizer +0.0006 ETH (5%), người bán B 0.0114 ETH (95%) — 0.0006 / 0.0114
 PASS Vé mua lại không tính vào giới hạn ví (mintedBy C = 0)
 PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. Gửi họ link màn hình check-in.
-PASS CTV quét mã của C → check-in ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
+PASS Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR — http://localhost:8765/?checkin=FT1%3A0%3A1793953853001%3A1E31B6713D798C4183B9E7075E414C7AD
+PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/localhost:8765/?checkin=FT1%3A0%3A1793953853001%3A1E31B6713
+PASS CTV mở link trong QR → tự kiểm tra và check-in, ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
+PASS Sau khi xử lý, mã bị xoá khỏi URL (F5 không kiểm tra lại) — http://localhost:8765/#/check-in?event=0
 PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
 PASS Dashboard: vé đã bán 2/10, doanh thu bán lần đầu 0.02 ETH (dù tab Organizer mở từ trước khi B mua) — Sự kiện11 đang bán Vé đã bán2 / 10còn 8 vé Doanh thu bán lần đầu0.02 ETH+ phí bản quyền bán lại: 0.0006 ETH Tiền chờ rút của ví0.0206 ETHRút tiền
 PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in vé #0FairTicket Demo v4 · khối 12004627 0xfde9742c… Cấp quyền CTV 0x90F7…b906FairTicket Demo v4 · khối 12004626 0xe49876c5… Vé #0 đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)FairTicket Demo
