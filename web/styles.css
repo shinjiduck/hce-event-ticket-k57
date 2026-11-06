@@ -329,6 +329,10 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
   border-radius: 50%; background: var(--accent);
 }
 
+/* Menu chi chiem vua du; o tim kiem gian ra lap phan con lai (khong de khoang trong giua) */
+.site-header .main-nav { flex: none; }
+.site-header .header-actions { flex: 1; min-width: 0; justify-content: flex-end; }
+.site-header .header-search { flex: 1; width: auto; max-width: 440px; min-width: 200px; margin-left: var(--sp-3); }
 .site-header .header-search {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.16);
