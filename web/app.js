@@ -465,6 +465,7 @@
       clearInterval(codeTimer);
       const hint = overlay.querySelector("#tm-code-hint");
       const tick = () => {
+        if (!overlay.isConnected) { clearInterval(codeTimer); return; } // hop thoai da bi dong khi doi trang
         const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
         if (left === 0) {
           clearInterval(codeTimer);
@@ -943,6 +944,8 @@
     renderToken++;
     closeWalletMenu();
     stopScanner();
+    // Hop thoai gan vao <body>, khong nam trong trang -> doi trang (vd nut Back) phai tu dong.
+    document.querySelectorAll(".modal-overlay, .qr-fullscreen").forEach((el) => el.remove());
     const { parts, query } = parseHash();
     renderHeader();
     window.scrollTo(0, 0);
@@ -1927,7 +1930,7 @@
       document.getElementById("qty-minus").disabled = qty <= 1;
       document.getElementById("qty-plus").disabled = qty >= maxQty();
       const walletNote = walletLimit && userAddress ? ` Ví của bạn đã mua ${myMinted}/${walletLimit} vé của sự kiện.` : walletLimit ? ` Mỗi ví tối đa ${walletLimit} vé.` : "";
-      document.getElementById("qty-hint").textContent = (qty > 1 ? `Mua ${qty} vé = ${qty} giao dịch, xác nhận lần lượt trong ví.` : `Tối đa ${maxQty()} vé lần này.`) + walletNote;
+      document.getElementById("qty-hint").textContent = (qty > 1 ? `Mua ${qty} vé: ví hỗ trợ gộp giao dịch thì ký 1 lần, nếu không thì xác nhận lần lượt ${qty} lần.` : `Tối đa ${maxQty()} vé lần này.`) + walletNote;
     }
     $root().querySelectorAll('input[name="tier"]').forEach((radio) => radio.addEventListener("change", () => {
       selIdx = Number(radio.value);
@@ -3636,6 +3639,59 @@
   // Dang co giao dich mua do dang chay -> khong ve lai trang (mat tien do) va
   // khong cho bat dau luot mua thu 2 chong len.
   let purchaseInFlight = false;
+
+  // ---------- Gop nhieu giao dich (EIP-5792 wallet_sendCalls) ----------
+  // Hop dong v4 chi co mintTicket (1 ve/lan). Vi ho tro gop lenh (MetaMask voi
+  // tai khoan thong minh EIP-7702) thi gui N lenh mint trong 1 lan ky; msg.sender
+  // van la vi nguoi mua nen gioi han ve/vi va chu ve giu nguyen. Vi khong ho tro
+  // -> quay ve ky tung ve nhu cu.
+  async function walletCanBatch() {
+    if (!window.ethereum || !userAddress) return false;
+    try {
+      const caps = await window.ethereum.request({ method: "wallet_getCapabilities", params: [userAddress, [SEPOLIA_CHAIN_HEX]] });
+      const c = caps && (caps[SEPOLIA_CHAIN_HEX] || caps[String(Number(SEPOLIA_CHAIN_ID))]);
+      if (!c) return false;
+      const st = c.atomic && c.atomic.status;
+      return st === "supported" || st === "ready" || !!(c.atomicBatch && c.atomicBatch.supported);
+    } catch {
+      return false;
+    }
+  }
+  // Tra ve cac receipt (hoac nem loi). Loi "khong ho tro" danh dau .unsupported de quay ve cach cu.
+  async function sendBatchAndWait(calls, onSent) {
+    let res;
+    try {
+      res = await window.ethereum.request({
+        method: "wallet_sendCalls",
+        params: [{ version: "2.0.0", chainId: SEPOLIA_CHAIN_HEX, from: userAddress, atomicRequired: true, calls }],
+      });
+    } catch (err) {
+      const code = err && (err.code ?? (err.error && err.error.code));
+      if (code === 4001) throw err; // nguoi dung tu choi -> khong gui lai tung ve
+      const e = new Error("Ví không gộp được giao dịch.");
+      e.unsupported = true;
+      e.cause = err;
+      throw e;
+    }
+    const id = typeof res === "string" ? res : res && res.id;
+    if (!id) { const e = new Error("Ví không trả về mã lô giao dịch."); e.unsupported = true; throw e; }
+    if (onSent) onSent(id);
+    const deadline = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 1500));
+      let st;
+      try { st = await window.ethereum.request({ method: "wallet_getCallsStatus", params: [id] }); } catch { continue; }
+      const code = st && st.status;
+      if (code === 100 || code === "PENDING" || !st) continue;
+      if (code === 200 || code === "CONFIRMED") {
+        const receipts = st.receipts || [];
+        if (receipts.some((r) => r.status === "0x0" || r.status === 0)) throw userError("Giao dịch gộp bị revert trên blockchain — không vé nào được mua.");
+        return receipts;
+      }
+      throw userError("Giao dịch gộp thất bại" + (code === 500 ? " (bị revert trên blockchain)" : "") + " — không vé nào được mua.");
+    }
+    throw userError("Quá lâu chưa có kết quả của giao dịch gộp — kiểm tra lại trong ví và trang Vé của tôi.");
+  }
   window.addEventListener("beforeunload", (e) => {
     if (purchaseInFlight) { e.preventDefault(); e.returnValue = ""; }
   });
@@ -3725,7 +3781,7 @@
             <div class="checkout-divider"></div>
             <div class="checkout-row"><span class="text-secondary">Mạng</span><span>Ethereum Sepolia</span></div>
             <div class="checkout-row"><span class="text-secondary">Ví thanh toán</span><span class="mono" id="pay-wallet">${userAddress ? shortAddr(userAddress) : "—"}</span></div>
-            <p class="hint-sm">${qty > 1 ? `Mua ${qty} vé = ${qty} giao dịch, xác nhận lần lượt trong ví. ` : ""}Vé không hoàn tiền; bán lại tối đa ${capPctText(evt)} giá gốc; ${walletLimitText(evt)}.</p>
+            <p class="hint-sm">${qty > 1 ? `Mua ${qty} vé: ví hỗ trợ gộp giao dịch thì ký 1 lần, nếu không thì xác nhận lần lượt ${qty} lần. ` : ""}Vé không hoàn tiền; bán lại tối đa ${capPctText(evt)} giá gốc; ${walletLimitText(evt)}.</p>
             <button id="btn-pay" class="btn btn-accent btn-block btn-lg" style="margin-top: var(--sp-3);" disabled>Xác nhận &amp; thanh toán</button>
             <a href="#/events/${eventId}" class="btn btn-ghost btn-block" id="btn-back" style="margin-top: var(--sp-2);">Quay lại</a>
           </aside>
@@ -3762,6 +3818,7 @@
           if (minted + qty <= limit) add("ok", `Ví đã mua ${minted}/${limit} vé của sự kiện — mua thêm ${qty} vé vẫn trong giới hạn.`);
           else add("bad", minted >= limit ? `Ví đã mua đủ ${limit} vé/ví của sự kiện.` : `Ví đã mua ${minted}/${limit} vé — chỉ được mua thêm ${limit - minted} vé.`);
         }
+        if (qty > 1 && await walletCanBatch()) add("ok", `Ví hỗ trợ gộp giao dịch — chỉ cần xác nhận <strong>1 lần</strong> cho ${qty} vé.`);
       } catch {
         add("bad", "Không đọc được số vé còn lại (mạng/RPC). Thử tải lại trang.");
       }
@@ -3816,7 +3873,43 @@
 
       const minted = [];
       let failure = null;
-      for (let i = 0; i < qty; i++) {
+      let batched = false;
+      if (qty > 1 && await walletCanBatch()) {
+        for (let i = 0; i < qty; i++) setTx(i, "active", i === 0 ? `Chờ xác nhận <strong>1 lần</strong> trong ví (gộp ${qty} vé)…` : "Gộp chung giao dịch với vé 1");
+        try {
+          const data = contract.interface.encodeFunctionData("mintTicket", [tierId]);
+          const calls = Array.from({ length: qty }, () => ({ to: CONTRACT_ADDRESS, data, value: "0x" + BigInt(tier.price).toString(16) }));
+          const receipts = await sendBatchAndWait(calls, () => {
+            for (let i = 0; i < qty; i++) setTx(i, "active", "Đã gửi (gộp) · đang chờ khối…");
+          });
+          const ids = [];
+          for (const r of receipts) {
+            for (const l of r.logs || []) {
+              if (String(l.address).toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) continue;
+              let parsed = null;
+              try { parsed = contract.interface.parseLog({ topics: l.topics, data: l.data }); } catch {}
+              if (parsed && parsed.name === "TicketMinted") ids.push({ ticketId: parsed.args.ticketId, hash: r.transactionHash });
+            }
+          }
+          if (ids.length !== qty) throw userError(`Giao dịch gộp xong nhưng chỉ thấy ${ids.length}/${qty} vé — kiểm tra trang Vé của tôi.`);
+          ids.forEach((m, i) => {
+            minted.push(m);
+            setTx(i, "ok", `Thành công · Vé #${m.ticketId} · <a class="link" href="${ETHERSCAN}/tx/${m.hash}" target="_blank" rel="noopener">xem</a>`);
+          });
+          batched = true;
+        } catch (err) {
+          if (!err.unsupported) {
+            console.error(err);
+            failure = friendlyError(err);
+            for (let i = 0; i < qty; i++) setTx(i, "bad", i === 0 ? escapeHtml(failure) : "Đã dừng");
+            batched = true; // da xu ly xong (that bai) -> khong ky tung ve nua
+          } else {
+            console.warn("Ví không gộp được, chuyển sang ký từng vé:", err.cause || err);
+            for (let i = 0; i < qty; i++) setTx(i, "waiting", "Chờ");
+          }
+        }
+      }
+      for (let i = 0; i < qty && !batched; i++) {
         try {
           setTx(i, "active", "Chờ xác nhận trong ví…");
           const tx = await contract.mintTicket(tierId, { value: tier.price });

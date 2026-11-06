@@ -305,7 +305,13 @@ Bài test thêm 9 bước, trong đó có kịch bản giả lập người dùn
 
 Nhóm gặp lỗi "data not usable" khi quét mã check-in bằng máy quét của MetaMask: mã chỉ là chuỗi `FT1:…`, ngoài trang Check-in của FairTicket không app nào hiểu. Giờ QR chứa một đường link `…/?checkin=FT1:…&event=…`, nên quét bằng app camera bất kỳ cũng mở đúng trang Check-in với mã điền sẵn.
 
-Link dùng tham số thường (`?checkin=`) thay vì `#` để không bị mất phần mã khi đi qua deep link mở app MetaMask. Trình duyệt không có ví thì trang hiện nút "Mở bằng ứng dụng MetaMask". Cơ chế bảo mật không đổi: web vẫn kiểm tra chữ ký, hạn 5 phút và chủ vé hiện tại; xử lý xong thì mã bị xoá khỏi URL. Bài test thêm 3 bước, tổng cộng 40/40 bước đạt.
+Link dùng tham số thường (`?checkin=`) thay vì `#` để không bị mất phần mã khi đi qua deep link mở app MetaMask. Trình duyệt không có ví thì trang hiện nút "Mở bằng ứng dụng MetaMask". Cơ chế bảo mật không đổi: web vẫn kiểm tra chữ ký, hạn 5 phút và chủ vé hiện tại; xử lý xong thì mã bị xoá khỏi URL. Bài test thêm 3 bước.
+
+### Mua nhiều vé chỉ ký 1 lần (06/11)
+
+Hợp đồng v4 chỉ có `mintTicket` (1 vé/lần) nên mua 3 vé là 3 lần xác nhận ví. AI đưa ra 3 hướng: deploy v5 có `mintTickets(tierId, số lượng)`, chỉ sửa web bằng tính năng gộp giao dịch của ví (EIP-5792), hoặc giữ nguyên. **Nhóm chọn chỉ sửa web.** Web hỏi ví có gộp được không (`wallet_getCapabilities`); được thì gửi N lệnh mint trong 1 lô `wallet_sendCalls` (người gửi vẫn là ví người mua nên giới hạn vé/ví vẫn đúng), không thì tự quay về ký từng vé.
+
+Bài test thêm ví giả lập hỗ trợ gộp, kiểm tra cả 2 đường. Test cũng bắt được một lỗi cũ: hộp thoại vé vẫn đè lên trang mới khi chuyển trang bằng nút Back. Đã sửa để chuyển trang thì đóng mọi hộp thoại. Tổng cộng 45/45 bước đạt. Phần gộp giao dịch chưa thử với MetaMask thật.
 
 Các giới hạn của hợp đồng ghi vào `PROGRESS.md` mục 8:
 - không kiểm tra giờ bắt đầu khi gọi thẳng hợp đồng;

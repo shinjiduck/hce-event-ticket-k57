@@ -16,12 +16,39 @@ const [A, B, C, S] = [
   "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
 ];
 
-const walletMock = (addr) => `
+// batch = true: vi gia lap ho tro gop lenh EIP-5792 (wallet_sendCalls), giong
+// MetaMask co tai khoan thong minh. Ben trong gui tung lenh len chain cuc bo.
+const walletMock = (addr, batch) => `
 (() => {
+  const rpc = async (method, params) => {
+    const r = await fetch("${NODE}", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params: params || [] }) });
+    const j = await r.json();
+    if (j.error) { const e = new Error(j.error.message); e.code = j.error.code; e.data = j.error.data; throw e; }
+    return j.result;
+  };
+  const batches = {};
+  window.__sendCalls = 0; window.__appTx = 0;
   window.ethereum = {
     isMetaMask: true, on: () => {}, removeListener: () => {},
     request: async ({ method, params }) => {
       if (method === "eth_accounts" || method === "eth_requestAccounts") return ["${addr}"];
+      if (method === "eth_sendTransaction") window.__appTx++;
+      if (${batch ? "true" : "false"}) {
+        if (method === "wallet_getCapabilities") return { "0xaa36a7": { atomic: { status: "ready" } } };
+        if (method === "wallet_sendCalls") {
+          window.__sendCalls++;
+          const req = params[0], hashes = [];
+          for (const c of req.calls) hashes.push(await rpc("eth_sendTransaction", [{ from: req.from, to: c.to, data: c.data, value: c.value }]));
+          const id = "batch-" + window.__sendCalls;
+          batches[id] = hashes;
+          return { id };
+        }
+        if (method === "wallet_getCallsStatus") {
+          const rs = await Promise.all(batches[params[0]].map((h) => rpc("eth_getTransactionReceipt", [h])));
+          if (rs.some((r) => !r)) return { status: 100 };
+          return { status: 200, receipts: rs.map((r) => ({ logs: r.logs, status: r.status, transactionHash: r.transactionHash, blockNumber: r.blockNumber })) };
+        }
+      }
       // Gia lap nguoi dung bam "Tu choi" o giao dich thu N (window.__rejectTxNo)
       if (method === "eth_sendTransaction" && window.__rejectTxNo) {
         window.__txCount = (window.__txCount || 0) + 1;
@@ -58,9 +85,9 @@ const metaStore = {};
   const res = [], errors = [];
   const check = (n, ok, x) => { const line = `${ok ? "PASS" : "FAIL"} ${n}${x ? " — " + x : ""}`; res.push(line); console.log(line); };
 
-  async function as(addr) {
+  async function as(addr, batch) {
     const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 } });
-    await ctx.addInitScript(walletMock(addr));
+    await ctx.addInitScript(walletMock(addr, batch));
     for (const u of ["https://ethereum-sepolia-rpc.publicnode.com/**", "https://sepolia.gateway.tenderly.co/**"]) {
       await ctx.route(u, async (route) => route.fulfill({ response: await route.fetch({ url: NODE }) }));
     }
@@ -154,7 +181,7 @@ const metaStore = {};
   check("Trang sự kiện hiện thời gian kết thúc", (await text(a.p, "#app-root")).includes("Thời gian kết thúc"));
 
   // ===== 2. B: toi da 2 ve/vi =====
-  const b = await as(B);
+  const b = await as(B, true); // vi B ho tro gop giao dich
   await b.p.goto(BASE + "#/events/0", { waitUntil: "domcontentloaded" });
   await b.p.waitForSelector("#qty-plus", { timeout: 30000 });
   check("Trang sự kiện ghi trần 120% và giới hạn 2 vé/ví", await waitText(b.p, "#app-root", "tối đa 120% giá gốc", 20000) && (await text(b.p, "#app-root")).includes("tối đa 2 vé/ví"));
@@ -163,8 +190,12 @@ const metaStore = {};
   await b.p.click("#btn-go-checkout");
   await b.p.waitForFunction(() => { const x = document.getElementById("btn-pay"); return x && !x.disabled; }, null, { timeout: 30000 });
   check("Thanh toán kiểm tra trước: ví đã mua 0/2", (await text(b.p, "#app-root")).includes("Ví đã mua 0/2"));
+  check("Thanh toán báo ví hỗ trợ gộp: chỉ cần xác nhận 1 lần cho 2 vé", (await text(b.p, "#app-root")).includes("chỉ cần xác nhận 1 lần cho 2 vé"));
   await b.p.click("#btn-pay");
   check("B mua 2 vé thành công", await waitText(b.p, "#checkout-result", "Mua vé thành công", 60000), await text(b.p, "#tx-list"));
+  const signs = await b.p.evaluate(() => ({ sendCalls: window.__sendCalls, appTx: window.__appTx }));
+  check("Mua 2 vé chỉ ký 1 lần (1 lô wallet_sendCalls, không gửi giao dịch lẻ)", signs.sendCalls === 1 && signs.appTx === 0, JSON.stringify(signs));
+  check("Cả 2 vé thuộc ví B, giới hạn ví vẫn tính đúng (mintedBy = 2)", (await (await core(B)).tickets(0)).owner === B && (await (await core(B)).tickets(1)).owner === B && (await (await core(B)).mintedBy(0, B)) === 2n);
   await b.p.goto(BASE + "#/events/0", { waitUntil: "domcontentloaded" });
   check("Đủ 2 vé: nút mua đổi thành 'Đã mua đủ 2 vé/ví' và bị khoá",
     await waitText(b.p, "#btn-go-checkout", "Đã mua đủ 2 vé/ví", 30000) && await b.p.isDisabled("#btn-go-checkout"));
@@ -270,6 +301,16 @@ const metaStore = {};
   await (await (await core(C)).buyResaleTicket(2, { value: ethers.parseEther("0.011") })).wait();
   check("Qua giờ bắt đầu: vẫn rao bán và mua lại được", (await ca.tickets(2)).owner === C);
   check("Tạo sự kiện với trần 99.99% → InvalidResaleCap", (await revertName(ca.createEvent("X", now + 99999, 9999, 0))) === "InvalidResaleCap");
+
+  // ===== 8. Vi KHONG ho tro gop (C) mua 2 ve -> quay ve ky tung ve nhu cu =====
+  await c.p.goto(BASE + "#/checkout/0/0/2", { waitUntil: "domcontentloaded" });
+  await c.p.waitForFunction(() => { const x = document.getElementById("btn-pay"); return x && !x.disabled; }, null, { timeout: 30000 });
+  check("Ví không hỗ trợ gộp: không hiện dòng 'xác nhận 1 lần'", !(await text(c.p, "#app-root")).includes("chỉ cần xác nhận 1 lần"));
+  await c.p.evaluate(() => { window.__appTx = 0; });
+  await c.p.click("#btn-pay");
+  const okC = await waitText(c.p, "#checkout-result", "Mua vé thành công", 60000);
+  const txC = await c.p.evaluate(() => window.__appTx);
+  check("Ví không hỗ trợ gộp: mua 2 vé bằng 2 giao dịch lẻ, thành công", okC && txC === 2, `tx=${txC} ${await text(c.p, "#tx-list")}`.slice(0, 160));
 
   await browser.close();
   console.log(res.join("\n"));

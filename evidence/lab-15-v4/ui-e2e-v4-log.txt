@@ -13,9 +13,12 @@ PASS A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet =
 PASS Bảng Organizer hiện quy tắc sự kiện
 PASS Trang sự kiện hiện thời gian kết thúc
 PASS Trang sự kiện ghi trần 120% và giới hạn 2 vé/ví
-PASS Nút + dừng ở 2 vé (giới hạn ví) — Mua 2 vé = 2 giao dịch, xác nhận lần lượt trong ví. Ví của bạn đã mua 0/2 vé của sự kiện.
+PASS Nút + dừng ở 2 vé (giới hạn ví) — Mua 2 vé: ví hỗ trợ gộp giao dịch thì ký 1 lần, nếu không thì xác nhận lần lượt 2 lần. Ví của bạn đã mua 0/2 vé của sự kiện.
 PASS Thanh toán kiểm tra trước: ví đã mua 0/2
+PASS Thanh toán báo ví hỗ trợ gộp: chỉ cần xác nhận 1 lần cho 2 vé
 PASS B mua 2 vé thành công — Vé 1/2Thành công · Vé #0 · xemVé 2/2Thành công · Vé #1 · xem
+PASS Mua 2 vé chỉ ký 1 lần (1 lô wallet_sendCalls, không gửi giao dịch lẻ) — {"sendCalls":1,"appTx":0}
+PASS Cả 2 vé thuộc ví B, giới hạn ví vẫn tính đúng (mintedBy = 2)
 PASS Đủ 2 vé: nút mua đổi thành 'Đã mua đủ 2 vé/ví' và bị khoá
 PASS Vào thẳng trang thanh toán: báo ví đã mua đủ, không cho trả tiền
 PASS Gọi thẳng hợp đồng (bỏ qua giao diện) → WalletLimitReached
@@ -28,8 +31,8 @@ PASS C mua lại vé #0 (0.012 ETH) — Mua lại vé thành công — vé đã 
 PASS Trên chain: Organizer +0.0006 ETH (5%), người bán B 0.0114 ETH (95%) — 0.0006 / 0.0114
 PASS Vé mua lại không tính vào giới hạn ví (mintedBy C = 0)
 PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. Gửi họ link màn hình check-in.
-PASS Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR — http://localhost:8765/?checkin=FT1%3A0%3A1793953853001%3A1E31B6713D798C4183B9E7075E414C7AD
-PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/localhost:8765/?checkin=FT1%3A0%3A1793953853001%3A1E31B6713
+PASS Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR — http://localhost:8765/?checkin=FT1%3A0%3A1793955592139%3A0D5B066081C6D5C3922C9EA032D58F010
+PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/localhost:8765/?checkin=FT1%3A0%3A1793955592139%3A0D5B06608
 PASS CTV mở link trong QR → tự kiểm tra và check-in, ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
 PASS Sau khi xử lý, mã bị xoá khỏi URL (F5 không kiểm tra lại) — http://localhost:8765/#/check-in?event=0
 PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
@@ -38,6 +41,8 @@ PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in 
 PASS Qua giờ bắt đầu: mintTicket → EventAlreadyStarted
 PASS Qua giờ bắt đầu: vẫn rao bán và mua lại được
 PASS Tạo sự kiện với trần 99.99% → InvalidResaleCap
+PASS Ví không hỗ trợ gộp: không hiện dòng 'xác nhận 1 lần'
+PASS Ví không hỗ trợ gộp: mua 2 vé bằng 2 giao dịch lẻ, thành công — tx=2 Vé 1/2Thành công · Vé #3 · xemVé 2/2Thành công · Vé #4 · xem
 PASS Giờ bắt đầu đã qua bị chặn (hợp đồng sẽ không bán vé được) — Thời gian bắt đầu phải sau thời điểm hiện tại ít nhất 10 phút — sau giờ bắt đầu hợp đồng không bán vé nữa.
 PASS Giờ kết thúc trước giờ bắt đầu bị chặn — Thời gian kết thúc phải sau thời gian bắt đầu.
 PASS Wizard bước 2 có ô trần giá (mặc định 110%) và số vé/ví (mặc định 4)
@@ -53,9 +58,12 @@ PASS A tạo sự kiện #0 — trên chain maxResaleBps = 12000, maxPerWallet =
 PASS Bảng Organizer hiện quy tắc sự kiện
 PASS Trang sự kiện hiện thời gian kết thúc
 PASS Trang sự kiện ghi trần 120% và giới hạn 2 vé/ví
-PASS Nút + dừng ở 2 vé (giới hạn ví) — Mua 2 vé = 2 giao dịch, xác nhận lần lượt trong ví. Ví của bạn đã mua 0/2 vé của sự kiện.
+PASS Nút + dừng ở 2 vé (giới hạn ví) — Mua 2 vé: ví hỗ trợ gộp giao dịch thì ký 1 lần, nếu không thì xác nhận lần lượt 2 lần. Ví của bạn đã mua 0/2 vé của sự kiện.
 PASS Thanh toán kiểm tra trước: ví đã mua 0/2
+PASS Thanh toán báo ví hỗ trợ gộp: chỉ cần xác nhận 1 lần cho 2 vé
 PASS B mua 2 vé thành công — Vé 1/2Thành công · Vé #0 · xemVé 2/2Thành công · Vé #1 · xem
+PASS Mua 2 vé chỉ ký 1 lần (1 lô wallet_sendCalls, không gửi giao dịch lẻ) — {"sendCalls":1,"appTx":0}
+PASS Cả 2 vé thuộc ví B, giới hạn ví vẫn tính đúng (mintedBy = 2)
 PASS Đủ 2 vé: nút mua đổi thành 'Đã mua đủ 2 vé/ví' và bị khoá
 PASS Vào thẳng trang thanh toán: báo ví đã mua đủ, không cho trả tiền
 PASS Gọi thẳng hợp đồng (bỏ qua giao diện) → WalletLimitReached
@@ -68,8 +76,8 @@ PASS C mua lại vé #0 (0.012 ETH) — Mua lại vé thành công — vé đã 
 PASS Trên chain: Organizer +0.0006 ETH (5%), người bán B 0.0114 ETH (95%) — 0.0006 / 0.0114
 PASS Vé mua lại không tính vào giới hạn ví (mintedBy C = 0)
 PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. Gửi họ link màn hình check-in.
-PASS Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR — http://localhost:8765/?checkin=FT1%3A0%3A1793953853001%3A1E31B6713D798C4183B9E7075E414C7AD
-PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/localhost:8765/?checkin=FT1%3A0%3A1793953853001%3A1E31B6713
+PASS Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR — http://localhost:8765/?checkin=FT1%3A0%3A1793955592139%3A0D5B066081C6D5C3922C9EA032D58F010
+PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/localhost:8765/?checkin=FT1%3A0%3A1793955592139%3A0D5B06608
 PASS CTV mở link trong QR → tự kiểm tra và check-in, ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
 PASS Sau khi xử lý, mã bị xoá khỏi URL (F5 không kiểm tra lại) — http://localhost:8765/#/check-in?event=0
 PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
@@ -78,4 +86,6 @@ PASS Dashboard: hoạt động đổi chủ ghi phí bản quyền — Check-in 
 PASS Qua giờ bắt đầu: mintTicket → EventAlreadyStarted
 PASS Qua giờ bắt đầu: vẫn rao bán và mua lại được
 PASS Tạo sự kiện với trần 99.99% → InvalidResaleCap
+PASS Ví không hỗ trợ gộp: không hiện dòng 'xác nhận 1 lần'
+PASS Ví không hỗ trợ gộp: mua 2 vé bằng 2 giao dịch lẻ, thành công — tx=2 Vé 1/2Thành công · Vé #3 · xemVé 2/2Thành công · Vé #4 · xem
 NO_PAGE_ERRORS

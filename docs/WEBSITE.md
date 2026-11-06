@@ -1,6 +1,6 @@
 # TIẾN ĐỘ WEBSITE — FairTicket
 
-> Cập nhật: **06/11/2026** (giao diện tối tím neon, audit logic) — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (40/40, `evidence/lab-15-v4/`).
+> Cập nhật: **06/11/2026** (giao diện tối tím neon, audit logic) — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (45/45, `evidence/lab-15-v4/`).
 > URL công khai: https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
 > Mã nguồn: thư mục `web/` · Tiến độ chung của cả dự án (Lab, hợp đồng): [PROGRESS.md](PROGRESS.md)
 
@@ -28,7 +28,7 @@
 | Phong cách | Tối, tím neon (Cinematic Dark Neon Purple): nền `#090911`, thẻ `#1C162B`, tím `#9657FF`/`#7C3AED`. Đổi qua design token ở đầu khối theme trong `styles.css`, nên mọi trang đổi theo |
 | Font | Tiêu đề lớn: Barlow Condensed in hoa · khẩu hiệu: Playfair Display nghiêng · chữ thường: Be Vietnam Pro (hiển thị tiếng Việt tốt hơn Inter) |
 | Hiệu ứng | Đổi trang trượt lên · thẻ hiện dần khi cuộn · thẻ nổi lên + ảnh zoom khi rê chuột · thẻ vé ở hero lơ lửng · nút gradient chuyển màu · modal/toast bật lên. Tắt hết khi máy bật `prefers-reduced-motion` |
-| Giữ nguyên | Mã QR luôn nền trắng để máy quét đọc được; mọi id ô nhập, luồng và lệnh gọi hợp đồng không đổi (bài test đầu-cuối 40/40) |
+| Giữ nguyên | Mã QR luôn nền trắng để máy quét đọc được; mọi id ô nhập, luồng và lệnh gọi hợp đồng không đổi (bài test đầu-cuối 45/45) |
 
 ### 2.1 Phần chung (header, footer, ví)
 
@@ -81,6 +81,7 @@
 | Theo dõi từng vé: chờ ví → đã gửi (link Etherscan) → thành công / bị từ chối / revert | 🟢 (đã thử bấm từ chối trong ví) |
 | Chỉ báo thành công khi blockchain xác nhận; chống bấm 2 lần; cảnh báo khi đóng trang | 🟢 |
 | **Mua vé thành công bằng ví thật** | ✅ Vé #2 và #3 mua qua trang thanh toán mới ngày 20/10 |
+| **Mua nhiều vé ký 1 lần** (06/11): ví hỗ trợ gộp giao dịch (EIP-5792 `wallet_sendCalls`, MetaMask có tài khoản thông minh) thì gửi N lệnh `mintTicket` trong 1 lần ký; ví không hỗ trợ thì tự quay về ký từng vé | 🟢 | Chưa thử với MetaMask thật |
 
 ### 2.6 Vé bán lại — `#/resale`
 

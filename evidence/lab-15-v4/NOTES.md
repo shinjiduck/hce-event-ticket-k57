@@ -50,34 +50,37 @@ Hardhat 2.29, Solidity 0.8.20: **19/19 ca đạt** (`projectcore-v4.test.js`, lo
 
 ## Kiểm thử giao diện đầu-cuối
 
-Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **40/40 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
+Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **45/45 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
 
 1. Tạo sự kiện:
    - Wizard có ô trần giá (mặc định 110%) và ô số vé/ví (mặc định 4).
    - Giờ bắt đầu đã qua, giờ kết thúc trước giờ bắt đầu, số vé lẻ (1.5), giá quá 18 chữ số thập phân, 101 vé/ví: đều bị chặn trước khi gửi giao dịch.
    - Người dùng **từ chối giao dịch 2** (tạo hạng vé): sự kiện #0 đã có trên chain nhưng chưa có hạng vé. Bấm Deploy lại thì web **dùng lại sự kiện #0**, chỉ tạo tiếp hạng vé — không có sự kiện trùng.
    - Tạo sự kiện với trần 120% và 2 vé/ví; trên chain lưu `12000 / 2`; giờ kết thúc lưu vào metadata và hiện ở trang sự kiện.
-2. Giới hạn ví:
+2. Mua nhiều vé:
+   - Ví B giả lập hỗ trợ gộp giao dịch (EIP-5792): trang thanh toán báo "chỉ cần xác nhận 1 lần cho 2 vé"; mua 2 vé bằng **1 lô `wallet_sendCalls`**, không gửi giao dịch lẻ nào; cả 2 vé thuộc ví B, `mintedBy` = 2.
+   - Ví C không hỗ trợ gộp (bước cuối): tự quay về 2 giao dịch lẻ, mua thành công.
+3. Giới hạn ví:
    - Trang sự kiện và trang thanh toán hiện "đã mua 0/2".
    - Nút + dừng ở 2.
    - Mua đủ 2 vé thì nút đổi thành "Đã mua đủ 2 vé/ví" và bị khoá.
    - Vào thẳng trang thanh toán thì bị chặn.
    - Gọi thẳng hợp đồng thì nhận `WalletLimitReached`.
-3. Rao bán:
+4. Rao bán:
    - Hộp rao bán ghi "tối đa 0.012 ETH (trần 120%)" và "nhận 95%".
    - Giá 121% bị chặn trên giao diện; gọi thẳng hợp đồng thì nhận `ResalePriceTooHigh`.
    - Rao đúng 120% thì thành công.
-4. Mua lại:
+5. Mua lại:
    - Hộp xác nhận ghi "phí bản quyền 5%: 0.0006 ETH".
    - Trên chain, Organizer nhận thêm 0.0006 ETH và người bán nhận 0.0114 ETH.
    - Vé mua lại không tính vào giới hạn ví.
-5. Check-in:
+6. Check-in:
    - Cấp quyền CTV.
    - Giải mã chính ảnh QR trong hộp vé: ra đúng link `…/?checkin=FT1:…&event=0`.
    - Mở link trên trình duyệt không có ví: hiện nút "Mở bằng ứng dụng MetaMask", link vẫn giữ nguyên mã.
    - CTV mở link (giống quét bằng app camera): trang tự điền mã, tự kiểm tra, check-in được ghi lên chain; sau đó mã bị xoá khỏi URL.
-6. Dashboard: có dòng "phí bản quyền bán lại: 0.0006 ETH", và mục hoạt động đổi chủ ghi kèm phí.
-7. Sau giờ bắt đầu (tua giờ chain):
+7. Dashboard: có dòng "phí bản quyền bán lại: 0.0006 ETH", và mục hoạt động đổi chủ ghi kèm phí.
+8. Sau giờ bắt đầu (tua giờ chain):
    - Mua vé mới thì nhận `EventAlreadyStarted`.
    - Rao bán và mua lại vẫn được.
    - Tạo sự kiện với trần 99.99% thì nhận `InvalidResaleCap`.
