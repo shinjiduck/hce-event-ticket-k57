@@ -288,6 +288,78 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
   .main-nav::-webkit-scrollbar { display: none; }
 }
 
+/* ---------- Header theo mau du an (navy -> xanh logo, diem nhan coral) ---------- */
+
+.site-header {
+  background:
+    radial-gradient(600px 120px at 85% -40%, rgba(255, 107, 87, 0.22), transparent 70%),
+    linear-gradient(100deg, var(--navy) 0%, #172554 45%, #1E3A8A 100%);
+  border-bottom: none;
+  color: #fff;
+}
+.site-header::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: linear-gradient(90deg, var(--primary) 0%, #60A5FA 45%, var(--accent) 100%);
+  opacity: 0.9;
+}
+.site-header.is-scrolled {
+  background:
+    radial-gradient(600px 120px at 85% -40%, rgba(255, 107, 87, 0.22), transparent 70%),
+    linear-gradient(100deg, var(--navy) 0%, #172554 45%, #1E3A8A 100%);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+}
+
+.site-header .brand { color: #fff; font-size: 17px; letter-spacing: -0.01em; }
+.site-header .brand__mark { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18), 0 4px 12px rgba(37, 99, 235, 0.45); transition: transform 0.3s var(--ease-spring, ease); }
+.site-header .brand:hover .brand__mark { transform: rotate(-8deg) scale(1.06); }
+
+.site-header .main-nav { gap: var(--sp-1); }
+.site-header .main-nav a {
+  color: rgba(255, 255, 255, 0.72);
+  padding: 7px 14px;
+  border-radius: 999px;
+  border-bottom: none;
+  position: relative;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.site-header .main-nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.site-header .main-nav a.active { color: #fff; background: rgba(255, 255, 255, 0.14); font-weight: 600; }
+.site-header .main-nav a.active::after {
+  content: ""; position: absolute; left: 50%; bottom: -3px; width: 6px; height: 6px; margin-left: -3px;
+  border-radius: 50%; background: var(--accent);
+}
+
+.site-header .header-search {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.65);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.site-header .header-search input { color: #fff; }
+.site-header .header-search input::placeholder { color: rgba(255, 255, 255, 0.6); }
+.site-header .header-search:focus-within { background: #fff; border-color: #fff; color: var(--text-tertiary); }
+.site-header .header-search:focus-within input { color: var(--text); }
+.site-header .header-search:focus-within input::placeholder { color: var(--text-tertiary); }
+
+.site-header .btn-ghost { color: rgba(255, 255, 255, 0.85); }
+.site-header .btn-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.site-header .header-mytickets.btn-secondary { background: rgba(255, 255, 255, 0.16); border-color: transparent; color: #fff; }
+
+.site-header #btn-connect.btn-primary { background: var(--accent-strong); box-shadow: 0 4px 14px rgba(255, 107, 87, 0.35); }
+.site-header #btn-connect.btn-primary:hover:not(:disabled) { background: #B5301E; box-shadow: 0 6px 18px rgba(255, 107, 87, 0.45); }
+
+.site-header .wallet-chip { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.22); color: #fff; }
+.site-header .wallet-btn:hover .wallet-chip { border-color: rgba(255, 255, 255, 0.5); background: rgba(255, 255, 255, 0.16); }
+.site-header .wallet-chip__dot { background: #4ADE80; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.22); }
+.site-header .wallet-chip__dot.wallet-chip__dot--bad { background: #F87171; box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.25); }
+.site-header .wallet-dropdown { color: var(--text); }
+
+@media (max-width: 760px) {
+  .site-header .main-nav { gap: 2px; }
+  .site-header .main-nav a { padding: 6px 12px; }
+  .site-header .main-nav a.active::after { display: none; }
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
