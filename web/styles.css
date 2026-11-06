@@ -1264,3 +1264,93 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
 .staff-list { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .staff-item { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: 8px 12px; border-radius: var(--radius-sm); background: var(--neutral-bg); font-size: 14px; }
 .staff-item__actions { display: flex; align-items: center; gap: 6px; }
+
+/* ---------- Motion (hieu ung) ---------- */
+
+:root {
+  --ease-out: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes kenBurns { from { transform: scale(1); } to { transform: scale(1.08); } }
+@keyframes statusPop { 0% { transform: scale(0.96); } 60% { transform: scale(1.02); } 100% { transform: scale(1); } }
+@keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+
+/* Moi lan doi trang: noi dung truot len nhe */
+#app-root > * { animation: fadeUp 0.4s var(--ease-out) both; }
+
+/* Phan tu hien dan khi cuon toi (JS gan .reveal / .is-in, co do tre theo thu tu) */
+.reveal { opacity: 0; transform: translateY(16px); }
+.reveal.is-in {
+  opacity: 1; transform: none;
+  transition: opacity 0.55s var(--ease-out), transform 0.55s var(--ease-out), box-shadow 0.18s ease, border-color 0.18s ease;
+  transition-delay: var(--reveal-delay, 0ms), var(--reveal-delay, 0ms), 0ms, 0ms;
+}
+
+/* Header do bong khi cuon */
+.site-header { transition: box-shadow 0.25s ease, background 0.25s ease; }
+.site-header.is-scrolled { box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08); background: rgba(255, 255, 255, 0.98); }
+.main-nav a { transition: color 0.15s ease; }
+
+/* Nut: nhan xuong co phan hoi, nut chinh noi nhe khi re chuot */
+.btn { transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s var(--ease-out), box-shadow 0.2s ease; }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 6px 16px rgba(37, 99, 235, 0.22); transform: translateY(-1px); }
+.btn-accent:hover:not(:disabled) { box-shadow: 0 6px 16px rgba(220, 70, 45, 0.25); transform: translateY(-1px); }
+.btn-primary:active:not(:disabled), .btn-accent:active:not(:disabled) { transform: scale(0.97); box-shadow: none; }
+
+/* The: noi len khi re chuot, anh zoom nhe */
+.resale-card, .ticket-card, .benefit-card, .kpi-grid .stat {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease-out);
+}
+.resale-card:hover, .ticket-card:hover, .benefit-card:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); transform: translateY(-3px); }
+.kpi-grid .stat:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.event-card__img, .resale-card__img, .ticket-card__media img { transition: transform 0.5s var(--ease-out); }
+.event-card:hover .event-card__img, .resale-card:hover .resale-card__img, .ticket-card:hover .ticket-card__media img { transform: scale(1.05); }
+.ticket-card__media { overflow: hidden; }
+.benefit-card__icon { transition: transform 0.3s var(--ease-spring); }
+.benefit-card:hover .benefit-card__icon { transform: rotate(-8deg) scale(1.08); }
+.cat-tile:active, .event-card:active { transform: translateY(0) scale(0.99); }
+.upcoming-item { transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.2s var(--ease-out); }
+.upcoming-item:hover { transform: translateX(3px); }
+.org-table tbody tr { transition: background 0.15s ease; }
+.org-table tbody tr:hover { background: var(--neutral-bg); }
+.chip, .cat-chip { transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s var(--ease-out); }
+.chip:active, .cat-chip:active { transform: scale(0.95); }
+
+/* Hero: anh dang hien zoom cham, chu truot len khi doi slide */
+.hero-slide.is-active .hero-slide__img { animation: kenBurns 9s ease-out both; }
+.hero-slide.is-active .hero-slide__content > * { animation: fadeUp 0.6s var(--ease-out) both; }
+.hero-slide.is-active .hero-slide__content > *:nth-child(2) { animation-delay: 0.08s; }
+.hero-slide.is-active .hero-slide__content > *:nth-child(3) { animation-delay: 0.16s; }
+.hero-slide.is-active .hero-slide__content > *:nth-child(4) { animation-delay: 0.24s; }
+.hero-slide.is-active .hero-slide__content > *:nth-child(5) { animation-delay: 0.32s; }
+
+/* Modal, toast, menu vi */
+.modal-overlay { animation: fadeIn 0.2s ease both; backdrop-filter: blur(2px); }
+.modal-card { animation: popIn 0.28s var(--ease-spring) both; }
+.toast:not([hidden]) { animation: toastIn 0.32s var(--ease-spring) both; }
+.wallet-dropdown:not([hidden]) { animation: popIn 0.18s var(--ease-out) both; transform-origin: top right; }
+
+/* Check-in: trang thai hop le "bat" len, loi rung nhe */
+.ci-status { transition: background 0.2s ease, color 0.2s ease; }
+.ci-status--ok { animation: statusPop 0.4s var(--ease-spring); }
+.ci-status--warn { animation: shake 0.4s ease; }
+
+/* Buoc wizard, o nhap */
+.wizard-step__dot { transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.3s var(--ease-spring); }
+.wizard-step.active .wizard-step__dot { transform: scale(1.12); }
+input, select, textarea { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  #app-root > *, .hero-slide.is-active .hero-slide__img, .hero-slide.is-active .hero-slide__content > *,
+  .modal-overlay, .modal-card, .toast:not([hidden]), .wallet-dropdown:not([hidden]), .ci-status--ok, .ci-status--warn { animation: none; }
+  .reveal { opacity: 1; transform: none; }
+  .resale-card:hover, .ticket-card:hover, .benefit-card:hover, .kpi-grid .stat:hover, .upcoming-item:hover,
+  .btn-primary:hover:not(:disabled), .btn-accent:hover:not(:disabled) { transform: none; }
+  .event-card:hover .event-card__img, .resale-card:hover .resale-card__img, .ticket-card:hover .ticket-card__media img { transform: none; }
+}

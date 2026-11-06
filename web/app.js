@@ -273,6 +273,7 @@
     el.className = "toast toast-" + (kind || "info");
     el.textContent = message;
     el.hidden = false;
+    el.style.animation = "none"; void el.offsetWidth; el.style.animation = ""; // chay lai hieu ung khi toast moi de len toast cu
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { el.hidden = true; }, 4500);
   }
@@ -529,12 +530,13 @@
     let timer;
     let lastQ = getQuery();
     const update = () => {
+      // Hen gio 800ms co the chay sau khi da roi buoc/trang (o nhap da mat) -> bo qua
+      const box = document.getElementById(idPrefix + "-preview");
+      if (!box) return;
       const q = getQuery();
       if (q === lastQ) return;
       lastQ = q;
-      const box = document.getElementById(idPrefix + "-preview");
       const link = document.getElementById(idPrefix + "-open");
-      if (!box) return;
       box.innerHTML = q ? mapFrameHtml(q) : `<div class="map-empty">${icon("pin", "icon")}<span>Nhập địa chỉ để xem bản đồ</span></div>`;
       if (link) { link.hidden = !q; link.href = q ? mapSearchUrl(q) : "#"; }
     };
@@ -955,6 +957,54 @@
     return routes.home();
   }
   window.addEventListener("hashchange", route);
+
+  // ---------- Motion ----------
+  // Cac the/khoi hien dan khi cuon toi, lech nhau mot chut theo thu tu. Trang
+  // hay ve lai cung noi dung (vd dong bo metadata) -> nho "chu ky" phan tu da
+  // hien trong trang hien tai de khong nhap nhay lai.
+  const REVEAL_SEL = ".event-card, .resale-card, .ticket-card, .cat-tile, .upcoming-item, .benefit-card, .kpi-grid .stat, .section-head, .org-table-wrap, .resale-banner";
+  const reduceMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  let revealSeen = new Set();
+  let revealRoute = "";
+  const revealIO = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      const el = en.target;
+      el.classList.add("is-in");
+      revealIO.unobserve(el);
+      // Hien xong thi tra lai transition goc (hover khong bi tre theo --reveal-delay)
+      setTimeout(() => { el.classList.remove("reveal", "is-in"); el.style.removeProperty("--reveal-delay"); }, 700 + (parseInt(el.style.getPropertyValue("--reveal-delay"), 10) || 0));
+    });
+  }, { rootMargin: "0px 0px -40px 0px" }) : null;
+
+  function revealSig(el) { return el.className.replace(/\s*\b(reveal|is-in)\b/g, "") + "|" + (el.textContent || "").replace(/\s+/g, " ").slice(0, 80); }
+  function scanReveal(root) {
+    const routeKey = location.hash.split("?")[0];
+    if (routeKey !== revealRoute) { revealRoute = routeKey; revealSeen = new Set(); }
+    const els = root.matches(REVEAL_SEL) ? [root] : [...root.querySelectorAll(REVEAL_SEL)];
+    let i = 0;
+    els.forEach((el) => {
+      if (el.classList.contains("reveal")) return;
+      const sig = revealSig(el);
+      if (revealSeen.has(sig)) return; // ve lai y het -> hien ngay, khong chay lai hieu ung
+      revealSeen.add(sig);
+      el.classList.add("reveal");
+      el.style.setProperty("--reveal-delay", Math.min(i++, 8) * 60 + "ms");
+      revealIO.observe(el);
+    });
+  }
+  if (!reduceMotion && revealIO && "MutationObserver" in window) {
+    const appRoot = document.getElementById("app-root");
+    if (appRoot) new MutationObserver((muts) => {
+      muts.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) scanReveal(n); }));
+    }).observe(appRoot, { childList: true, subtree: true });
+  }
+  const headerEl = document.querySelector(".site-header");
+  if (headerEl) {
+    const onScroll = () => headerEl.classList.toggle("is-scrolled", window.scrollY > 8);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
 
   // ---------- Header ----------
 
