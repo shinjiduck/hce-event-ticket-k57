@@ -37,7 +37,7 @@
   // Danh muc la du lieu OFF-CHAIN (luu cung metadata qua /api/metadata),
   // ProjectCore.sol khong co truong nay. Su kien cu chua chon -> "Khác".
   const CATEGORIES = [
-    { id: "music", label: "Nhạc sống", icon: "music" },
+    { id: "music", label: "Âm nhạc", icon: "music" },
     { id: "art", label: "Nghệ thuật", icon: "palette" },
     { id: "sport", label: "Thể thao", icon: "trophy" },
     { id: "workshop", label: "Workshop", icon: "tool" },
@@ -1104,58 +1104,72 @@
   routes.home = async function () {
     const myToken = renderToken;
     $root().innerHTML = h`
-      <div class="page container">
-        <h1 class="sr-only">FairTicket — khám phá và mua vé sự kiện</h1>
-        <nav class="category-bar" aria-label="Danh mục sự kiện">
-          <a class="cat-chip active" href="#/events">${icon("grid")} Tất cả</a>
-          ${CATEGORIES.map((c) => `<a class="cat-chip" href="#/events?cat=${c.id}">${icon(c.icon)} ${c.label}</a>`).join("")}
-        </nav>
-
-        <section class="hero-carousel" id="hero-carousel" aria-roledescription="carousel" aria-label="Sự kiện tiêu điểm">
-          ${brandSlideHtml(true)}
-        </section>
-
-        <section class="home-section">
-          <div class="section-head">
-            <div><h2>Sự kiện nổi bật</h2><p>Các sự kiện mới nhất đang mở bán trên FairTicket.</p></div>
-            <a href="#/events" class="btn btn-ghost btn-sm">Xem tất cả ${icon("chevronRight")}</a>
-          </div>
-          <div id="home-featured" class="grid-4">${skeletonCards(4)}</div>
-        </section>
-
-        <section class="home-section">
-          <div class="section-head">
-            <div><h2>Sắp diễn ra</h2><p>Sắp xếp theo thời gian bắt đầu gần nhất.</p></div>
-            <a href="#/events?sort=soon" class="btn btn-ghost btn-sm">Xem lịch ${icon("chevronRight")}</a>
-          </div>
-          <div id="home-upcoming" class="upcoming-list">${skeletonRows(4)}</div>
-        </section>
-
-        <section class="home-section">
-          <div class="section-head"><div><h2>Khám phá theo danh mục</h2><p>Chọn loại sự kiện bạn quan tâm.</p></div></div>
-          <div id="home-cats" class="cat-grid">${categoryTilesHtml(null)}</div>
-        </section>
-
-        <section class="home-section">
-          <div class="section-head">
-            <div><h2>Vé bán lại minh bạch</h2><p>Vé do người dùng rao bán lại — trạng thái đọc trực tiếp từ hợp đồng.</p></div>
-            <a href="#/resale" class="btn btn-ghost btn-sm">Xem tất cả ${icon("chevronRight")}</a>
-          </div>
-          ${resaleRuleBanner()}
-          <div id="home-resale" class="grid-4">${skeletonCards(4)}</div>
-        </section>
-
-        <section class="home-section">
-          <div class="section-head"><div><h2>Vì sao chọn FairTicket?</h2></div></div>
-          <div class="benefit-grid">
-            ${benefitHtml("shield", "Vé xác thực on-chain", "Mỗi vé là một bản ghi duy nhất trên hợp đồng ProjectCore — không thể làm giả hay nhân bản.")}
-            ${benefitHtml("scale", "Giới hạn đầu cơ", "Mỗi sự kiện có trần giá bán lại (mặc định 110%) và giới hạn số vé mỗi ví — hợp đồng tự thực thi.")}
-            ${benefitHtml("eye", "Sở hữu minh bạch", "Ai đang giữ vé nào đều kiểm chứng được công khai trên Etherscan.")}
-            ${benefitHtml("history", "Theo dõi giao dịch", "Mua, bán lại, check-in đều để lại lịch sử không thể sửa đổi.")}
+      <div class="page home-page">
+        <section class="ft-hero" aria-labelledby="ft-hero-title">
+          <div class="ft-hero__bg" aria-hidden="true"><img src="./assets/hero.jpg" alt="" fetchpriority="high" /></div>
+          <div class="container ft-hero__inner">
+            <div class="ft-hero__content">
+              <span class="ft-eyebrow"><span class="ft-eyebrow__dot"></span>Vé sự kiện xác minh trên blockchain</span>
+              <h1 id="ft-hero-title" class="ft-hero__title" lang="en">Feel the event.</h1>
+              <p class="ft-hero__script" lang="en">Own the Moment.</p>
+              <p class="ft-hero__lead">Khám phá những sự kiện hấp dẫn, sở hữu vé được xác minh trên blockchain.</p>
+              <div class="ft-hero__cta">
+                <a href="#/events" class="btn btn-primary btn-lg">Khám phá sự kiện</a>
+                <button type="button" class="btn btn-glass btn-lg" id="btn-learn">Tìm hiểu FairTicket</button>
+              </div>
+            </div>
+            <div class="ft-hero__float">
+              <div id="hero-ticket">${heroTicketHtml(null)}</div>
+              <div id="hero-stats" hidden></div>
+            </div>
           </div>
         </section>
+
+        <div class="container">
+          <nav class="category-bar" aria-label="Danh mục sự kiện">
+            <a class="cat-chip active" href="#/events">${icon("grid")} Tất cả</a>
+            ${CATEGORIES.map((c) => `<a class="cat-chip" href="#/events?cat=${c.id}">${icon(c.icon)} ${c.label}</a>`).join("")}
+          </nav>
+
+          <section class="home-section">
+            <div class="section-head">
+              <div><span class="section-kicker">Đang mở bán</span><h2>Sự kiện nổi bật</h2><p>Các sự kiện mới nhất trên FairTicket.</p></div>
+              <a href="#/events" class="btn btn-ghost btn-sm">Xem tất cả ${icon("chevronRight")}</a>
+            </div>
+            <div id="home-featured" class="grid-4">${skeletonCards(4)}</div>
+          </section>
+
+          <section class="home-section">
+            <div class="section-head">
+              <div><span class="section-kicker">Lịch diễn</span><h2>Sắp diễn ra</h2><p>Sắp xếp theo thời gian bắt đầu gần nhất.</p></div>
+              <a href="#/events?sort=soon" class="btn btn-ghost btn-sm">Xem lịch ${icon("chevronRight")}</a>
+            </div>
+            <div id="home-upcoming" class="upcoming-list">${skeletonRows(4)}</div>
+          </section>
+
+          <section class="home-section">
+            <div class="section-head">
+              <div><span class="section-kicker">Chợ vé</span><h2>Vé bán lại minh bạch</h2><p>Vé do người dùng rao bán lại — trạng thái đọc trực tiếp từ hợp đồng.</p></div>
+              <a href="#/resale" class="btn btn-ghost btn-sm">Xem tất cả ${icon("chevronRight")}</a>
+            </div>
+            ${resaleRuleBanner()}
+            <div id="home-resale" class="grid-4">${skeletonCards(4)}</div>
+          </section>
+
+          <section class="home-section why-section" id="why" aria-labelledby="why-title">
+            <div class="section-head section-head--center"><div><span class="section-kicker">Công nghệ đứng sau tấm vé</span><h2 id="why-title">Vì sao chọn FairTicket?</h2></div></div>
+            <div class="benefit-grid benefit-grid--3">
+              ${benefitHtml("shield", "Vé được xác minh", "Mỗi vé là một bản ghi duy nhất trên hợp đồng ProjectCore. Khi vào cửa, chủ vé ký mã QR bằng ví — không làm giả hay chụp lại được.")}
+              ${benefitHtml("scale", "Mua bán lại minh bạch", "Ban tổ chức đặt trần giá bán lại và số vé tối đa mỗi ví; hợp đồng từ chối mọi giá vượt trần và trả 5% phí bản quyền cho ban tổ chức.")}
+              ${benefitHtml("wallet", "Quản lý vé dễ dàng", "Kết nối ví để xem vé, rao bán hoặc gỡ rao bán, tạo mã check-in và rút tiền — lịch sử giao dịch công khai trên Etherscan.")}
+            </div>
+          </section>
+        </div>
       </div>
     `;
+    document.getElementById("btn-learn").addEventListener("click", () => {
+      document.getElementById("why").scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    });
 
     let evts, tiers;
     try {
@@ -1183,14 +1197,23 @@
     const tiersOf = (e) => byEvent.get(String(e.id)) || [];
     const upcoming = evts.filter((e) => Number(e.startTime) > nowTs).sort((a, b) => Number(a.startTime) - Number(b.startTime));
 
-    // Carousel: su kien sap dien ra da co hang ve (toi da 5), cuoi cung la slide gioi thieu.
-    const heroEvents = upcoming.filter((e) => tiersOf(e).length > 0).slice(0, 5);
-    const carousel = document.getElementById("hero-carousel");
-    if (carousel) {
-      mountCarousel(carousel, [
-        ...heroEvents.map((e, i) => eventSlideHtml(e, tiersOf(e), i === 0)),
-        brandSlideHtml(heroEvents.length === 0),
-      ]);
+    // The ve noi o hero: su kien sap dien ra gan nhat da mo ban (du lieu that).
+    const spotlight = upcoming.find((e) => tiersOf(e).length > 0) || null;
+    const ticketEl = document.getElementById("hero-ticket");
+    if (ticketEl) ticketEl.innerHTML = heroTicketHtml(spotlight, spotlight ? tiersOf(spotlight) : null);
+    // So lieu chi hien khi da co su kien that tren hop dong - khong tu bia so.
+    const statsEl = document.getElementById("hero-stats");
+    if (statsEl && evts.length) {
+      let minted = 0n;
+      for (const ts of byEvent.values()) for (const t of ts) minted += BigInt(t.minted);
+      statsEl.innerHTML = `
+        <div class="ft-stats">
+          <div class="ft-stats__item"><strong>${evts.length}</strong><span>sự kiện</span></div>
+          <div class="ft-stats__item"><strong>${minted}</strong><span>vé đã phát hành</span></div>
+          <div class="ft-stats__item"><strong>${upcoming.length}</strong><span>sắp diễn ra</span></div>
+          <p class="ft-stats__note">${icon("shield")} Đọc trực tiếp từ hợp đồng trên Sepolia</p>
+        </div>`;
+      statsEl.hidden = false;
     }
 
     // Noi bat = moi nhat con mo ban (chua dien ra, con ve); thieu thi bu bang su kien sap dien ra khac.
@@ -1215,102 +1238,31 @@
         ? upcoming.slice(0, 6).map((e) => upcomingItemHtml(e, tiersOf(e))).join("")
         : emptyState("Chưa có sự kiện sắp diễn ra", "Các sự kiện mới mở bán sẽ xuất hiện tại đây.", evts.length ? `<a class="btn btn-secondary btn-sm" href="#/events?past=1" style="margin-top:16px;">Xem sự kiện đã diễn ra</a>` : "");
     }
+  }
 
-    const counts = {};
-    for (const e of evts) {
-      const id = categoryOf(getMeta(e.id).category).id;
-      counts[id] = (counts[id] || 0) + 1;
+  // The ve noi o hero. Co su kien that -> hien su kien do; chua co -> ghi ro la ve mau.
+  function heroTicketHtml(evt, tiers) {
+    const qr = `<span class="ft-ticket__qr" aria-hidden="true">${Array.from({ length: 49 }, (_, i) => `<i${(i * 7 + (i % 5) * 3) % 4 === 0 || [0, 1, 7, 8, 5, 6, 12, 13, 35, 36, 42, 43].includes(i) ? ' class="on"' : ""}></i>`).join("")}</span>`;
+    if (!evt) {
+      return `
+        <div class="ft-ticket is-sample">
+          <div class="ft-ticket__top"><span class="ft-ticket__badge">${icon("ticket")} Vé mẫu</span><span class="ft-ticket__brand">FairTicket</span></div>
+          <div class="ft-ticket__name">Sự kiện của bạn</div>
+          <div class="ft-ticket__meta">${icon("calendar")}<span>Ngày · giờ diễn ra</span></div>
+          <div class="ft-ticket__meta">${icon("pin")}<span>Địa điểm tổ chức</span></div>
+          <div class="ft-ticket__foot">${qr}<span class="ft-ticket__verify">${icon("shield")}<span><strong>Xác minh on-chain</strong>Mỗi vé là một bản ghi duy nhất</span></span></div>
+        </div>`;
     }
-    const catEl = document.getElementById("home-cats");
-    if (catEl) catEl.innerHTML = categoryTilesHtml(counts);
-  }
-
-  function brandSlideHtml(active) {
-    return `
-      <div class="hero-slide${active ? " is-active" : ""}" role="group" aria-roledescription="slide" aria-label="Giới thiệu FairTicket">
-        <img class="hero-slide__img" src="./assets/hero.jpg" alt="" />
-        <div class="hero-slide__scrim"></div>
-        <div class="hero-slide__content">
-          <span class="hero-slide__eyebrow">FairTicket</span>
-          <h2 class="hero-slide__title">Vé công bằng cho những sự kiện đáng nhớ</h2>
-          <p class="hero-slide__lead">Mua vé ghi nhận trên blockchain — chống vé giả, giá bán lại có trần, giới hạn số vé mỗi ví.</p>
-          <div class="hero-slide__cta">
-            <a href="#/events" class="btn btn-primary btn-lg">Khám phá sự kiện</a>
-            <a href="#/create" class="btn btn-secondary btn-lg">Tạo sự kiện</a>
-          </div>
-        </div>
-      </div>`;
-  }
-
-  function eventSlideHtml(evt, tiers, active) {
     const meta = getMeta(evt.id);
-    const s = salesSummary(evt, tiers);
-    const canBuy = s.hasTiers && !s.soldOut && !s.ended;
+    const s = salesSummary(evt, tiers || []);
     return `
-      <div class="hero-slide${active ? " is-active" : ""}" role="group" aria-roledescription="slide" aria-label="${escapeAttr(evt.name)}">
-        <img class="hero-slide__img" src="${eventImage(meta, evt.id)}" alt="" />
-        <div class="hero-slide__scrim"></div>
-        <div class="hero-slide__content">
-          <span class="hero-slide__eyebrow">${categoryOf(meta.category).label}${s.badge ? " · " + s.badge.label : ""}</span>
-          <h2 class="hero-slide__title">${escapeHtml(evt.name)}</h2>
-          <div class="hero-slide__meta">
-            <span>${icon("calendar")} ${fmtCardDate(evt.startTime)}</span>
-            <span>${icon("pin")} ${escapeHtml(meta.location || "Địa điểm cập nhật sau")}</span>
-            ${s.hasTiers ? `<span>${icon("ticket")} Từ ${fmtEth(s.minPrice)} ETH</span>` : ""}
-          </div>
-          <div class="hero-slide__cta">
-            ${canBuy ? `<a href="#/events/${evt.id}" class="btn btn-accent btn-lg">Mua vé</a>` : ""}
-            <a href="#/events/${evt.id}" class="btn btn-secondary btn-lg">Xem chi tiết</a>
-          </div>
-        </div>
-      </div>`;
-  }
-
-  let carouselTimer = null;
-  function mountCarousel(root, slides) {
-    clearInterval(carouselTimer);
-    const n = slides.length;
-    root.innerHTML = slides.join("") + (n > 1 ? `
-      <button type="button" class="carousel-nav carousel-nav--prev" aria-label="Slide trước">${icon("chevronLeft", "icon")}</button>
-      <button type="button" class="carousel-nav carousel-nav--next" aria-label="Slide sau">${icon("chevronRight", "icon")}</button>
-      <div class="carousel-dots">${slides.map((_, i) => `<button type="button" class="carousel-dot${i === 0 ? " is-active" : ""}" aria-label="Tới slide ${i + 1}"></button>`).join("")}</div>` : "");
-    const els = root.querySelectorAll(".hero-slide");
-    const dots = root.querySelectorAll(".carousel-dot");
-    let idx = 0;
-    function go(i) {
-      idx = (i + n) % n;
-      els.forEach((el, k) => {
-        el.classList.toggle("is-active", k === idx);
-        el.inert = k !== idx;
-      });
-      dots.forEach((d, k) => { d.classList.toggle("is-active", k === idx); d.setAttribute("aria-current", k === idx ? "true" : "false"); });
-    }
-    go(0);
-    if (n <= 1) return;
-    root.querySelector(".carousel-nav--prev").addEventListener("click", () => go(idx - 1));
-    root.querySelector(".carousel-nav--next").addEventListener("click", () => go(idx + 1));
-    dots.forEach((d, k) => d.addEventListener("click", () => go(k)));
-
-    let paused = false;
-    root.addEventListener("mouseenter", () => { paused = true; });
-    root.addEventListener("mouseleave", () => { paused = false; });
-    root.addEventListener("focusin", () => { paused = true; });
-    root.addEventListener("focusout", () => { paused = false; });
-    let touchX = null;
-    root.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; paused = true; }, { passive: true });
-    root.addEventListener("touchend", (e) => {
-      if (touchX !== null) {
-        const dx = e.changedTouches[0].clientX - touchX;
-        if (Math.abs(dx) > 40) go(idx + (dx < 0 ? 1 : -1));
-      }
-      touchX = null;
-      paused = false;
-    });
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    carouselTimer = setInterval(() => {
-      if (!document.body.contains(root)) { clearInterval(carouselTimer); return; }
-      if (!paused && !document.hidden) go(idx + 1);
-    }, 6000);
+      <a class="ft-ticket" href="#/events/${evt.id}" aria-label="Sự kiện tiêu điểm: ${escapeAttr(evt.name)}">
+        <div class="ft-ticket__top"><span class="ft-ticket__badge">${icon("ticket")} ${escapeHtml(categoryOf(meta.category).label)}</span><span class="ft-ticket__brand">Tiêu điểm</span></div>
+        <div class="ft-ticket__name">${escapeHtml(evt.name)}</div>
+        <div class="ft-ticket__meta">${icon("calendar")}<span>${fmtCardDate(evt.startTime)}</span></div>
+        <div class="ft-ticket__meta">${icon("pin")}<span>${escapeHtml(placeLabel(meta))}</span></div>
+        <div class="ft-ticket__foot">${qr}<span class="ft-ticket__verify">${icon("shield")}<span><strong>Đã xác minh on-chain</strong>${s.hasTiers ? `Từ ${fmtEth(s.minPrice)} ETH` : "Sắp mở bán"}</span></span></div>
+      </a>`;
   }
 
   function upcomingItemHtml(evt, tiers) {
@@ -1333,17 +1285,6 @@
         </div>
         ${right}
       </a>`;
-  }
-
-  function categoryTilesHtml(counts) {
-    return CATEGORIES.filter((c) => c.id !== "other").map((c) => `
-      <a class="cat-tile" href="#/events?cat=${c.id}">
-        <span class="cat-tile__icon">${icon(c.icon, "icon")}</span>
-        <span>
-          <span class="cat-tile__name">${c.label}</span><br />
-          <span class="cat-tile__count">${counts ? (counts[c.id] || 0) + " sự kiện" : "&nbsp;"}</span>
-        </span>
-      </a>`).join("");
   }
 
   function benefitHtml(iconName, title, text) {
@@ -1402,6 +1343,7 @@
         <div class="event-card__img-wrap">
           <img class="event-card__img" src="${eventImage(meta, evt.id)}" alt="" loading="lazy" />
           <div class="event-card__tags"><span class="event-card__cat">${categoryOf(meta.category).label}</span>${s && s.badge ? `<span class="badge ${s.badge.cls}">${s.badge.label}</span>` : ""}</div>
+          <span class="event-card__cta" aria-hidden="true">Xem chi tiết ${icon("chevronRight")}</span>
         </div>
         <div class="event-card__body">
           <div class="event-card__date">${fmtCardDate(evt.startTime)}</div>
