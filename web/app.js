@@ -64,6 +64,7 @@
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     ticket: '<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v12" stroke-dasharray="2 2"/>',
     external: '<path d="M15 3h6v6M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>',
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
     logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
     wallet: '<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20M16 15h2"/>',
   };
@@ -2300,7 +2301,8 @@
     // (lop thu 1 la handleWalletChange() khong con ep reload trang nua).
     try {
       const saved = JSON.parse(sessionStorage.getItem(CREATE_DRAFT_KEY) || "null");
-      if (saved && saved.data && Object.values(saved.data).some((v) => v)) {
+      const typed = saved && saved.data && Object.entries(saved.data).some(([k, v]) => v && k !== "cap" && k !== "walletLimit");
+      if (typed) {
         data = Object.assign(data, saved.data);
         step = saved.step || 1;
         setTimeout(() => toast("Đã khôi phục thông tin đang điền dở.", "info"), 300);
@@ -2317,22 +2319,36 @@
     function render() {
       saveDraft();
       $root().innerHTML = h`
-        <div class="page container" style="max-width: 760px;">
-          <h2 style="margin-top: var(--sp-5);">Tạo sự kiện mới</h2>
-          <p class="text-secondary" style="margin-top:4px;">Bạn sẽ là Organizer của sự kiện này trên blockchain.</p>
+        <div class="page container create-page">
+          <header class="create-hero">
+            <div>
+              <span class="create-hero__eyebrow">${icon("ticket")} Dành cho ban tổ chức</span>
+              <h2>Tạo sự kiện mới</h2>
+              <p>Bạn sẽ là Organizer của sự kiện này trên blockchain — vé bán ra minh bạch, không làm giả được.</p>
+            </div>
+            <ul class="create-hero__facts">
+              <li>${icon("shield")}<span><strong>Chống vé giả</strong>Mỗi vé ghi trên Sepolia</span></li>
+              <li>${icon("scale")}<span><strong>Bán lại có trần</strong>Bạn tự đặt mức trần</span></li>
+              <li>${icon("wallet")}<span><strong>Phí bản quyền 5%</strong>Mỗi lần vé đổi chủ</span></li>
+            </ul>
+          </header>
 
           <div class="wizard-steps">
             ${wizardStepHtml(1, "Thông tin cơ bản", step)}
-            <div class="wizard-divider"></div>
+            <div class="wizard-divider ${step > 1 ? "is-done" : ""}"></div>
             ${wizardStepHtml(2, "Cấu hình vé", step)}
-            <div class="wizard-divider"></div>
+            <div class="wizard-divider ${step > 2 ? "is-done" : ""}"></div>
             ${wizardStepHtml(3, "Triển khai", step)}
           </div>
 
-          <div class="wizard-panel" id="wizard-panel"></div>
+          <div class="create-layout">
+            <div class="wizard-panel" id="wizard-panel"></div>
+            <aside class="create-aside" id="create-aside"></aside>
+          </div>
         </div>
       `;
       renderStep();
+      updatePreview();
     }
 
     function wizardStepHtml(n, label, current) {
@@ -2347,20 +2363,70 @@
       Object.keys(FIELD_MAP).forEach((elId) => {
         const el = document.getElementById(elId);
         if (!el) return;
-        el.addEventListener("input", () => {
+        const onChange = () => {
           data[FIELD_MAP[elId]] = el.value;
           saveDraft();
-        });
+          updatePreview();
+        };
+        el.addEventListener("input", onChange);
+        if (el.tagName === "SELECT") el.addEventListener("change", onChange);
       });
+    }
+
+    // Xem truoc the su kien (giong the o trang chu) + tom tat quy tac on-chain.
+    let pendingImage = ""; // anh vua chon o buoc 1, chua nen
+    const TIPS = {
+      1: ["Tên ngắn, dễ nhớ giúp sự kiện nổi bật trên trang chủ.", "Ảnh bìa ngang (16:9) hiển thị đẹp nhất.", "Địa chỉ đầy đủ để người mua mở được Google Maps."],
+      2: ["Trần 110% đủ để người bận việc bán lại, nhưng phe vé khó kiếm lời.", "Giới hạn 2–4 vé/ví hợp với sự kiện dễ cháy vé.", "Có thể thêm hạng VIP sau khi tạo xong."],
+      3: ["Cần 2 giao dịch (tạo sự kiện, tạo hạng vé) + 1 chữ ký miễn phí.", "Trần giá và giới hạn ví không sửa được sau khi tạo.", "Giữ trang mở cho tới khi báo thành công."],
+    };
+    function updatePreview() {
+      const aside = document.getElementById("create-aside");
+      if (!aside) return;
+      const cat = data.category ? categoryOf(data.category).label : "Danh mục";
+      const ts = data.startTime ? Math.floor(new Date(data.startTime).getTime() / 1000) : 0;
+      const place = placeLabel({ location: data.location, province: data.province });
+      const img = pendingImage || data.image || stockImage(0);
+      const price = Number(data.price) > 0 ? Number(data.price) : 0;
+      const cap = Number(data.cap) || 110;
+      const lim = Number(data.walletLimit) || 0;
+      const fmt = (x) => x.toLocaleString("vi-VN", { maximumFractionDigits: 6 });
+      aside.innerHTML = `
+        <div class="create-aside__label">${icon("eye")} Xem trước</div>
+        <div class="event-card event-card--preview">
+          <div class="event-card__img-wrap">
+            <img class="event-card__img" src="${escapeAttr(img)}" alt="" />
+            <div class="event-card__tags"><span class="event-card__cat">${escapeHtml(cat)}</span></div>
+          </div>
+          <div class="event-card__body">
+            <div class="event-card__date">${ts ? fmtCardDate(ts) : "Ngày · giờ diễn ra"}</div>
+            <div class="event-card__title ${data.name ? "" : "is-placeholder"}">${escapeHtml(data.name || "Tên sự kiện của bạn")}</div>
+            <div class="event-card__meta">${icon("pin")}<span>${escapeHtml(place)}</span></div>
+            <div class="event-card__price-wrap"><div class="event-card__price"><span>Giá vé</span><span>${price ? `Từ <strong>${fmt(price)} ETH</strong>` : "Chưa đặt giá"}</span></div></div>
+          </div>
+        </div>
+        <div class="rule-box">
+          <div class="rule-box__title">${icon("shield")} Quy tắc ghi trên hợp đồng</div>
+          <div class="rule-row"><span>Trần giá bán lại</span><strong>${cap}%${price ? ` · ≤ ${fmt(price * cap / 100)} ETH` : ""}</strong></div>
+          <div class="rule-row"><span>Tối đa mỗi ví</span><strong>${lim ? lim + " vé" : "Không giới hạn"}</strong></div>
+          <div class="rule-row"><span>Phí bản quyền</span><strong>5% mỗi lần bán lại</strong></div>
+          ${Number(data.maxSupply) > 0 && price ? `<div class="rule-row rule-row--total"><span>Doanh thu nếu bán hết</span><strong>${fmt(price * Number(data.maxSupply))} ETH</strong></div>` : ""}
+        </div>
+        <ul class="tip-list">${(TIPS[step] || []).map((t) => `<li>${t}</li>`).join("")}</ul>`;
+    }
+    function sectionHead(ic, title, sub) {
+      return `<div class="form-section__head"><span class="form-section__icon">${icon(ic)}</span><div><h3>${title}</h3>${sub ? `<p>${sub}</p>` : ""}</div></div>`;
     }
 
     function renderStep() {
       const panel = document.getElementById("wizard-panel");
       if (step === 1) {
         panel.innerHTML = `
+          <section class="form-section">
+          ${sectionHead("ticket", "Thông tin chung", "Tên và mô tả hiển thị trên trang sự kiện.")}
           <div class="field">
-            <label for="f-name">Tên sự kiện</label>
-            <input id="f-name" placeholder="VD: UEH Music Night 2026" value="${escapeAttr(data.name)}" />
+            <label for="f-name">Tên sự kiện <span class="req">*</span></label>
+            <input id="f-name" placeholder="VD: UEH Music Night 2026" maxlength="120" value="${escapeAttr(data.name)}" />
           </div>
           <div class="field">
             <label for="f-cat">Danh mục</label>
@@ -2372,11 +2438,15 @@
           </div>
           <div class="field">
             <label for="f-desc">Mô tả</label>
-            <textarea id="f-desc" placeholder="Giới thiệu ngắn về sự kiện...">${escapeHtml(data.description)}</textarea>
+            <textarea id="f-desc" placeholder="Giới thiệu ngắn: ai biểu diễn, có gì đặc biệt, ai nên tham gia…" maxlength="2000">${escapeHtml(data.description)}</textarea>
+            <p class="hint field-count" id="f-desc-count">${data.description.length}/2000</p>
           </div>
+          </section>
+          <section class="form-section">
+          ${sectionHead("calendar", "Thời gian", "Sau giờ bắt đầu, hợp đồng tự ngừng bán vé mới.")}
           <div class="field-row">
             <div class="field">
-              <label for="f-start">Thời gian bắt đầu</label>
+              <label for="f-start">Thời gian bắt đầu <span class="req">*</span></label>
               <input id="f-start" type="datetime-local" value="${data.startTime}" />
             </div>
             <div class="field">
@@ -2384,6 +2454,9 @@
               <input id="f-end" type="datetime-local" value="${data.endTime}" />
             </div>
           </div>
+          </section>
+          <section class="form-section">
+          ${sectionHead("pin", "Địa điểm", "Người mua xem đường đi bằng Google Maps.")}
           <div class="field">
             <label for="f-loc">Tên địa điểm</label>
             <input id="f-loc" placeholder="VD: Nhà văn hóa Trung tâm" maxlength="300" value="${escapeAttr(data.location)}" />
@@ -2393,25 +2466,57 @@
             ${addressFieldsHtml("f", data)}
             ${mapPickerHtml("f-map", mapQuery({ location: data.location, address: joinAddress(data), street: data.street }))}
           </fieldset>
-          <div class="field">
-            <label>Ảnh sự kiện</label>
-            <div class="upload-box">Chọn ảnh bìa (tự nén tối đa 1600px, lưu cùng mô tả để mọi người cùng thấy).<br/>
-              <input type="file" id="f-image" accept="image/*" style="margin-top:8px;" />
-            </div>
-          </div>
+          </section>
+          <section class="form-section">
+          ${sectionHead("image", "Ảnh bìa", "Ảnh ngang 16:9, tự nén tối đa 1600px.")}
+          <label class="dropzone ${data.image ? "has-image" : ""}" for="f-image" id="f-drop">
+            <img class="dropzone__img" id="f-drop-img" src="${data.image ? escapeAttr(data.image) : ""}" alt="" ${data.image ? "" : "hidden"} />
+            <span class="dropzone__text">
+              <span class="dropzone__icon">${icon("image")}</span>
+              <strong id="f-drop-title">${data.image ? "Đổi ảnh khác" : "Kéo ảnh vào đây hoặc bấm để chọn"}</strong>
+              <span>PNG, JPG · lưu cùng mô tả để mọi người cùng thấy</span>
+            </span>
+            <input type="file" id="f-image" accept="image/*" hidden />
+          </label>
+          </section>
           <div class="wizard-actions">
             <a href="#/my-events" class="btn btn-ghost" id="btn-cancel-wizard">Hủy</a>
             <button id="btn-next-1" class="btn btn-primary">Tiếp tục →</button>
           </div>
         `;
         bindLiveInputs();
+        const descEl = document.getElementById("f-desc");
+        descEl.addEventListener("input", () => { document.getElementById("f-desc-count").textContent = descEl.value.length + "/2000"; });
+        const fileEl = document.getElementById("f-image");
+        const drop = document.getElementById("f-drop");
+        const showPicked = () => {
+          const f = fileEl.files[0];
+          if (!f) return;
+          if (pendingImage.startsWith("blob:")) URL.revokeObjectURL(pendingImage);
+          pendingImage = URL.createObjectURL(f);
+          const im = document.getElementById("f-drop-img");
+          im.src = pendingImage; im.hidden = false;
+          drop.classList.add("has-image");
+          document.getElementById("f-drop-title").textContent = "Đổi ảnh khác · " + f.name;
+          updatePreview();
+        };
+        fileEl.addEventListener("change", showPicked);
+        ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("is-drag"); }));
+        ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove("is-drag")));
+        drop.addEventListener("drop", (e) => {
+          e.preventDefault();
+          const f = e.dataTransfer && e.dataTransfer.files[0];
+          if (!f || !f.type.startsWith("image/")) { toast("Chỉ nhận file ảnh.", "error"); return; }
+          const dt = new DataTransfer(); dt.items.add(f); fileEl.files = dt.files;
+          showPicked();
+        });
         const wizQuery = () => {
           const v = (id) => document.getElementById(id).value.trim();
           return mapQuery({ location: v("f-loc"), street: v("f-street"), address: joinAddress({ street: v("f-street"), ward: v("f-ward"), province: v("f-prov") }) });
         };
         const refreshMap = wireMapPicker("f-map", wizQuery);
         document.getElementById("f-loc").addEventListener("input", refreshMap);
-        wireAddressFields("f", data, () => { data.province = document.getElementById("f-prov").value; saveDraft(); refreshMap(); });
+        wireAddressFields("f", data, () => { data.province = document.getElementById("f-prov").value; saveDraft(); refreshMap(); updatePreview(); });
         document.getElementById("btn-cancel-wizard").addEventListener("click", clearDraft);
         document.getElementById("btn-next-1").addEventListener("click", async () => {
           data.name = document.getElementById("f-name").value.trim();
@@ -2430,12 +2535,15 @@
             compressImage(file).then((img) => {
               if (!img) { toast("Không đọc được ảnh này, hãy chọn ảnh PNG/JPG khác.", "error"); return; }
               data.image = img;
+              pendingImage = "";
               goNext();
             });
           } else goNext();
         });
       } else if (step === 2) {
         panel.innerHTML = `
+          <section class="form-section">
+          ${sectionHead("ticket", "Hạng vé Standard", "Hạng đầu tiên. Thêm VIP… sau khi tạo xong.")}
           <div class="field-row">
             <div class="field">
               <label for="f-supply">Tổng số vé (hạng Standard)</label>
@@ -2446,7 +2554,9 @@
               <input id="f-price" type="number" min="0" step="0.0001" placeholder="VD: 0.02" value="${escapeAttr(data.price)}" />
             </div>
           </div>
-          <p class="hint">Đây là hạng vé đầu tiên ("Standard"). Sau khi tạo sự kiện, vào trang quản lý sự kiện để thêm các hạng khác (VD: VIP) nếu muốn.</p>
+          </section>
+          <section class="form-section">
+          ${sectionHead("shield", "Quy tắc chống đầu cơ", "Ghi vĩnh viễn trên hợp đồng, không sửa được sau khi tạo.")}
           <div class="field-row">
             <div class="field">
               <label for="f-cap">Trần giá bán lại</label>
@@ -2459,7 +2569,8 @@
               <p class="hint">Chống gom vé. Nhập 0 = không giới hạn (tối đa 100).</p>
             </div>
           </div>
-          <p class="hint">Hai quy tắc này ghi vĩnh viễn trên hợp đồng, không sửa được sau khi tạo. Mỗi lần bán lại, 5% giá bán tự chuyển cho bạn (phí bản quyền).</p>
+          <p class="hint">Mỗi lần bán lại, 5% giá bán tự chuyển cho bạn (phí bản quyền) — xem số cụ thể ở khung bên phải.</p>
+          </section>
           <div class="wizard-actions">
             <button id="btn-back-2" class="btn btn-ghost">← Quay lại</button>
             <button id="btn-next-2" class="btn btn-primary">Tiếp tục →</button>
@@ -2481,8 +2592,8 @@
       } else {
         const startTs = data.startTime ? Math.floor(new Date(data.startTime).getTime() / 1000) : 0;
         panel.innerHTML = `
-          <div class="card" style="padding: var(--sp-4);">
-            <h3 style="margin-bottom: var(--sp-2);">Xem lại trước khi triển khai</h3>
+          <div class="form-section">
+            ${sectionHead("eye", "Xem lại trước khi triển khai", "Kiểm tra kỹ — dữ liệu on-chain không sửa được.")}
             <div class="review-list">
               <div class="review-row"><span class="review-row__label">Tên sự kiện</span><span class="review-row__value">${escapeHtml(data.name)}</span></div>
               <div class="review-row"><span class="review-row__label">Danh mục</span><span class="review-row__value">${categoryOf(data.category).label}</span></div>
