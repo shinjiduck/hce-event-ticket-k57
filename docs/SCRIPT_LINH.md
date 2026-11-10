@@ -230,7 +230,7 @@
 >
 > Về kiểm thử:
 > - Hợp đồng có **19 ca test**, gồm cả ca làm tròn phí: bán 1.099 wei thì phí 54 wei, người bán nhận 1.045 wei, **không mất một wei nào**.
-> - Nhóm còn **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho trình duyệt tự động điều khiển **4 ví** chạy **53 bước**, gồm tất cả các ca em vừa demo. **45 trên 45 đạt.**
+> - Nhóm còn **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho trình duyệt tự động điều khiển **4 ví** chạy **53 bước**, gồm tất cả các ca em vừa demo. **53 trên 53 đạt.**
 > - Bộ test bắt được cả **lỗi thật**, ví dụ: ví từ chối giao dịch thứ 2 thì bấm lại sẽ tạo **sự kiện trùng**, hoặc dashboard không cập nhật số vé đã bán. Tất cả đã sửa.
 
 ---
