@@ -23,6 +23,15 @@
 (function () {
   "use strict";
 
+  // Link check-in trong ma QR: /C/<su kien>/<ma> (Vercel tra index.html, xem vercel.json).
+  // Doi ngay ve "/" + #/check-in de duong dan tuong doi (./assets, ./ProjectCore.abi.json) dung lai.
+  (function adoptCheckinPath() {
+    const m = /^(.*)\/C\/([^/]+)\/(FT1:[^/]+)$/i.exec(location.pathname);
+    if (!m) return;
+    const ev = /^\d+$/.test(m[2]) ? m[2] : "";
+    history.replaceState(null, "", (m[1] || "") + "/#/check-in?" + (ev ? "event=" + ev + "&" : "") + "code=" + encodeURIComponent(decodeURIComponent(m[3])));
+  })();
+
   // ---------- Config ----------
 
   const CONTRACT_ADDRESS = "0x0845EEB1Ed93C373173680a859fB255f168b9Fd0"; // ProjectCore.sol v4 (tran gia + gioi han vi theo su kien, phi ban quyen 5%, CTV soat ve) - Sepolia, deploy 27/10/2026
@@ -268,6 +277,22 @@
     return null;
   }
 
+  // MetaMask hay boc loi nhieu lop; ethers khong doc duoc thi chi bao "could not
+  // coalesce error". Gom moi chuoi message ben trong de tim nguyen nhan that.
+  function deepMessages(err) {
+    const out = [], seen = new Set(), stack = [err];
+    while (stack.length && out.length < 40) {
+      const x = stack.pop();
+      if (!x || typeof x !== "object" || seen.has(x)) continue;
+      seen.add(x);
+      for (const [k, v] of Object.entries(x)) {
+        if (typeof v === "string" && /^(message|shortMessage|reason|details)$/.test(k)) out.push(v);
+        else if (v && typeof v === "object") stack.push(v);
+      }
+    }
+    return out;
+  }
+  const UNKNOWN_WALLET_ERROR = "Ví trả về lỗi không rõ nguyên nhân (thường do ví hết ETH Sepolia để trả phí gas, hoặc mạng RPC của ví chập chờn). Kiểm tra số dư rồi thử lại.";
   function friendlyError(err) {
     if (err?.userFacing) return err.message;
     const revertName = revertNameFrom(err);
@@ -281,6 +306,13 @@
     if (raw.toLowerCase().includes("user rejected")) return "Bạn đã huỷ xác nhận trong ví.";
     if (raw.toLowerCase().includes("insufficient funds")) return "Ví không đủ ETH để thực hiện giao dịch này.";
     if (raw.toLowerCase().includes("chưa cấu hình") || raw.toLowerCase().includes("chưa kết nối")) return raw;
+    const all = [raw, ...deepMessages(err)].join(" | ").toLowerCase();
+    if (all.includes("user rejected") || all.includes("user denied")) return "Bạn đã từ chối giao dịch trong ví.";
+    if (/insufficient funds|doesn't have enough funds|gas required exceeds allowance/.test(all)) return "Ví không đủ ETH Sepolia để trả phí gas — nạp ETH test (faucet Sepolia) cho ví này rồi thử lại.";
+    if (/nonce too (low|high)|invalid nonce/.test(all)) return "Ví bị lệch số thứ tự giao dịch (nonce). Trong MetaMask: Cài đặt → Nâng cao → Xoá dữ liệu hoạt động, rồi thử lại.";
+    if (/rate limit|too many requests|\b429\b/.test(all)) return "Mạng RPC của ví đang quá tải — chờ vài giây rồi thử lại.";
+    if (all.includes("execution reverted")) return "Hợp đồng từ chối giao dịch này (execution reverted).";
+    if (all.includes("could not coalesce") || all.includes("internal json-rpc error")) return UNKNOWN_WALLET_ERROR;
     return "Giao dịch thất bại: " + raw.slice(0, 160);
   }
 
@@ -405,7 +437,7 @@
     el.setAttribute("role", "dialog");
     el.setAttribute("aria-label", "Mã check-in phóng to");
     el.innerHTML = `<div class="qr-fullscreen__code"></div><div class="qr-fullscreen__label">${escapeHtml(label)} · tăng độ sáng màn hình · chạm để đóng</div>`;
-    renderQrInto(el.querySelector(".qr-fullscreen__code"), code, /^FT1:/.test(code) ? "Alphanumeric" : "Byte");
+    renderQrInto(el.querySelector(".qr-fullscreen__code"), code, QR_ALNUM_RE.test(code) ? "Alphanumeric" : "Byte", /^FT1:/.test(code) ? "M" : "L");
     const close = () => el.remove();
     el.addEventListener("click", close);
     el.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
@@ -480,7 +512,7 @@
       qrEl.classList.remove("is-expired");
       qrEl.dataset.code = code;
       qrEl.dataset.link = link;
-      renderQrInto(qrEl, link);
+      renderQrInto(qrEl, link, QR_ALNUM_RE.test(link) ? "Alphanumeric" : "Byte", "L");
       overlay.querySelector("#tm-zoom").hidden = false;
       makeBtn.textContent = "Tạo mã mới";
       clearInterval(codeTimer);
@@ -660,9 +692,9 @@
 
   /// Ve QR don gian ngay trong canvas, ma hoa 1 chuoi ngan (ticketId).
   /// Dung thu vien qrcode-generator (nho, khong phu thuoc gi khac).
-  function renderQrInto(container, text, mode) {
+  function renderQrInto(container, text, mode, ecLevel) {
     if (!window.qrcode) { container.textContent = "(Không tải được thư viện QR)"; return; }
-    const qr = window.qrcode(0, "M");
+    const qr = window.qrcode(0, ecLevel || "M");
     qr.addData(text, mode || "Byte");
     qr.make();
     // margin tinh bang DIEM ANH (khong phai so o): 16px = 4 o le trang theo
@@ -3284,13 +3316,15 @@
   }
 
   // QR chua LINK thay vi chi chuoi FT1: quet bang app camera bat ky cung mo
-  // dung trang check-in voi ma dien san. Dung tham so ?checkin= (khong dung #)
-  // de link con nguyen khi di qua deep link mo app MetaMask. Bao mat khong doi:
-  // link chi cho ma di, trang check-in van kiem chu ky + han 5 phut + chu ve.
+  // dung trang check-in voi ma dien san. Link dang HTTPS://HOST/C/<su kien>/<ma>
+  // viet HOA toan bo: chi gom ky tu ma QR "chu-so" nen ma thua (41x41 o, bang ma
+  // FT1 cu) thay vi 61x61 o neu dung ?checkin=... - camera bat net de hon nhieu.
+  // Khong co # nen link con nguyen khi di qua deep link mo app MetaMask.
+  // Bao mat khong doi: link chi cho ma di, trang check-in van kiem chu ky + han 5 phut + chu ve.
   function checkinLink(code, eventId) {
-    const base = location.origin + location.pathname.replace(/index\.html$/, "");
-    return `${base}?checkin=${encodeURIComponent(code)}${eventId !== undefined && eventId !== null ? "&event=" + eventId : ""}`;
+    return `${location.origin.toUpperCase()}/C/${eventId !== undefined && eventId !== null ? eventId : "X"}/${code}`;
   }
+  const QR_ALNUM_RE = /^[0-9A-Z $%*+\-./:]+$/;
   // Link mo trang hien tai ben trong ung dung MetaMask (trinh duyet co san vi).
   function metamaskDeepLink(url) {
     return "https://metamask.app.link/dapp/" + String(url).replace(/^https?:\/\//, "");
@@ -3301,6 +3335,8 @@
     if (/^https?:\/\//i.test(t)) {
       try {
         const u = new URL(t);
+        const fromPath = /\/C\/[^/]+\/(FT1:[^/?#]+)$/i.exec(u.pathname);
+        if (fromPath) return decodeURIComponent(fromPath[1]);
         const fromSearch = u.searchParams.get("checkin");
         if (fromSearch) return fromSearch;
         const q = u.hash.split("?")[1];
@@ -3455,7 +3491,11 @@
       $root().querySelectorAll("[data-copy]").forEach(bindCopy);
       return;
     }
-    const wanted = query.get("event");
+    let wanted = query.get("event");
+    if (!wanted && query.get("code")) {
+      const mm = /^FT1:(\d+):/i.exec(query.get("code"));
+      if (mm) { try { wanted = String((await (await ensureReadContract()).tickets(BigInt(mm[1]))).eventId); } catch {} }
+    }
     const nowTs = Math.floor(Date.now() / 1000);
     const selected = mine.find((e) => String(e.id) === wanted) || mine.find((e) => Number(e.startTime) > nowTs - 86400) || mine[0];
     let eventId = selected.id;
@@ -3569,6 +3609,22 @@
         </li>`).join("") : `<li class="text-secondary">—</li>`;
     }
 
+    // Vi khong noi ro ly do -> tu kiem tra: so du ETH, roi chay thu checkIn qua RPC
+    // cong khai voi dung vi nay (RPC cong khai tra du du lieu loi de giai ma).
+    async function diagnoseCheckin(r) {
+      try {
+        await loadAbi();
+        const c = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, getPublicProvider());
+        const bal = await c.runner.getBalance(userAddress);
+        if (bal === 0n) return "Ví này chưa có ETH Sepolia để trả phí gas — nạp ETH test (faucet Sepolia) cho ví rồi thử lại.";
+        await c.checkIn.staticCall(r.t.eventId, r.ticketId, { from: userAddress });
+        return null; // chay thu khong loi -> loi nam o vi/RPC, giu thong bao chung
+      } catch (e) {
+        const m = friendlyError(e);
+        return m === UNKNOWN_WALLET_ERROR ? null : m;
+      }
+    }
+
     // Gui checkIn(): cho nguoi dung duyet trong MetaMask, KHONG cho khoi - theo
     // doi khoi o nen va cap nhat nhat ky (that bai thi bao to + bip).
     async function submitCheckin(r) {
@@ -3581,7 +3637,10 @@
       try {
         tx = await contract.checkIn(r.t.eventId, r.ticketId);
       } catch (err) {
-        setStatus("bad", `Vé #${id}: ${friendlyError(err)}`);
+        console.error("checkIn lỗi:", err);
+        let msg = friendlyError(err);
+        if (msg === UNKNOWN_WALLET_ERROR || msg.startsWith("Giao dịch thất bại")) msg = (await diagnoseCheckin(r)) || msg;
+        setStatus("bad", `Vé #${id}: ${msg}`);
         feedback(false);
         return;
       }
@@ -3710,16 +3769,27 @@
         const canvas = document.createElement("canvas");
         let last = "";
         let lastAt = 0;
+        let fullFrame = true;
         // Quet ~6 lan/giay (khong phai moi khung hinh) de may yeu khong bi giat.
         const tick = async () => {
           if (!scanning || myToken !== renderToken || !document.body.contains(video)) { stopScanner(); return; }
           if (video.readyState >= 2 && !busy) {
             let data = await nativeDetect(video);
             if (!data) {
-              // Chi doc phan giua khung hinh (vuong) - nhanh hon va it nhieu hon.
-              const side = Math.min(video.videoWidth, video.videoHeight);
-              canvas.width = canvas.height = Math.min(side, 800);
-              canvas.getContext("2d", { willReadFrequently: true }).drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+              // Xen ke: doc phan giua khung hinh (vuong, net hon) va ca khung hinh
+              // (khi ma nam lech hoac dua ra xa) - nhanh hon quet ca hai moi lan.
+              fullFrame = !fullFrame;
+              const ctx = canvas.getContext("2d", { willReadFrequently: true });
+              if (!fullFrame) {
+                const side = Math.min(video.videoWidth, video.videoHeight);
+                canvas.width = canvas.height = Math.min(side, 800);
+                ctx.drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+              } else {
+                const k = Math.min(1, 1100 / video.videoWidth);
+                canvas.width = Math.round(video.videoWidth * k);
+                canvas.height = Math.round(video.videoHeight * k);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              }
               data = jsQrDetect(jsQR, canvas);
             }
             // Cung 1 ma: bo qua trong 4 giay de khong kiem tra lap lai lien tuc.

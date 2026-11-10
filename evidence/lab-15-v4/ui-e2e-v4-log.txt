@@ -39,8 +39,9 @@ PASS C mua lại vé #0 (0.012 ETH) — Mua lại vé thành công — vé đã 
 PASS Trên chain: Organizer +0.0006 ETH (5%), người bán B 0.0114 ETH (95%) — 0.0006 / 0.0114
 PASS Vé mua lại không tính vào giới hạn ví (mintedBy C = 0)
 PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. Gửi họ link màn hình check-in.
-PASS Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR — http://localhost:8765/?checkin=FT1%3A0%3A1794310830579%3ACE99072D78827AD8683C94A9F9DFE5337
-PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/localhost:8765/?checkin=FT1%3A0%3A1794310830579%3ACE99072D7
+PASS Mã QR chứa link mở trang check-in (…/C/0/FT1:…, chữ HOA), giải mã từ chính ảnh QR — HTTP://LOCALHOST:8765/C/0/FT1:0:1794312690983:36826594274AB289E2094FF06E6551E6F98F6F8FE1E6
+PASS Mã QR dạng link vẫn thưa như mã cũ (≤ 41×41 ô) — 41×41 ô
+PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/HTTP://LOCALHOST:8765/C/0/FT1:0:1794312690983:36826594274AB
 PASS CTV mở link trong QR → tự kiểm tra và check-in, ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
 PASS Sau khi xử lý, mã bị xoá khỏi URL (F5 không kiểm tra lại) — http://localhost:8765/#/check-in?event=0
 PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
@@ -51,6 +52,7 @@ PASS Qua giờ bắt đầu: vẫn rao bán và mua lại được
 PASS Tạo sự kiện với trần 99.99% → InvalidResaleCap
 PASS Ví không hỗ trợ gộp: không hiện dòng 'xác nhận 1 lần'
 PASS Ví không hỗ trợ gộp: mua 2 vé bằng 2 giao dịch lẻ, thành công — tx=2 Vé 1/2Thành công · Vé #3 · xemVé 2/2Thành công · Vé #4 · xem
+PASS Ví CTV hết ETH trả gas: báo rõ 'không đủ ETH Sepolia', không hiện lỗi kỹ thuật — Vé #3: Ví không đủ ETH Sepolia để trả phí gas — nạp ETH test (faucet Sepolia) cho ví này rồi thử lại.
 PASS Tải 2 ảnh cùng lúc (1 ngang + 1 dọc) → hiện 2 ảnh thu nhỏ
 PASS Bấm ★: ảnh dọc thành ảnh bìa, giữ nguyên tỉ lệ dọc sau khi nén
 PASS Ảnh HEIC của iPhone: báo rõ cách xử lý, không thêm ảnh hỏng — "IMG_0001.HEIC" là ảnh HEIC của iPhone, trình duyệt này chưa đọc được. Vào Cài đặt → Camera → Định dạng → "Tương thích nhất", hoặc gửi ảnh sang JPG rồi tải lại.
@@ -92,8 +94,9 @@ PASS C mua lại vé #0 (0.012 ETH) — Mua lại vé thành công — vé đã 
 PASS Trên chain: Organizer +0.0006 ETH (5%), người bán B 0.0114 ETH (95%) — 0.0006 / 0.0114
 PASS Vé mua lại không tính vào giới hạn ví (mintedBy C = 0)
 PASS A cấp quyền CTV cho S — Đã cấp quyền CTV cho 0x90F7…b906. Gửi họ link màn hình check-in.
-PASS Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR — http://localhost:8765/?checkin=FT1%3A0%3A1794310830579%3ACE99072D78827AD8683C94A9F9DFE5337
-PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/localhost:8765/?checkin=FT1%3A0%3A1794310830579%3ACE99072D7
+PASS Mã QR chứa link mở trang check-in (…/C/0/FT1:…, chữ HOA), giải mã từ chính ảnh QR — HTTP://LOCALHOST:8765/C/0/FT1:0:1794312690983:36826594274AB289E2094FF06E6551E6F98F6F8FE1E6
+PASS Mã QR dạng link vẫn thưa như mã cũ (≤ 41×41 ô) — 41×41 ô
+PASS Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã — https://metamask.app.link/dapp/HTTP://LOCALHOST:8765/C/0/FT1:0:1794312690983:36826594274AB
 PASS CTV mở link trong QR → tự kiểm tra và check-in, ghi lên chain — ✓ Vé #0 hợp lệ, đã gửi check-in — mời khách vào. Sẵn sàng quét người tiếp theo.
 PASS Sau khi xử lý, mã bị xoá khỏi URL (F5 không kiểm tra lại) — http://localhost:8765/#/check-in?event=0
 PASS Dashboard: dòng phí bản quyền 0.0006 ETH — + phí bản quyền bán lại: 0.0006 ETH
@@ -104,4 +107,5 @@ PASS Qua giờ bắt đầu: vẫn rao bán và mua lại được
 PASS Tạo sự kiện với trần 99.99% → InvalidResaleCap
 PASS Ví không hỗ trợ gộp: không hiện dòng 'xác nhận 1 lần'
 PASS Ví không hỗ trợ gộp: mua 2 vé bằng 2 giao dịch lẻ, thành công — tx=2 Vé 1/2Thành công · Vé #3 · xemVé 2/2Thành công · Vé #4 · xem
+PASS Ví CTV hết ETH trả gas: báo rõ 'không đủ ETH Sepolia', không hiện lỗi kỹ thuật — Vé #3: Ví không đủ ETH Sepolia để trả phí gas — nạp ETH test (faucet Sepolia) cho ví này rồi thử lại.
 NO_PAGE_ERRORS

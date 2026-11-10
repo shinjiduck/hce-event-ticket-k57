@@ -280,16 +280,18 @@ const metaStore = {};
     const cv = document.createElement("canvas"); cv.width = 600; cv.height = 600;
     const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 600, 600); ctx.drawImage(img, 0, 0, 600, 600);
     const r = window.jsQR(ctx.getImageData(0, 0, 600, 600).data, 600, 600);
-    return r ? r.data : null;
+    return r ? { data: r.data, modules: 17 + 4 * r.version } : null;
   });
-  check("Mã QR chứa link mở trang check-in (?checkin=…&event=0), giải mã từ chính ảnh QR", !!decoded && decoded === linkC && /\?checkin=FT1%3A0%3A\d+%3A[0-9A-F]{130}&event=0$/.test(decoded), (decoded || "").slice(0, 90));
+  const qrModules = decoded ? decoded.modules : 0;
+  check("Mã QR chứa link mở trang check-in (…/C/0/FT1:…, chữ HOA), giải mã từ chính ảnh QR", !!decoded && decoded.data === linkC && /^HTTP:\/\/LOCALHOST:8765\/C\/0\/FT1:0:\d+:[0-9A-F]{130}$/.test(decoded.data), ((decoded && decoded.data) || "").slice(0, 90));
+  check("Mã QR dạng link vẫn thưa như mã cũ (≤ 41×41 ô)", qrModules > 0 && qrModules <= 41, `${qrModules}×${qrModules} ô`);
   // Mo link tren trinh duyet KHONG co vi (vd app camera mo bang Chrome) -> nut mo bang app MetaMask
   const bare = await browser.newContext();
   const bp = await bare.newPage();
-  await bp.goto(linkC.replace(/^http:\/\/localhost:8765\//, BASE.replace("index.html", "")), { waitUntil: "domcontentloaded" });
+  await bp.goto(linkC, { waitUntil: "domcontentloaded" });
   await bp.waitForSelector("a[href^='https://metamask.app.link/dapp/']", { timeout: 30000 }).catch(() => {});
   const mm = await bp.getAttribute("a[href^='https://metamask.app.link/dapp/']", "href").catch(() => null);
-  check("Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã", !!mm && mm.includes("checkin=FT1%3A0%3A") && mm.includes("&event=0"), (mm || "").slice(0, 90));
+  check("Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã", !!mm && /\/C\/0\/FT1:0:/.test(mm), (mm || "").slice(0, 90));
   await bare.close();
   // CTV mo thang link (nhu quet bang app camera) -> trang tu dien ma, tu kiem tra va check-in
   const s = await as(S);
@@ -330,6 +332,18 @@ const metaStore = {};
   const okC = await waitText(c.p, "#checkout-result", "Mua vé thành công", 60000);
   const txC = await c.p.evaluate(() => window.__appTx);
   check("Ví không hỗ trợ gộp: mua 2 vé bằng 2 giao dịch lẻ, thành công", okC && txC === 2, `tx=${txC} ${await text(c.p, "#tx-list")}`.slice(0, 160));
+
+  // ===== 9. Vi CTV het ETH tra gas -> bao ro nguyen nhan (truoc day: "could not coalesce error") =====
+  await c.p.goto(BASE + "#/my-tickets", { waitUntil: "domcontentloaded" });
+  await c.p.waitForSelector('button[data-view="3"]', { timeout: 30000 });
+  await c.p.click('button[data-view="3"]');
+  await c.p.click("#tm-make-code");
+  await c.p.waitForFunction(() => !!document.getElementById("modal-qr").dataset.link, null, { timeout: 15000 });
+  const link3 = await c.p.getAttribute("#modal-qr", "data-link");
+  await provider.send("hardhat_setBalance", [S, "0x0"]);
+  await s.p.goto(link3, { waitUntil: "domcontentloaded" });
+  const gasMsg = await waitText(s.p, "#ci-status", "không đủ ETH Sepolia", 30000) || await waitText(s.p, "#ci-status", "chưa có ETH Sepolia", 1000);
+  check("Ví CTV hết ETH trả gas: báo rõ 'không đủ ETH Sepolia', không hiện lỗi kỹ thuật", gasMsg && !(await text(s.p, "#ci-status")).includes("coalesce"), await text(s.p, "#ci-status"));
 
   await browser.close();
   console.log(res.join("\n"));

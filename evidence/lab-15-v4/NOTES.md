@@ -50,7 +50,7 @@ Hardhat 2.29, Solidity 0.8.20: **19/19 ca đạt** (`projectcore-v4.test.js`, lo
 
 ## Kiểm thử giao diện đầu-cuối
 
-Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **53/53 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
+Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **55/55 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
 
 1. Tạo sự kiện:
    - Wizard có ô trần giá (mặc định 110%) và ô số vé/ví (mặc định 4).
@@ -77,7 +77,8 @@ Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hard
    - Vé mua lại không tính vào giới hạn ví.
 6. Check-in:
    - Cấp quyền CTV.
-   - Giải mã chính ảnh QR trong hộp vé: ra đúng link `…/?checkin=FT1:…&event=0`.
+   - Giải mã chính ảnh QR trong hộp vé: ra đúng link `HTTP://LOCALHOST:8765/C/0/FT1:…` (viết HOA toàn bộ để mã QR dùng chế độ chữ-số). Mã vẫn **41×41 ô**, bằng mã `FT1:` cũ.
+   - Ví CTV có số dư 0 ETH quét vé: trang báo "Ví không đủ ETH Sepolia để trả phí gas", không hiện lỗi kỹ thuật "could not coalesce error".
    - Mở link trên trình duyệt không có ví: hiện nút "Mở bằng ứng dụng MetaMask", link vẫn giữ nguyên mã.
    - CTV mở link (giống quét bằng app camera): trang tự điền mã, tự kiểm tra, check-in được ghi lên chain; sau đó mã bị xoá khỏi URL.
 7. Dashboard: có dòng "phí bản quyền bán lại: 0.0006 ETH", và mục hoạt động đổi chủ ghi kèm phí.
@@ -94,5 +95,7 @@ Trong lúc test còn phát hiện một vấn đề của môi trường test. `
 
 1. Chạy `npx hardhat node` (cấu hình `networks.hardhat.chainId = 11155111`).
 2. Chạy `node setup-local-chain.js`. Script này đào tới khối 12004619 và chép bytecode v4 từ Sepolia vào đúng địa chỉ.
-3. Chạy `python -m http.server 8765` trong thư mục `web/`.
-4. Chạy `node ui-e2e-v4.js`. Cần `playwright-core`, `ethers` v6 và Microsoft Edge. Trong lúc test, RPC công khai, Tenderly và `/api/metadata` được chuyển hướng về chain cục bộ hoặc bộ nhớ.
+3. Chạy `node serve-web.js` trong thư mục `evidence/lab-15-v4/` (phục vụ thư mục `web/` ở cổng 8765).
+4. Chạy `node ui-e2e-v4.js`.
+
+`serve-web.js` thay cho `python -m http.server`, vì nó làm đúng quy tắc rewrite trong `web/vercel.json` (`/C/<sự kiện>/<mã>` → `index.html`). Không dùng `route.fulfill` của Playwright để giả lập, vì khi đó Edge coi trang đến từ mạng công cộng và chặn kết nối tới chain cục bộ `127.0.0.1`. Cần `playwright-core`, `ethers` v6 và Microsoft Edge. Trong lúc test, RPC công khai, Tenderly và `/api/metadata` được chuyển hướng về chain cục bộ hoặc bộ nhớ.
