@@ -1,6 +1,6 @@
 # TIẾN ĐỘ WEBSITE — FairTicket
 
-> Cập nhật: **06/11/2026** (giao diện tối tím neon, audit logic) — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (45/45, `evidence/lab-15-v4/`).
+> Cập nhật: **06/11/2026** (giao diện tối tím neon, audit logic) — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (53/53, `evidence/lab-15-v4/`).
 > URL công khai: https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
 > Mã nguồn: thư mục `web/` · Tiến độ chung của cả dự án (Lab, hợp đồng): [PROGRESS.md](PROGRESS.md)
 
@@ -28,7 +28,7 @@
 | Phong cách | Tối, tím neon (Cinematic Dark Neon Purple): nền `#090911`, thẻ `#1C162B`, tím `#9657FF`/`#7C3AED`. Đổi qua design token ở đầu khối theme trong `styles.css`, nên mọi trang đổi theo |
 | Font | Tiêu đề lớn: Barlow Condensed in hoa · khẩu hiệu: Playfair Display nghiêng · chữ thường: Be Vietnam Pro (hiển thị tiếng Việt tốt hơn Inter) |
 | Hiệu ứng | Đổi trang trượt lên · thẻ hiện dần khi cuộn · thẻ nổi lên + ảnh zoom khi rê chuột · thẻ vé ở hero lơ lửng · nút gradient chuyển màu · modal/toast bật lên. Tắt hết khi máy bật `prefers-reduced-motion` |
-| Giữ nguyên | Mã QR luôn nền trắng để máy quét đọc được; mọi id ô nhập, luồng và lệnh gọi hợp đồng không đổi (bài test đầu-cuối 45/45) |
+| Giữ nguyên | Mã QR luôn nền trắng để máy quét đọc được; mọi id ô nhập, luồng và lệnh gọi hợp đồng không đổi (bài test đầu-cuối 53/53) |
 
 ### 2.1 Phần chung (header, footer, ví)
 
@@ -46,6 +46,7 @@
 | Chức năng | Trạng thái | Ghi chú |
 |---|---|---|
 | Hero "FEEL THE EVENT. / Own the Moment." + 2 nút (Khám phá sự kiện · Tìm hiểu FairTicket) | 🟢 | Thay carousel cũ (06/11) |
+| Ảnh mọi tỉ lệ hiện trọn (ảnh dọc/vuông trong khung ngang có nền mờ lấp hai bên) ở thẻ sự kiện, thẻ bán lại, thẻ vé, ảnh bìa trang sự kiện | 🟢 | 10/11 |
 | Thẻ vé nổi ở hero | 🟢 | Lấy sự kiện sắp diễn ra gần nhất đã mở bán; chưa có thì ghi rõ "Vé mẫu" |
 | Thẻ số liệu ở hero (số sự kiện, vé đã phát hành, sắp diễn ra) | 🟢 | Đọc thẳng từ hợp đồng, chỉ hiện khi đã có sự kiện — không tự đặt số |
 | Thanh danh mục (Âm nhạc, Nghệ thuật, Thể thao, Workshop, Hội thảo, Trải nghiệm, Khác) | ✅ | Khối "Khám phá theo danh mục" cũ đã bỏ (trùng chức năng) |
@@ -102,6 +103,7 @@
 | Giao dịch 2 lỗi/bị từ chối → bấm Deploy lại chỉ tạo tiếp hạng vé, không tạo sự kiện trùng | 🟢 | Audit 06/11 — test giả lập bấm "Từ chối" |
 | Giờ kết thúc lưu vào metadata, hiện ở trang sự kiện | 🟢 | Audit 06/11 |
 | Danh mục, mô tả, ảnh (tự nén ≤1600px) | ✅ | |
+| **Nhiều ảnh, mọi kích cỡ** (10/11): tối đa 6 ảnh (dọc, ngang, vuông), bấm ★ chọn ảnh bìa, × để xoá; tự nén mạnh hơn nếu tổng dung lượng lớn; ảnh HEIC của iPhone báo rõ cách đổi định dạng | 🟢 | Cũng có trong hộp "Sửa thông tin" |
 | **Địa chỉ kiểu TMĐT:** Tỉnh/Thành → Phường/Xã (gõ để tìm) → số nhà; chặn phường không thuộc tỉnh | 🟢 | 34 tỉnh / 3.321 phường-xã theo đơn vị hành chính mới |
 | Bản đồ xem trước, cập nhật khi đang gõ | 🟢 | |
 | Tự lưu bản nháp, F5 không mất | 🟢 | |

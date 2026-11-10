@@ -1343,6 +1343,50 @@ p, .body { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0; }
   .form-section { padding: var(--sp-3); }
 }
 
+/* ---------- Anh moi ty le + nhieu anh ---------- */
+
+/* Lop duoi: chinh anh do lam mo phu kin khung; lop tren: anh that. Anh lech ty le
+   khung (doc/vuong trong khung ngang) duoc JS gan .is-contain -> hien tron anh. */
+.media-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(22px) brightness(0.6) saturate(1.2); transform: scale(1.2); pointer-events: none; }
+.media-fit { position: relative; }
+.event-hero__img.media-fit { position: absolute; }
+.media-fit.is-contain { object-fit: contain !important; }
+.event-hero { cursor: zoom-in; }
+.event-hero a, .event-hero button { cursor: pointer; }
+
+.resale-card__media { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--neutral-bg); }
+.resale-card__media .resale-card__img { aspect-ratio: auto; height: 100%; }
+
+.gallery-picker { display: grid; gap: var(--sp-2); }
+.gallery-picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--sp-2); }
+.gp-item { position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; background: rgba(228, 212, 255, 0.06); border: 1px solid var(--border); }
+.gp-item img { width: 100%; height: 100%; object-fit: contain; }
+.gp-item.is-cover { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.gp-badge { position: absolute; left: 6px; bottom: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--primary); }
+.gp-btn { position: absolute; top: 6px; width: 26px; height: 26px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; color: #fff; background: rgba(9, 9, 17, 0.7); cursor: pointer; }
+.gp-btn:hover { background: var(--primary); }
+.gp-btn--remove { right: 6px; font-size: 18px; }
+.gp-btn--cover { left: 6px; color: #FBBF24; }
+.dropzone--compact { min-height: 120px; }
+
+.event-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); }
+.event-gallery__item { position: relative; aspect-ratio: 1; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: #000; cursor: zoom-in; }
+.event-gallery__item .media-fit { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s var(--ease-out, ease); }
+.event-gallery__item:hover .media-fit { transform: scale(1.05); }
+
+.lightbox { background: rgba(5, 5, 12, 0.92); flex-direction: column; padding: var(--sp-5) var(--sp-3); }
+.lightbox__img { max-width: min(100%, 1400px); max-height: calc(100vh - 120px); object-fit: contain; border-radius: var(--radius-sm); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+.lightbox__count { margin-top: var(--sp-2); font-size: 13px; color: var(--text-secondary); }
+.lightbox__nav, .lightbox__close { position: absolute; border: 1px solid rgba(228, 212, 255, 0.25); background: rgba(28, 22, 43, 0.75); color: #fff; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.lightbox__nav:hover, .lightbox__close:hover { background: var(--primary); }
+.lightbox__nav--prev { left: var(--sp-3); top: 50%; transform: translateY(-50%); }
+.lightbox__nav--next { right: var(--sp-3); top: 50%; transform: translateY(-50%); }
+.lightbox__close { top: var(--sp-3); right: var(--sp-3); font-size: 24px; }
+@media (max-width: 640px) {
+  .gallery-picker__grid { grid-template-columns: repeat(3, 1fr); }
+  .event-gallery { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ---------- Motion (hieu ung) ---------- */
 
 :root {

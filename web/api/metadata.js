@@ -3,7 +3,7 @@
 // (luu string dai + anh base64 on-chain qua ton gas). Du lieu nay khong anh huong
 // logic hop dong - mat di cung khong lam sai ve/tien, chi mat phan trang tri.
 //
-// GET  /api/metadata?eventId=3        -> { description, location, address, province, ward, street, image, category, endTime } (hoac {} neu chua co)
+// GET  /api/metadata?eventId=3        -> { description, location, address, province, ward, street, image, images, category, endTime } (hoac {} neu chua co)
 // POST /api/metadata { eventId, data, timestamp, signature }
 //      -> chi Organizer cua su kien (theo dia chi tren contract) moi duoc ghi.
 //         signature = ky message duoc server tu dung lai tu (eventId, timestamp)
@@ -22,6 +22,7 @@ const MAX_SIGNATURE_AGE_MS = 5 * 60 * 1000; // 5 phut, chong phat lai chu ky cu
 const CATEGORY_IDS = ["music", "art", "sport", "workshop", "conference", "experience", "other"];
 // Chi nhan anh base64 tu FileReader - khong nhan URL tuy y (tranh chen noi dung la vao <img src>).
 const SAFE_IMAGE_RE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+const MAX_IMAGES = 6; // khop MAX_IMAGES trong web/app.js
 
 function blobPath(eventId) {
   return `metadata/${CONTRACT_ADDRESS.toLowerCase()}/${eventId}.json`;
@@ -110,6 +111,10 @@ async function handlePost(req, res) {
     return;
   }
 
+  // Nhieu anh: `images` (anh dau = anh bia). Ban cu chi gui `image` -> doi thanh danh sach 1 anh.
+  let images = Array.isArray(data.images) ? data.images.filter((x) => typeof x === "string" && SAFE_IMAGE_RE.test(x)).slice(0, MAX_IMAGES) : [];
+  if (!images.length && typeof data.image === "string" && SAFE_IMAGE_RE.test(data.image)) images = [data.image];
+
   const payload = {
     description: typeof data.description === "string" ? data.description.slice(0, 5000) : "",
     location: typeof data.location === "string" ? data.location.slice(0, 300) : "",
@@ -117,7 +122,8 @@ async function handlePost(req, res) {
     province: typeof data.province === "string" ? data.province.slice(0, 120) : "",
     ward: typeof data.ward === "string" ? data.ward.slice(0, 120) : "",
     street: typeof data.street === "string" ? data.street.slice(0, 120) : "",
-    image: typeof data.image === "string" && SAFE_IMAGE_RE.test(data.image) ? data.image : "",
+    image: images[0] || "",
+    images,
     category: CATEGORY_IDS.includes(data.category) ? data.category : "other",
     endTime: Number.isSafeInteger(data.endTime) && data.endTime > 0 ? data.endTime : 0,
   };

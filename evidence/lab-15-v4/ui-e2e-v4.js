@@ -124,6 +124,15 @@ const metaStore = {};
   await a.p.selectOption("#f-prov", "Thành phố Huế");
   await a.p.fill("#f-ward", "Phường An Cựu");
   await a.p.fill("#f-street", "99 Hồ Đắc Di");
+  // Nhieu anh, moi ty le: 1 anh ngang + 1 anh doc (600x1000), roi dat anh doc lam anh bia
+  await a.p.setInputFiles("#f-image", [__dirname + "/../../web/assets/event-jazz.jpg", __dirname + "/test-portrait.jpg"]);
+  await a.p.waitForFunction(() => document.querySelectorAll("#f-thumbs .gp-item").length === 2, null, { timeout: 20000 });
+  check("Tải 2 ảnh cùng lúc (1 ngang + 1 dọc) → hiện 2 ảnh thu nhỏ", (await a.p.$$("#f-thumbs .gp-item")).length === 2);
+  await a.p.click('#f-thumbs [data-cover="1"]');
+  const coverIsPortrait = await a.p.evaluate(() => new Promise((ok) => { const im = new Image(); im.onload = () => ok(im.height > im.width); im.src = document.querySelector("#f-thumbs .gp-item.is-cover img").src; }));
+  check("Bấm ★: ảnh dọc thành ảnh bìa, giữ nguyên tỉ lệ dọc sau khi nén", coverIsPortrait);
+  await a.p.setInputFiles("#f-image", { name: "IMG_0001.HEIC", mimeType: "image/heic", buffer: Buffer.from("not-a-real-heic") });
+  check("Ảnh HEIC của iPhone: báo rõ cách xử lý, không thêm ảnh hỏng", await waitText(a.p, "#toast", "HEIC", 10000) && (await a.p.$$("#f-thumbs .gp-item")).length === 2, await text(a.p, "#toast"));
   await a.p.click("#btn-next-1");
   check("Giờ bắt đầu đã qua bị chặn (hợp đồng sẽ không bán vé được)", await waitText(a.p, "#toast", "phải sau thời điểm hiện tại", 5000), await text(a.p, "#toast"));
   await a.p.fill("#f-start", EVENT_START);
@@ -179,6 +188,16 @@ const metaStore = {};
   await waitText(a.p, "#app-root", "Trần 120%", 30000);
   check("Bảng Organizer hiện quy tắc sự kiện", (await text(a.p, "#app-root")).includes("Trần 120% · tối đa 2 vé/ví"));
   check("Trang sự kiện hiện thời gian kết thúc", (await text(a.p, "#app-root")).includes("Thời gian kết thúc"));
+  const m0 = metaStore[0] || {};
+  check("Metadata lưu 2 ảnh, ảnh bìa = ảnh đầu danh sách", Array.isArray(m0.images) && m0.images.length === 2 && m0.image === m0.images[0]);
+  await a.p.waitForSelector("#sec-gallery .event-gallery__item", { timeout: 20000 }).catch(() => {});
+  check("Trang sự kiện có mục Hình ảnh với 2 ảnh", (await a.p.$$("#sec-gallery .event-gallery__item")).length === 2);
+  await a.p.waitForFunction(() => { const im = document.querySelector(".event-hero .media-fit"); return im && im.complete && im.naturalWidth > 0; }, null, { timeout: 15000 });
+  check("Ảnh bìa dọc hiện trọn ảnh trong khung ngang (không bị cắt)", await a.p.evaluate(() => document.querySelector(".event-hero .media-fit").classList.contains("is-contain")));
+  await a.p.click('#sec-gallery [data-gallery="1"]');
+  check("Bấm ảnh trong thư viện → mở xem ảnh lớn (2/2)", await waitText(a.p, ".lightbox__count", "2 / 2", 5000));
+  await a.p.keyboard.press("Escape");
+  check("Esc đóng trình xem ảnh", !(await a.p.$(".lightbox")));
 
   // ===== 2. B: toi da 2 ve/vi =====
   const b = await as(B, true); // vi B ho tro gop giao dich

@@ -176,6 +176,27 @@
   // data:image base64 (tu FileReader) hoac asset noi bo, con lai dung anh mac
   // dinh. Chan chen thuoc tinh/URL la vao <img src>.
   const SAFE_IMAGE_RE = /^(data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+|\.\/assets\/[\w.-]+)$/;
+  // Tat ca anh cua su kien (anh dau = anh bia). Su kien cu chi co 1 truong `image`.
+  function metaImages(meta) {
+    const list = meta && Array.isArray(meta.images) ? meta.images.filter((x) => typeof x === "string" && SAFE_IMAGE_RE.test(x)) : [];
+    if (list.length) return list;
+    return meta && typeof meta.image === "string" && SAFE_IMAGE_RE.test(meta.image) ? [meta.image] : [];
+  }
+  // Anh moi ty le (doc, ngang, vuong): lop duoi la chinh anh do lam mo phu kin
+  // khung, lop tren hien tron anh. Anh gan dung ty le khung thi van phu kin (cover).
+  function mediaHtml(src, cls, attrs) {
+    return `<img class="media-bg" src="${escapeAttr(src)}" alt="" aria-hidden="true" ${attrs || ""} /><img class="${cls || ""} media-fit" src="${escapeAttr(src)}" alt="" ${attrs || ""} />`;
+  }
+  function fitMedia(im) {
+    const box = im.parentElement && im.parentElement.getBoundingClientRect();
+    if (!box || !box.width || !box.height || !im.naturalWidth || !im.naturalHeight) return;
+    const r = im.naturalWidth / im.naturalHeight, R = box.width / box.height;
+    im.classList.toggle("is-contain", Math.abs(Math.log(r / R)) > 0.22); // lech ty le > ~25% -> hien tron anh
+  }
+  document.addEventListener("load", (e) => {
+    if (e.target instanceof HTMLImageElement && e.target.classList.contains("media-fit")) fitMedia(e.target);
+  }, true);
+
   function eventImage(meta, eventId) {
     return meta && typeof meta.image === "string" && SAFE_IMAGE_RE.test(meta.image) ? meta.image : stockImage(eventId);
   }
@@ -682,7 +703,7 @@
       const res = await fetch("/api/metadata?eventId=" + key);
       if (!res.ok) return false;
       const remote = await res.json();
-      if (!remote || (!remote.description && !remote.location && !remote.address && !remote.image && !remote.category)) return false;
+      if (!remote || (!remote.description && !remote.location && !remote.address && !remote.image && !(remote.images && remote.images.length) && !remote.category)) return false;
       const before = JSON.stringify(getAllMeta()[key] || {});
       saveMeta(eventId, remote);
       return JSON.stringify(getAllMeta()[key]) !== before;
@@ -1345,7 +1366,7 @@
     return `
       <a class="event-card" href="#/events/${evt.id}">
         <div class="event-card__img-wrap">
-          <img class="event-card__img" src="${eventImage(meta, evt.id)}" alt="" loading="lazy" />
+          ${mediaHtml(eventImage(meta, evt.id), "event-card__img", 'loading="lazy"')}
           <div class="event-card__tags"><span class="event-card__cat">${categoryOf(meta.category).label}</span>${s && s.badge ? `<span class="badge ${s.badge.cls}">${s.badge.label}</span>` : ""}</div>
           <span class="event-card__cta" aria-hidden="true">Xem chi tiết ${icon("chevronRight")}</span>
         </div>
@@ -1403,7 +1424,7 @@
     const ended = evt && Number(evt.startTime) <= Math.floor(Date.now() / 1000);
     return `
       <article class="resale-card">
-        <img class="resale-card__img" src="${eventImage(meta, l.eventId)}" alt="" loading="lazy" />
+        <div class="resale-card__media">${mediaHtml(eventImage(meta, l.eventId), "resale-card__img", 'loading="lazy"')}</div>
         <div class="resale-card__body">
           <div>
             <div class="resale-card__title">${escapeHtml(evt ? evt.name : "Sự kiện #" + l.eventId)}</div>
@@ -1785,7 +1806,7 @@
         <nav class="breadcrumb" aria-label="Breadcrumb"><a href="#/">Trang chủ</a><span>/</span><a href="#/events">Sự kiện</a><span>/</span><span aria-current="page">${escapeHtml(evt.name)}</span></nav>
 
         <section class="event-hero">
-          <img class="event-hero__img" src="${eventImage(meta, id)}" alt="" />
+          ${mediaHtml(eventImage(meta, id), "event-hero__img")}
           <div class="event-hero__scrim"></div>
           <div class="event-hero__content">
             <div class="event-hero__tags">
@@ -1804,6 +1825,7 @@
           <div class="detail-main">
             <nav class="detail-tabs" aria-label="Nội dung sự kiện">
               <a href="#sec-intro" data-jump="sec-intro">Giới thiệu</a>
+              ${metaImages(meta).length > 1 ? `<a href="#sec-gallery" data-jump="sec-gallery">Hình ảnh</a>` : ""}
               <a href="#sec-info" data-jump="sec-info">Thông tin</a>
               ${mapQuery(meta) ? `<a href="#sec-map" data-jump="sec-map">Địa điểm</a>` : ""}
               <a href="#sec-policy" data-jump="sec-policy">Chính sách vé</a>
@@ -1814,6 +1836,10 @@
               <h2>Giới thiệu</h2>
               <p class="detail-desc">${escapeHtml(meta.description || "Ban tổ chức chưa cập nhật mô tả chi tiết cho sự kiện này.")}</p>
             </section>
+            ${metaImages(meta).length > 1 ? `<section class="detail-section" id="sec-gallery">
+              <h2>Hình ảnh <span class="text-secondary text-sm">(${metaImages(meta).length})</span></h2>
+              <div class="event-gallery">${metaImages(meta).map((src, i) => `<button type="button" class="event-gallery__item" data-gallery="${i}" aria-label="Xem ảnh ${i + 1}">${mediaHtml(src, "", 'loading="lazy"')}</button>`).join("")}</div>
+            </section>` : ""}
 
             <section class="detail-section" id="sec-info">
               <h2>Thông tin sự kiện</h2>
@@ -1902,6 +1928,12 @@
       </div>` : ""}
     `;
 
+    $root().querySelectorAll("[data-gallery]").forEach((b) => b.addEventListener("click", () => openLightbox(metaImages(meta), Number(b.dataset.gallery))));
+    $root().querySelector(".event-hero")?.addEventListener("click", (e) => {
+      if (e.target.closest("a, button")) return;
+      const imgs = metaImages(meta);
+      if (imgs.length) openLightbox(imgs, 0);
+    });
     $root().querySelectorAll("[data-jump]").forEach((a) => a.addEventListener("click", (e) => {
       e.preventDefault();
       document.getElementById(a.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2034,7 +2066,7 @@
       ? { province: meta.province, ward: meta.ward, street: meta.street }
       : { street: meta.address || "" };
     return new Promise((resolve) => {
-      let newImage = null;
+      let imgs = metaImages(meta).slice();
       const overlay = document.createElement("div");
       overlay.className = "modal-overlay";
       overlay.innerHTML = `
@@ -2059,9 +2091,9 @@
             <textarea id="em-desc" maxlength="5000" rows="5">${escapeHtml(meta.description || "")}</textarea>
           </div>
           <div class="field" style="margin-bottom:0;">
-            <label for="em-img">Ảnh bìa mới (bỏ trống để giữ ảnh cũ)</label>
-            <input id="em-img" type="file" accept="image/png,image/jpeg,image/webp" />
-            <p class="hint">Ảnh được nén lại tối đa 1600px trước khi lưu.</p>
+            <label>Ảnh sự kiện</label>
+            ${galleryPickerHtml("em")}
+            <p class="hint">Tối đa ${MAX_IMAGES} ảnh, mọi kích cỡ. Ảnh đầu tiên là ảnh bìa — bấm ★ để đổi.</p>
           </div>
           <div class="wizard-actions" style="margin-top: var(--sp-4); padding-top: 0; border-top: none;">
             <button type="button" class="btn btn-ghost" data-action="cancel">Huỷ</button>
@@ -2082,13 +2114,7 @@
       overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(null); });
       overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => close(null));
       const saveBtn = overlay.querySelector('[data-action="save"]');
-      overlay.querySelector("#em-img").addEventListener("change", async (e) => {
-        const file = e.target.files[0];
-        saveBtn.disabled = true;
-        newImage = file ? await compressImage(file) : null;
-        saveBtn.disabled = false;
-        if (file && !newImage) toast("Không đọc được ảnh này, hãy chọn ảnh PNG/JPG khác.", "error");
-      });
+      wireGalleryPicker(overlay, "em", () => imgs, (v) => { imgs = v; }, (b) => { saveBtn.disabled = b; });
       overlay.querySelector('[data-action="save"]').addEventListener("click", async () => {
         const addr = await readAddressFields("em");
         if (!addr.ok) { toast(addr.error, "error"); return; }
@@ -2097,7 +2123,8 @@
         category: overlay.querySelector("#em-cat").value,
         location: overlay.querySelector("#em-loc").value.trim(),
         description: overlay.querySelector("#em-desc").value.trim(),
-        image: newImage || meta.image || "",
+        image: imgs[0] || "",
+        images: imgs,
         endTime: Number(meta.endTime) || 0,
         });
       });
@@ -2106,25 +2133,137 @@
 
   // Thu nho anh truoc khi luu (base64 trong JSON metadata) - anh goc tu dien
   // thoai co the vai MB, vuot gioi han body cua Vercel Function (~4.5MB).
-  function compressImage(file) {
+  // Giu nguyen ty le goc: chi gioi han canh dai nhat.
+  const MAX_IMAGES = 6;
+  const IMAGE_BUDGET = 3200000; // tong so ky tu base64 cua moi anh trong 1 lan luu
+  function isHeic(file) { return /hei[cf]/i.test(file.type || "") || /\.(heic|heif)$/i.test(file.name || ""); }
+  function encodeImage(src, maxSide, quality) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff"; // anh PNG trong suot -> nen trang thay vi den khi doi sang JPEG
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+  function compressImage(file, maxSide, quality) {
     return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.round(img.width * scale);
-          canvas.height = Math.round(img.height * scale);
-          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.82));
-        };
-        img.onerror = () => resolve(null);
-        img.src = reader.result;
-      };
+      reader.onload = () => encodeImage(reader.result, maxSide || 1600, quality || 0.82).then(resolve);
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     });
+  }
+  // Nhieu anh lon cong lai co the vuot gioi han gui len server -> nen manh dan.
+  async function fitImageBudget(list) {
+    const total = () => list.reduce((n, x) => n + x.length, 0);
+    for (const [side, q] of [[1280, 0.75], [1024, 0.68], [800, 0.6]]) {
+      if (total() <= IMAGE_BUDGET) break;
+      list = (await Promise.all(list.map((x) => encodeImage(x, side, q)))).map((x, i) => x || list[i]);
+    }
+    return list;
+  }
+  // Them file vao danh sach anh hien co. Tra ve danh sach moi (da nen, dung gioi han).
+  async function addImageFiles(current, files) {
+    const out = current.slice();
+    const problems = [];
+    for (const f of files) {
+      if (out.length >= MAX_IMAGES) { problems.push(`Tối đa ${MAX_IMAGES} ảnh — đã bỏ qua phần dư.`); break; }
+      if (!(f.type || "").startsWith("image/") && !isHeic(f)) { problems.push(`"${f.name}" không phải file ảnh.`); continue; }
+      const d = await compressImage(f);
+      if (d) { out.push(d); continue; }
+      problems.push(isHeic(f)
+        ? `"${f.name}" là ảnh HEIC của iPhone, trình duyệt này chưa đọc được. Vào Cài đặt → Camera → Định dạng → "Tương thích nhất", hoặc gửi ảnh sang JPG rồi tải lại.`
+        : `Không đọc được "${f.name}" — thử ảnh PNG/JPG/WebP khác.`);
+    }
+    if (problems.length) toast(problems.join(" "), "error");
+    return fitImageBudget(out);
+  }
+  // O chon nhieu anh dung chung cho wizard va hop "Sua thong tin".
+  function galleryPickerHtml(prefix) {
+    return `
+      <div class="gallery-picker">
+        <div class="gallery-picker__grid" id="${prefix}-thumbs"></div>
+        <label class="dropzone dropzone--compact" for="${prefix}-image" id="${prefix}-drop">
+          <span class="dropzone__text">
+            <span class="dropzone__icon">${icon("image")}</span>
+            <strong id="${prefix}-drop-title">Kéo ảnh vào đây hoặc bấm để chọn</strong>
+            <span>Tối đa ${MAX_IMAGES} ảnh · mọi kích cỡ (dọc, ngang, vuông) · PNG, JPG, WebP</span>
+          </span>
+          <input type="file" id="${prefix}-image" accept="image/*" multiple hidden />
+        </label>
+      </div>`;
+  }
+  function wireGalleryPicker(root, prefix, getImages, setImages, onBusy) {
+    const $ = (id) => root.querySelector("#" + prefix + "-" + id);
+    const thumbs = $("thumbs"), fileEl = $("image"), drop = $("drop");
+    const draw = () => {
+      const imgs = getImages();
+      thumbs.innerHTML = imgs.map((src, i) => `
+        <div class="gp-item${i === 0 ? " is-cover" : ""}">
+          <img src="${escapeAttr(src)}" alt="Ảnh ${i + 1}" />
+          ${i === 0 ? `<span class="gp-badge">Ảnh bìa</span>` : `<button type="button" class="gp-btn gp-btn--cover" data-cover="${i}" title="Đặt làm ảnh bìa" aria-label="Đặt ảnh ${i + 1} làm ảnh bìa">★</button>`}
+          <button type="button" class="gp-btn gp-btn--remove" data-remove="${i}" title="Xoá ảnh" aria-label="Xoá ảnh ${i + 1}">×</button>
+        </div>`).join("");
+      thumbs.hidden = imgs.length === 0;
+      drop.hidden = imgs.length >= MAX_IMAGES;
+      $("drop-title").textContent = imgs.length ? `Thêm ảnh (${imgs.length}/${MAX_IMAGES})` : "Kéo ảnh vào đây hoặc bấm để chọn";
+    };
+    const add = async (files) => {
+      if (!files || !files.length) return;
+      if (onBusy) onBusy(true);
+      $("drop-title").textContent = "Đang nén ảnh…";
+      try { setImages(await addImageFiles(getImages(), [...files])); } finally { if (onBusy) onBusy(false); draw(); }
+    };
+    thumbs.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const imgs = getImages().slice();
+      if (b.dataset.remove !== undefined) imgs.splice(Number(b.dataset.remove), 1);
+      if (b.dataset.cover !== undefined) imgs.unshift(imgs.splice(Number(b.dataset.cover), 1)[0]);
+      setImages(imgs);
+      draw();
+    });
+    fileEl.addEventListener("change", () => { add(fileEl.files); fileEl.value = ""; });
+    ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("is-drag"); }));
+    ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove("is-drag")));
+    drop.addEventListener("drop", (e) => { e.preventDefault(); add(e.dataTransfer && e.dataTransfer.files); });
+    draw();
+  }
+  // Xem anh lon: trai/phai, phim mui ten, Esc de dong.
+  function openLightbox(images, start) {
+    let i = start || 0;
+    const ov = document.createElement("div");
+    ov.className = "modal-overlay lightbox";
+    ov.setAttribute("role", "dialog");
+    ov.setAttribute("aria-label", "Xem ảnh sự kiện");
+    ov.innerHTML = `
+      <img class="lightbox__img" alt="" />
+      <div class="lightbox__count"></div>
+      ${images.length > 1 ? `<button type="button" class="lightbox__nav lightbox__nav--prev" aria-label="Ảnh trước">${icon("chevronLeft", "icon")}</button><button type="button" class="lightbox__nav lightbox__nav--next" aria-label="Ảnh sau">${icon("chevronRight", "icon")}</button>` : ""}
+      <button type="button" class="lightbox__close" aria-label="Đóng">×</button>`;
+    const show = () => { ov.querySelector(".lightbox__img").src = images[i]; ov.querySelector(".lightbox__count").textContent = `${i + 1} / ${images.length}`; };
+    const go = (d) => { i = (i + d + images.length) % images.length; show(); };
+    const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => { if (e.key === "Escape") close(); else if (e.key === "ArrowLeft") go(-1); else if (e.key === "ArrowRight") go(1); };
+    ov.addEventListener("click", (e) => {
+      if (e.target.closest(".lightbox__nav--prev")) go(-1);
+      else if (e.target.closest(".lightbox__nav--next")) go(1);
+      else if (e.target === ov || e.target.closest(".lightbox__close")) close();
+    });
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(ov);
+    show();
+    ov.querySelector(".lightbox__close").focus();
   }
 
   // Danh sach CTV hien tai: dung lai tu log StaffUpdated (lan cap/thu hoi gan
@@ -2243,22 +2382,25 @@
 
   routes.create = function () {
     let step = 1;
-    let data = { cap: "110", walletLimit: "4", name: "", category: "", description: "", startTime: "", endTime: "", location: "", province: "", ward: "", street: "", address: "", image: "", maxSupply: "", price: "" };
+    let data = { images: [], cap: "110", walletLimit: "4", name: "", category: "", description: "", startTime: "", endTime: "", location: "", province: "", ward: "", street: "", address: "", image: "", maxSupply: "", price: "" };
 
     // Lop an toan thu 2: khoi phuc nhap neu bi F5/mat ket noi mang giua chung
     // (lop thu 1 la handleWalletChange() khong con ep reload trang nua).
     try {
       const saved = JSON.parse(sessionStorage.getItem(CREATE_DRAFT_KEY) || "null");
-      const typed = saved && saved.data && Object.entries(saved.data).some(([k, v]) => v && k !== "cap" && k !== "walletLimit");
+      const typed = saved && saved.data && Object.entries(saved.data).some(([k, v]) => v && !(Array.isArray(v) && !v.length) && k !== "cap" && k !== "walletLimit");
       if (typed) {
         data = Object.assign(data, saved.data);
+        if (!Array.isArray(data.images) || !data.images.length) data.images = data.image ? [data.image] : [];
         step = saved.step || 1;
         setTimeout(() => toast("Đã khôi phục thông tin đang điền dở.", "info"), 300);
       }
     } catch {}
 
     function saveDraft() {
-      try { sessionStorage.setItem(CREATE_DRAFT_KEY, JSON.stringify({ step, data })); } catch {}
+      try { sessionStorage.setItem(CREATE_DRAFT_KEY, JSON.stringify({ step, data })); } catch {
+        try { sessionStorage.setItem(CREATE_DRAFT_KEY, JSON.stringify({ step, data: { ...data, images: [], image: "" } })); } catch {}
+      }
     }
     function clearDraft() {
       try { sessionStorage.removeItem(CREATE_DRAFT_KEY); } catch {}
@@ -2323,9 +2465,8 @@
     }
 
     // Xem truoc the su kien (giong the o trang chu) + tom tat quy tac on-chain.
-    let pendingImage = ""; // anh vua chon o buoc 1, chua nen
     const TIPS = {
-      1: ["Tên ngắn, dễ nhớ giúp sự kiện nổi bật trên trang chủ.", "Ảnh bìa ngang (16:9) hiển thị đẹp nhất.", "Địa chỉ đầy đủ để người mua mở được Google Maps."],
+      1: ["Tên ngắn, dễ nhớ giúp sự kiện nổi bật trên trang chủ.", "Ảnh dọc, ngang hay vuông đều hiện trọn — tải tối đa 6 ảnh, bấm ★ để chọn ảnh bìa.", "Địa chỉ đầy đủ để người mua mở được Google Maps."],
       2: ["Trần 110% đủ để người bận việc bán lại, nhưng phe vé khó kiếm lời.", "Giới hạn 2–4 vé/ví hợp với sự kiện dễ cháy vé.", "Có thể thêm hạng VIP sau khi tạo xong."],
       3: ["Cần 2 giao dịch (tạo sự kiện, tạo hạng vé) + 1 chữ ký miễn phí.", "Trần giá và giới hạn ví không sửa được sau khi tạo.", "Giữ trang mở cho tới khi báo thành công."],
     };
@@ -2335,7 +2476,7 @@
       const cat = data.category ? categoryOf(data.category).label : "Danh mục";
       const ts = data.startTime ? Math.floor(new Date(data.startTime).getTime() / 1000) : 0;
       const place = placeLabel({ location: data.location, province: data.province });
-      const img = pendingImage || data.image || stockImage(0);
+      const img = data.images[0] || stockImage(0);
       const price = Number(data.price) > 0 ? Number(data.price) : 0;
       const cap = Number(data.cap) || 110;
       const lim = Number(data.walletLimit) || 0;
@@ -2344,8 +2485,8 @@
         <div class="create-aside__label">${icon("eye")} Xem trước</div>
         <div class="event-card event-card--preview">
           <div class="event-card__img-wrap">
-            <img class="event-card__img" src="${escapeAttr(img)}" alt="" />
-            <div class="event-card__tags"><span class="event-card__cat">${escapeHtml(cat)}</span></div>
+            ${mediaHtml(img, "event-card__img")}
+            <div class="event-card__tags"><span class="event-card__cat">${escapeHtml(cat)}</span>${data.images.length > 1 ? `<span class="badge badge-neutral">${data.images.length} ảnh</span>` : ""}</div>
           </div>
           <div class="event-card__body">
             <div class="event-card__date">${ts ? fmtCardDate(ts) : "Ngày · giờ diễn ra"}</div>
@@ -2417,16 +2558,8 @@
           </fieldset>
           </section>
           <section class="form-section">
-          ${sectionHead("image", "Ảnh bìa", "Ảnh ngang 16:9, tự nén tối đa 1600px.")}
-          <label class="dropzone ${data.image ? "has-image" : ""}" for="f-image" id="f-drop">
-            <img class="dropzone__img" id="f-drop-img" src="${data.image ? escapeAttr(data.image) : ""}" alt="" ${data.image ? "" : "hidden"} />
-            <span class="dropzone__text">
-              <span class="dropzone__icon">${icon("image")}</span>
-              <strong id="f-drop-title">${data.image ? "Đổi ảnh khác" : "Kéo ảnh vào đây hoặc bấm để chọn"}</strong>
-              <span>PNG, JPG · lưu cùng mô tả để mọi người cùng thấy</span>
-            </span>
-            <input type="file" id="f-image" accept="image/*" hidden />
-          </label>
+          ${sectionHead("image", "Ảnh sự kiện", `Tối đa ${MAX_IMAGES} ảnh, mọi kích cỡ. Ảnh đầu tiên là ảnh bìa — bấm ★ để đổi ảnh bìa.`)}
+          ${galleryPickerHtml("f")}
           </section>
           <div class="wizard-actions">
             <a href="#/my-events" class="btn btn-ghost" id="btn-cancel-wizard">Hủy</a>
@@ -2436,28 +2569,10 @@
         bindLiveInputs();
         const descEl = document.getElementById("f-desc");
         descEl.addEventListener("input", () => { document.getElementById("f-desc-count").textContent = descEl.value.length + "/2000"; });
-        const fileEl = document.getElementById("f-image");
-        const drop = document.getElementById("f-drop");
-        const showPicked = () => {
-          const f = fileEl.files[0];
-          if (!f) return;
-          if (pendingImage.startsWith("blob:")) URL.revokeObjectURL(pendingImage);
-          pendingImage = URL.createObjectURL(f);
-          const im = document.getElementById("f-drop-img");
-          im.src = pendingImage; im.hidden = false;
-          drop.classList.add("has-image");
-          document.getElementById("f-drop-title").textContent = "Đổi ảnh khác · " + f.name;
-          updatePreview();
-        };
-        fileEl.addEventListener("change", showPicked);
-        ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("is-drag"); }));
-        ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove("is-drag")));
-        drop.addEventListener("drop", (e) => {
-          e.preventDefault();
-          const f = e.dataTransfer && e.dataTransfer.files[0];
-          if (!f || !f.type.startsWith("image/")) { toast("Chỉ nhận file ảnh.", "error"); return; }
-          const dt = new DataTransfer(); dt.items.add(f); fileEl.files = dt.files;
-          showPicked();
+        let imagesBusy = false;
+        wireGalleryPicker(document, "f", () => data.images, (imgs) => { data.images = imgs; data.image = imgs[0] || ""; saveDraft(); updatePreview(); }, (b) => {
+          imagesBusy = b;
+          document.getElementById("btn-next-1").disabled = b;
         });
         const wizQuery = () => {
           const v = (id) => document.getElementById(id).value.trim();
@@ -2483,16 +2598,9 @@
           const addr = await readAddressFields("f");
           if (!addr.ok) { toast(addr.error, "error"); return; }
           Object.assign(data, addr.parts);
-          const file = document.getElementById("f-image").files[0];
-          const goNext = () => { step = 2; render(); };
-          if (file) {
-            compressImage(file).then((img) => {
-              if (!img) { toast("Không đọc được ảnh này, hãy chọn ảnh PNG/JPG khác.", "error"); return; }
-              data.image = img;
-              pendingImage = "";
-              goNext();
-            });
-          } else goNext();
+          if (imagesBusy) { toast("Đang nén ảnh, đợi một chút…", "info"); return; }
+          data.image = data.images[0] || "";
+          step = 2; render();
         });
       } else if (step === 2) {
         panel.innerHTML = `
@@ -2555,6 +2663,7 @@
             ${sectionHead("eye", "Xem lại trước khi triển khai", "Kiểm tra kỹ — dữ liệu on-chain không sửa được.")}
             <div class="review-list">
               <div class="review-row"><span class="review-row__label">Tên sự kiện</span><span class="review-row__value">${escapeHtml(data.name)}</span></div>
+              <div class="review-row"><span class="review-row__label">Ảnh</span><span class="review-row__value">${data.images.length ? data.images.length + " ảnh (ảnh đầu là ảnh bìa)" : "Chưa có — dùng ảnh mặc định"}</span></div>
               <div class="review-row"><span class="review-row__label">Danh mục</span><span class="review-row__value">${categoryOf(data.category).label}</span></div>
               <div class="review-row"><span class="review-row__label">Thời gian</span><span class="review-row__value">${data.startTime ? new Date(data.startTime).toLocaleString("vi-VN") : "—"}${data.endTime ? " → " + new Date(data.endTime).toLocaleString("vi-VN") : ""}</span></div>
               <div class="review-row"><span class="review-row__label">Địa điểm</span><span class="review-row__value">${escapeHtml(data.location || "—")}</span></div>
@@ -2608,7 +2717,7 @@
             data.createdEventId = newEventId.toString();
             saveDraft();
           }
-          const newMeta = { endTime: data.endTime ? Math.floor(new Date(data.endTime).getTime() / 1000) : 0, description: data.description, location: data.location, province: data.province, ward: data.ward, street: data.street, address: joinAddress(data), image: data.image, category: categoryOf(data.category).id };
+          const newMeta = { endTime: data.endTime ? Math.floor(new Date(data.endTime).getTime() / 1000) : 0, description: data.description, location: data.location, province: data.province, ward: data.ward, street: data.street, address: joinAddress(data), image: data.images[0] || "", images: data.images, category: categoryOf(data.category).id };
           saveMeta(newEventId, newMeta);
 
           toast(reused ? `Dùng lại sự kiện #${newEventId} đã tạo ở lần trước — đang tạo hạng vé Standard…` : "Đang tạo hạng vé Standard… (giao dịch 2/2)", "info");
@@ -2873,7 +2982,7 @@
     return `
       <article class="ticket-card${st.key === "used" || st.key === "past" ? " is-muted" : ""}">
         <div class="ticket-card__media">
-          <img src="${eventImage(meta, t.eventId)}" alt="" loading="lazy" />
+          ${mediaHtml(eventImage(meta, t.eventId), "", 'loading="lazy"')}
           <span class="event-card__cat ticket-card__cat">${categoryOf(meta.category).label}</span>
           <span class="badge ${st.cls} ticket-card__status">${st.label}</span>
         </div>

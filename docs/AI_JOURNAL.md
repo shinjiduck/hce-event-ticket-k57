@@ -311,7 +311,7 @@ Link dùng tham số thường (`?checkin=`) thay vì `#` để không bị mấ
 
 Hợp đồng v4 chỉ có `mintTicket` (1 vé/lần) nên mua 3 vé là 3 lần xác nhận ví. AI đưa ra 3 hướng: deploy v5 có `mintTickets(tierId, số lượng)`, chỉ sửa web bằng tính năng gộp giao dịch của ví (EIP-5792), hoặc giữ nguyên. **Nhóm chọn chỉ sửa web.** Web hỏi ví có gộp được không (`wallet_getCapabilities`); được thì gửi N lệnh mint trong 1 lô `wallet_sendCalls` (người gửi vẫn là ví người mua nên giới hạn vé/ví vẫn đúng), không thì tự quay về ký từng vé.
 
-Bài test thêm ví giả lập hỗ trợ gộp, kiểm tra cả 2 đường. Test cũng bắt được một lỗi cũ: hộp thoại vé vẫn đè lên trang mới khi chuyển trang bằng nút Back. Đã sửa để chuyển trang thì đóng mọi hộp thoại. Tổng cộng 45/45 bước đạt. Phần gộp giao dịch chưa thử với MetaMask thật.
+Bài test thêm ví giả lập hỗ trợ gộp, kiểm tra cả 2 đường. Test cũng bắt được một lỗi cũ: hộp thoại vé vẫn đè lên trang mới khi chuyển trang bằng nút Back. Đã sửa để chuyển trang thì đóng mọi hộp thoại. Tổng cộng 53/53 bước đạt. Phần gộp giao dịch chưa thử với MetaMask thật.
 
 Các giới hạn của hợp đồng ghi vào `PROGRESS.md` mục 8:
 - không kiểm tra giờ bắt đầu khi gọi thẳng hợp đồng;

@@ -50,12 +50,13 @@ Hardhat 2.29, Solidity 0.8.20: **19/19 ca đạt** (`projectcore-v4.test.js`, lo
 
 ## Kiểm thử giao diện đầu-cuối
 
-Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **45/45 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
+Nhóm chép **đúng bytecode đang chạy trên Sepolia** sang một chain Hardhat cục bộ (cùng địa chỉ, chainId 11155111, cùng số khối, đồng hồ chain khớp giờ thật). Bài test dùng 4 ví (Organizer, 2 người mua, CTV) và **53/53 bước đạt**, không có lỗi trang (log ở `ui-e2e-v4-log.txt`, ảnh dashboard ở `v4-dashboard.png`).
 
 1. Tạo sự kiện:
    - Wizard có ô trần giá (mặc định 110%) và ô số vé/ví (mặc định 4).
    - Giờ bắt đầu đã qua, giờ kết thúc trước giờ bắt đầu, số vé lẻ (1.5), giá quá 18 chữ số thập phân, 101 vé/ví: đều bị chặn trước khi gửi giao dịch.
    - Người dùng **từ chối giao dịch 2** (tạo hạng vé): sự kiện #0 đã có trên chain nhưng chưa có hạng vé. Bấm Deploy lại thì web **dùng lại sự kiện #0**, chỉ tạo tiếp hạng vé — không có sự kiện trùng.
+   - Ảnh: tải cùng lúc 1 ảnh ngang + 1 ảnh dọc (`test-portrait.jpg`, 600×1000), bấm ★ để ảnh dọc làm ảnh bìa và ảnh vẫn giữ tỉ lệ dọc sau khi nén; file HEIC giả thì web báo rõ cách xử lý, không thêm ảnh hỏng. Trang sự kiện có mục "Hình ảnh" 2 ảnh, ảnh bìa dọc hiện trọn trong khung ngang, bấm ảnh mở trình xem ảnh lớn, Esc để đóng.
    - Tạo sự kiện với trần 120% và 2 vé/ví; trên chain lưu `12000 / 2`; giờ kết thúc lưu vào metadata và hiện ở trang sự kiện.
 2. Mua nhiều vé:
    - Ví B giả lập hỗ trợ gộp giao dịch (EIP-5792): trang thanh toán báo "chỉ cần xác nhận 1 lần cho 2 vé"; mua 2 vé bằng **1 lô `wallet_sendCalls`**, không gửi giao dịch lẻ nào; cả 2 vé thuộc ví B, `mintedBy` = 2.

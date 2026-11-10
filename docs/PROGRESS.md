@@ -30,7 +30,7 @@
 
 ## 3. Hợp đồng `ProjectCore.sol` v4
 
-v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)**: thêm CTV soát vé, chặn vé sai sự kiện ngay trên hợp đồng, gỡ rao bán. **v4 (27/10)**: trần giá bán lại và số vé tối đa mỗi ví do Organizer đặt cho từng sự kiện, hợp đồng tự chặn mua vé sau giờ bắt đầu, phí bản quyền 5% khi bán lại. Test Hardhat **19/19** ca đạt: `evidence/lab-15-v4/projectcore-v4-test-log.txt`. Đã chạy trọn luồng giao diện trên chain cục bộ dùng **đúng bytecode v4 đang chạy trên Sepolia** (45/45 bước, `evidence/lab-15-v4/ui-e2e-v4-log.txt`).
+v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)**: thêm CTV soát vé, chặn vé sai sự kiện ngay trên hợp đồng, gỡ rao bán. **v4 (27/10)**: trần giá bán lại và số vé tối đa mỗi ví do Organizer đặt cho từng sự kiện, hợp đồng tự chặn mua vé sau giờ bắt đầu, phí bản quyền 5% khi bán lại. Test Hardhat **19/19** ca đạt: `evidence/lab-15-v4/projectcore-v4-test-log.txt`. Đã chạy trọn luồng giao diện trên chain cục bộ dùng **đúng bytecode v4 đang chạy trên Sepolia** (53/53 bước, `evidence/lab-15-v4/ui-e2e-v4-log.txt`).
 
 | Quy tắc (SPEC) | Hàm | Trạng thái |
 |---|---|---|
