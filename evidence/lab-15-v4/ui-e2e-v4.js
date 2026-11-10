@@ -283,15 +283,20 @@ const metaStore = {};
     return r ? { data: r.data, modules: 17 + 4 * r.version } : null;
   });
   const qrModules = decoded ? decoded.modules : 0;
-  check("Mã QR chứa link mở trang check-in (…/C/0/FT1:…, chữ HOA), giải mã từ chính ảnh QR", !!decoded && decoded.data === linkC && /^HTTP:\/\/LOCALHOST:8765\/C\/0\/FT1:0:\d+:[0-9A-F]{130}$/.test(decoded.data), ((decoded && decoded.data) || "").slice(0, 90));
-  check("Mã QR dạng link vẫn thưa như mã cũ (≤ 41×41 ô)", qrModules > 0 && qrModules <= 41, `${qrModules}×${qrModules} ô`);
+  check("Mã QR chứa link mở trang check-in (…/c/0/FT1:…, tên miền chữ thường), giải mã từ chính ảnh QR", !!decoded && decoded.data === linkC && /^http:\/\/localhost:8765\/c\/0\/FT1:0:\d+:[0-9A-F]{130}$/.test(decoded.data), ((decoded && decoded.data) || "").slice(0, 90));
+  check("Mã QR dạng link vẫn thưa (≤ 45×45 ô; bản gây lỗi là 61×61)", qrModules > 0 && qrModules <= 45, `${qrModules}×${qrModules} ô`);
   // Mo link tren trinh duyet KHONG co vi (vd app camera mo bang Chrome) -> nut mo bang app MetaMask
   const bare = await browser.newContext();
   const bp = await bare.newPage();
   await bp.goto(linkC, { waitUntil: "domcontentloaded" });
   await bp.waitForSelector("a[href^='https://metamask.app.link/dapp/']", { timeout: 30000 }).catch(() => {});
   const mm = await bp.getAttribute("a[href^='https://metamask.app.link/dapp/']", "href").catch(() => null);
-  check("Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã", !!mm && /\/C\/0\/FT1:0:/.test(mm), (mm || "").slice(0, 90));
+  check("Mở link trên trình duyệt không có ví → nút 'Mở bằng ứng dụng MetaMask' giữ nguyên mã", !!mm && /\/c\/0\/FT1:0:/.test(mm), (mm || "").slice(0, 90));
+  // Mot so app quet doi hoa/thuong cua link -> ca 2 dang deu phai mo dung trang check-in
+  await bp.goto(linkC.toLowerCase(), { waitUntil: "domcontentloaded" });
+  check("Link bị đổi sang toàn chữ thường (/c/0/ft1:…) vẫn mở đúng trang check-in, giữ mã", await waitText(bp, "#app-root", "Đã nhận mã check-in", 20000) && bp.url().includes("#/check-in?event=0&code="), bp.url().slice(0, 90));
+  await bp.goto(linkC.toUpperCase(), { waitUntil: "domcontentloaded" });
+  check("Link bị đổi sang toàn chữ HOA (/C/0/FT1:…) vẫn mở đúng trang check-in", await waitText(bp, "#app-root", "Đã nhận mã check-in", 20000), bp.url().slice(0, 90));
   await bare.close();
   // CTV mo thang link (nhu quet bang app camera) -> trang tu dien ma, tu kiem tra va check-in
   const s = await as(S);

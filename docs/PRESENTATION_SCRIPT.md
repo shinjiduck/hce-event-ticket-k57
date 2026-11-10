@@ -215,7 +215,7 @@ Bán lại:      Người mua lại --giá bán lại--> Hợp đồng --95%--> 
 >
 > **Kiểm thử.** Hợp đồng v4 có **19 ca test Hardhat**, gồm cả ca làm tròn phí bản quyền: giá 1099 wei thì phí là 54 wei, người bán nhận 1045 wei, tổng khớp đúng, không mất wei nào.
 >
-> Ngoài ra, nhóm **chép đúng bytecode đang chạy trên Sepolia** sang một chain cục bộ để chạy **55 bước test giao diện tự động** với 4 ví giả lập. Bài test này còn bắt được một số lỗi thật, ví dụ dashboard không cập nhật số vé đã bán, hoặc tạo sự kiện bị trùng khi ví từ chối giao dịch thứ 2. Tất cả đã sửa.
+> Ngoài ra, nhóm **chép đúng bytecode đang chạy trên Sepolia** sang một chain cục bộ để chạy **57 bước test giao diện tự động** với 4 ví giả lập. Bài test này còn bắt được một số lỗi thật, ví dụ dashboard không cập nhật số vé đã bán, hoặc tạo sự kiện bị trùng khi ví từ chối giao dịch thứ 2. Tất cả đã sửa.
 >
 > **Audit.** Nhóm có audit chéo ở Lab 14 và một lần rà lại toàn bộ trước khi nộp. Kết luận: không có lỗi làm mất tiền hay mất vé.
 

@@ -247,7 +247,7 @@ Bán lại:      Người mua lại --giá bán lại--> Hợp đồng --95%--> 
 >
 > Hợp đồng tấn công thất bại, và kịch bản này được chạy lại cho bản v4. Bản v4 có **19 ca test**, gồm cả ca làm tròn phí: bán 1.099 wei thì phí 54 wei, người bán nhận 1.045 wei, **tổng khớp, không mất một wei nào**.
 >
-> Ngoài ra, nhóm **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho trình duyệt tự động điều khiển 4 ví chạy **55 bước test giao diện**, gồm tất cả các ca em vừa demo. **55 trên 55 đạt.** Bộ test còn bắt được lỗi thật, ví dụ tạo sự kiện bị trùng khi ví từ chối giao dịch thứ 2. Lỗi này đã được sửa.
+> Ngoài ra, nhóm **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho trình duyệt tự động điều khiển 4 ví chạy **57 bước test giao diện**, gồm tất cả các ca em vừa demo. **57 trên 57 đạt.** Bộ test còn bắt được lỗi thật, ví dụ tạo sự kiện bị trùng khi ví từ chối giao dịch thứ 2. Lỗi này đã được sửa.
 >
 > Trước khi nộp, nhóm rà lại toàn bộ dự án. Kết luận: **không có lỗi làm mất tiền hay mất vé**.
 

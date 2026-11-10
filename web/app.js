@@ -437,7 +437,7 @@
     el.setAttribute("role", "dialog");
     el.setAttribute("aria-label", "Mã check-in phóng to");
     el.innerHTML = `<div class="qr-fullscreen__code"></div><div class="qr-fullscreen__label">${escapeHtml(label)} · tăng độ sáng màn hình · chạm để đóng</div>`;
-    renderQrInto(el.querySelector(".qr-fullscreen__code"), code, QR_ALNUM_RE.test(code) ? "Alphanumeric" : "Byte", /^FT1:/.test(code) ? "M" : "L");
+    renderQrInto(el.querySelector(".qr-fullscreen__code"), code, "auto", /^FT1:/.test(code) ? "M" : "L");
     const close = () => el.remove();
     el.addEventListener("click", close);
     el.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
@@ -512,7 +512,7 @@
       qrEl.classList.remove("is-expired");
       qrEl.dataset.code = code;
       qrEl.dataset.link = link;
-      renderQrInto(qrEl, link, QR_ALNUM_RE.test(link) ? "Alphanumeric" : "Byte", "L");
+      renderQrInto(qrEl, link, "auto", "L");
       overlay.querySelector("#tm-zoom").hidden = false;
       makeBtn.textContent = "Tạo mã mới";
       clearInterval(codeTimer);
@@ -695,7 +695,8 @@
   function renderQrInto(container, text, mode, ecLevel) {
     if (!window.qrcode) { container.textContent = "(Không tải được thư viện QR)"; return; }
     const qr = window.qrcode(0, ecLevel || "M");
-    qr.addData(text, mode || "Byte");
+    if (mode === "auto") qrSegments(text).forEach(([t, md]) => qr.addData(t, md));
+    else qr.addData(text, mode || "Byte");
     qr.make();
     // margin tinh bang DIEM ANH (khong phai so o): 16px = 4 o le trang theo
     // chuan QR. Truoc day margin 2 -> le chi nua o, may quet kho dinh vi ma.
@@ -3316,15 +3317,22 @@
   }
 
   // QR chua LINK thay vi chi chuoi FT1: quet bang app camera bat ky cung mo
-  // dung trang check-in voi ma dien san. Link dang HTTPS://HOST/C/<su kien>/<ma>
-  // viet HOA toan bo: chi gom ky tu ma QR "chu-so" nen ma thua (41x41 o, bang ma
-  // FT1 cu) thay vi 61x61 o neu dung ?checkin=... - camera bat net de hon nhieu.
+  // dung trang check-in voi ma dien san. Link dang https://host/c/<su kien>/<ma>:
+  // ten mien chu thuong (de doc, app quet nhan la link), phan sau "/c/" chi gom
+  // so, "/", "FT1:" va hex HOA -> ma hoa che do QR "chu-so" rat gon. Ma QR 45x45 o
+  // (ten mien chinh) thay vi 61x61 o neu dung ?checkin=... - camera bat net de hon.
   // Khong co # nen link con nguyen khi di qua deep link mo app MetaMask.
   // Bao mat khong doi: link chi cho ma di, trang check-in van kiem chu ky + han 5 phut + chu ve.
   function checkinLink(code, eventId) {
-    return `${location.origin.toUpperCase()}/C/${eventId !== undefined && eventId !== null ? eventId : "X"}/${code}`;
+    return `${location.origin}/c/${eventId !== undefined && eventId !== null ? eventId : "X"}/${code}`;
   }
   const QR_ALNUM_RE = /^[0-9A-Z $%*+\-./:]+$/;
+  // Chia chuoi thanh doan: link check-in -> [ten mien (Byte)] + [phan ma (chu-so)].
+  function qrSegments(text) {
+    const m = /^(https?:\/\/[^/]+\/c\/)(.+)$/i.exec(text);
+    if (m && QR_ALNUM_RE.test(m[2])) return [[m[1], "Byte"], [m[2], "Alphanumeric"]];
+    return [[text, QR_ALNUM_RE.test(text) ? "Alphanumeric" : "Byte"]];
+  }
   // Link mo trang hien tai ben trong ung dung MetaMask (trinh duyet co san vi).
   function metamaskDeepLink(url) {
     return "https://metamask.app.link/dapp/" + String(url).replace(/^https?:\/\//, "");

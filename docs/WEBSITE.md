@@ -1,6 +1,6 @@
 # TIẾN ĐỘ WEBSITE — FairTicket
 
-> Cập nhật: **06/11/2026** (giao diện tối tím neon, audit logic) — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (55/55, `evidence/lab-15-v4/`).
+> Cập nhật: **06/11/2026** (giao diện tối tím neon, audit logic) — website đã chuyển sang hợp đồng **v4** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0` (trần giá + giới hạn vé/ví theo sự kiện, phí bản quyền 5%): các giao dịch thật ghi ✅ bên dưới thuộc hợp đồng v2; cần chạy lại trên v4. Luồng v4 đã chạy trọn trên chain cục bộ với đúng bytecode Sepolia (57/57, `evidence/lab-15-v4/`).
 > URL công khai: https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
 > Mã nguồn: thư mục `web/` · Tiến độ chung của cả dự án (Lab, hợp đồng): [PROGRESS.md](PROGRESS.md)
 
@@ -28,7 +28,7 @@
 | Phong cách | Tối, tím neon (Cinematic Dark Neon Purple): nền `#090911`, thẻ `#1C162B`, tím `#9657FF`/`#7C3AED`. Đổi qua design token ở đầu khối theme trong `styles.css`, nên mọi trang đổi theo |
 | Font | Tiêu đề lớn: Barlow Condensed in hoa · khẩu hiệu: Playfair Display nghiêng · chữ thường: Be Vietnam Pro (hiển thị tiếng Việt tốt hơn Inter) |
 | Hiệu ứng | Đổi trang trượt lên · thẻ hiện dần khi cuộn · thẻ nổi lên + ảnh zoom khi rê chuột · thẻ vé ở hero lơ lửng · nút gradient chuyển màu · modal/toast bật lên. Tắt hết khi máy bật `prefers-reduced-motion` |
-| Giữ nguyên | Mã QR luôn nền trắng để máy quét đọc được; mọi id ô nhập, luồng và lệnh gọi hợp đồng không đổi (bài test đầu-cuối 55/55) |
+| Giữ nguyên | Mã QR luôn nền trắng để máy quét đọc được; mọi id ô nhập, luồng và lệnh gọi hợp đồng không đổi (bài test đầu-cuối 57/57) |
 
 ### 2.1 Phần chung (header, footer, ví)
 
@@ -115,7 +115,7 @@
 | Thẻ vé điện tử, chia tab Sắp diễn ra / Đã sử dụng / Đang bán lại / Tất cả (có đếm) | ✅ (kiểm tra trên Vercel) |
 | Modal vé: QR, chủ sở hữu kiểm tra lại trên chain, CA, lịch sử riêng của vé, chỉ đường | 🟢 |
 | **Tạo mã check-in có chữ ký** (hết hạn 5 phút, đếm ngược) | 🟢 |
-| **QR check-in dạng link, thưa 41×41 ô** (10/11): link viết HOA `HTTPS://HOST/C/<sự kiện>/<mã>` (cần `web/vercel.json`); lỗi ví không rõ nguyên nhân thì trang check-in tự chẩn đoán (hết ETH trả gas, hợp đồng từ chối…) | 🟢 | |
+| **QR check-in dạng link, thưa ≤ 45×45 ô** (10/11): link `https://host/c/<sự kiện>/<mã>`, phần mã ở chế độ chữ-số của QR (cần `web/vercel.json`, nhận cả `/c/` lẫn `/C/`); lỗi ví không rõ nguyên nhân thì trang check-in tự chẩn đoán (hết ETH trả gas, hợp đồng từ chối…) | 🟢 | |
 | **QR check-in dạng link** (06/11): quét bằng app camera bất kỳ là mở trang Check-in với mã điền sẵn, tự kiểm tra; trình duyệt không có ví thì có nút "Mở bằng ứng dụng MetaMask" (giữ nguyên mã). Trang Check-in vẫn nhận mã `FT1:` dán tay | 🟢 |
 | Rao bán lại / đổi giá (chặn giá vượt trần của sự kiện ngay trên giao diện; ghi rõ người bán nhận 95%) | ✅ Vé #3 rao bán 0.0055 ETH = đúng 110% giá gốc (20/10, v2) · v4: chạy trên chain cục bộ |
 | Rút tiền | ✅ Ví `0x4f99…` đã rút thật 0.005 ETH ngày 20/10 |

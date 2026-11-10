@@ -220,7 +220,7 @@
 
 ## 7. Bảo mật và kiểm thử (1 phút)
 
-**[Slide 10]** Trái: sơ đồ tấn công reentrancy. Phải: hai số lớn, **19** test hợp đồng và **55** bước test giao diện.
+**[Slide 10]** Trái: sơ đồ tấn công reentrancy. Phải: hai số lớn, **19** test hợp đồng và **57** bước test giao diện.
 
 > Hợp đồng giữ tiền của nhiều người nên phải chống được lỗi kinh điển **reentrancy**: kẻ tấn công gọi rút tiền lặp đi lặp lại trước khi số dư kịp về 0. Ở Lab 13 nhóm viết hẳn hợp đồng tấn công để thử. FairTicket chặn bằng hai cách:
 > - **người nhận tự rút tiền** (pull-payment);
@@ -230,7 +230,7 @@
 >
 > Về kiểm thử:
 > - Hợp đồng có **19 ca test**, gồm cả ca làm tròn phí: bán 1.099 wei thì phí 54 wei, người bán nhận 1.045 wei, **không mất một wei nào**.
-> - Nhóm còn **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho trình duyệt tự động điều khiển **4 ví** chạy **55 bước**, gồm tất cả các ca em vừa demo. **55 trên 55 đạt.**
+> - Nhóm còn **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho trình duyệt tự động điều khiển **4 ví** chạy **57 bước**, gồm tất cả các ca em vừa demo. **57 trên 57 đạt.**
 > - Bộ test bắt được cả **lỗi thật**, ví dụ: ví từ chối giao dịch thứ 2 thì bấm lại sẽ tạo **sự kiện trùng**, hoặc dashboard không cập nhật số vé đã bán. Tất cả đã sửa.
 
 ---

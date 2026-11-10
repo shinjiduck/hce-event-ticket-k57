@@ -30,7 +30,7 @@
 
 ## 3. Hợp đồng `ProjectCore.sol` v4
 
-v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)**: thêm CTV soát vé, chặn vé sai sự kiện ngay trên hợp đồng, gỡ rao bán. **v4 (27/10)**: trần giá bán lại và số vé tối đa mỗi ví do Organizer đặt cho từng sự kiện, hợp đồng tự chặn mua vé sau giờ bắt đầu, phí bản quyền 5% khi bán lại. Test Hardhat **19/19** ca đạt: `evidence/lab-15-v4/projectcore-v4-test-log.txt`. Đã chạy trọn luồng giao diện trên chain cục bộ dùng **đúng bytecode v4 đang chạy trên Sepolia** (55/55 bước, `evidence/lab-15-v4/ui-e2e-v4-log.txt`).
+v2 (13/10): đổi sang **public mint theo hạng vé** + check-in. **v3 (27/10)**: thêm CTV soát vé, chặn vé sai sự kiện ngay trên hợp đồng, gỡ rao bán. **v4 (27/10)**: trần giá bán lại và số vé tối đa mỗi ví do Organizer đặt cho từng sự kiện, hợp đồng tự chặn mua vé sau giờ bắt đầu, phí bản quyền 5% khi bán lại. Test Hardhat **19/19** ca đạt: `evidence/lab-15-v4/projectcore-v4-test-log.txt`. Đã chạy trọn luồng giao diện trên chain cục bộ dùng **đúng bytecode v4 đang chạy trên Sepolia** (57/57 bước, `evidence/lab-15-v4/ui-e2e-v4-log.txt`).
 
 | Quy tắc (SPEC) | Hàm | Trạng thái |
 |---|---|---|
@@ -109,7 +109,7 @@ Bí mật (`BLOB_READ_WRITE_TOKEN`) chỉ nằm trong `web/.env` (không commit)
 | 06/11 | Giao dịch 2 (tạo hạng vé) lỗi/bị từ chối → bấm Deploy lại tạo **sự kiện trùng** | Lưu mã sự kiện ngay sau giao dịch 1; bấm lại chỉ tạo tiếp hạng vé | (audit 06/11) |
 | 06/11 | Số vé lẻ (1.5) / giá quá 18 chữ số thập phân chỉ báo lỗi **sau khi** sự kiện đã tạo | Kiểm tra số vé và giá trước giao dịch 1 | (audit 06/11) |
 | 06/11 | Tạo được sự kiện có giờ bắt đầu đã qua → không ai mua vé được | Wizard yêu cầu giờ bắt đầu sau hiện tại ít nhất 10 phút | (audit 06/11) |
-| 10/11 | Quét mã QR check-in bằng camera trong trang Check-in khó bắt (mã dạng link dày 61×61 ô) | Link viết HOA `HTTPS://HOST/C/<sự kiện>/<mã>` để mã QR dùng chế độ chữ-số → 41×41 ô như mã cũ; máy quét thử xen kẽ giữa khung và cả khung hình | (10/11) |
+| 10/11 | Quét mã QR check-in bằng camera trong trang Check-in khó bắt (mã dạng link dày 61×61 ô) | Link `https://host/c/<sự kiện>/<mã>`: phần mã dùng chế độ chữ-số của QR → 45×45 ô (tên miền chính) thay vì 61×61; Vercel nhận cả `/c/` và `/C/` vì một số app quét đổi hoa/thường; máy quét thử xen kẽ giữa khung và cả khung hình | (10/11) |
 | 10/11 | Check-in báo "Giao dịch thất bại: could not coalesce error" | Đọc lỗi ở mọi lớp bên trong (hết gas, nonce, RPC quá tải, hợp đồng từ chối); check-in lỗi không rõ thì tự kiểm tra số dư và chạy thử qua RPC công khai để báo đúng lý do | (10/11) |
 | 06/11 | Ô "Thời gian kết thúc" nhập vào nhưng bị bỏ đi | Lưu vào metadata, hiện ở trang sự kiện; kiểm tra phải sau giờ bắt đầu | (audit 06/11) |
 
