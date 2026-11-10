@@ -1,5 +1,7 @@
 # KỊCH BẢN THUYẾT TRÌNH — FairTicket
 
+> 📌 **Kịch bản riêng cho từng người** (có số liệu thực tế kèm nguồn, các kiểu vé giả, phân tích ai được lợi gì): **[SCRIPT_THAO.md](SCRIPT_THAO.md)** · **[SCRIPT_LINH.md](SCRIPT_LINH.md)**. File này là bản tổng hợp cả buổi.
+
 > Bản đầy đủ khoảng **13 phút + hỏi đáp**. Nếu bị giới hạn thời gian, dùng **bản rút gọn 7 phút** ở cuối file.
 > Phân vai theo `docs/PROJECT_PLAN.md` (Lab 12–15): **Thảo** nói bài toán, kinh tế, hợp đồng, bảo mật; **Linh** demo giao diện và kiểm thử.
 > Chữ thường là lời nói. Dòng bắt đầu bằng **[Thao tác]** là việc làm trên máy. Dòng **[Slide]** là nội dung nên có trên slide.
