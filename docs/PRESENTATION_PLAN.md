@@ -2,6 +2,8 @@
 
 > Đề bài tham chiếu "khung ở Phần C" nhưng không có trong đề đã đưa cho repo này — khung dưới đây là bản mặc định hợp lý (thời lượng, vai trò, mỗi người phụ trách đúng 1 artifact). Nếu có bản khung chính thức khác từ giảng viên, thay nội dung bảng theo đúng khung đó, giữ nguyên cấu trúc file.
 
+> **Kịch bản chi tiết từng câu nói và thao tác:** [PRESENTATION_SCRIPT.md](PRESENTATION_SCRIPT.md) (bản 13 phút + bản rút gọn 7 phút, kèm bảng lời/lỗ theo trần giá và câu hỏi dự kiến).
+
 ## Phân vai — mỗi người phụ trách đúng 1 artifact
 
 Theo phân vai Lab 12–15 trong `docs/PROJECT_PLAN.md` (Mai Bá Linh: Giao diện + Kiểm thử; Nguyễn Hoàng Thảo: Đặc tả + Hợp đồng):

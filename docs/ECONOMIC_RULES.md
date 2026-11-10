@@ -1,6 +1,7 @@
 # ECONOMIC RULES — FairTicket (v0.2)
 
 > Cập nhật sau Lab 15: đồng bộ với `docs/SPEC.md` v0.2 và `ProjectCore.sol` v2 — chuyển từ mô hình Organizer phát hành từng vé sang mô hình public mint theo Hạng vé (Tier) và mô hình rút tiền an toàn (pull-payment).
+> Cập nhật 10/11/2026: đồng bộ với hợp đồng **v4** (trần giá và giới hạn vé/ví theo sự kiện, phí bản quyền 5%, CTV soát vé). Phân tích lời/lỗ của người đầu cơ theo từng mức trần: xem `docs/PRESENTATION_SCRIPT.md` mục 2.3.
 
 ## I. Dòng tiền / quyền lợi
 
@@ -82,7 +83,7 @@ Organizer có toàn quyền gọi `checkIn()` bất kỳ lúc nào cho bất k�
 
 **Abuse 3 — Bán vé sau khi sự kiện đã kết thúc**
 Không có giới hạn thời gian, vé "chết" vẫn được rao bán cho người không biết.
-→ **Xử lý:** thêm R7 — chỉ resale được khi `block.timestamp < event.startTime`.
+→ **Xử lý (đề xuất):** thêm R7 — chỉ resale được khi `block.timestamp < event.startTime`. **Chưa cài trong hợp đồng v4**: web ẩn nút mua với sự kiện đã diễn ra, nhưng gọi thẳng hợp đồng vẫn mua lại được. Đã ghi trong `docs/PROGRESS.md` mục 8 và là hướng phát triển.
 
 **Abuse 4 — Chủ cũ dùng lại thông tin vé cũ để cố check-in**
 Sau khi Alice bán vé cho Bob, nếu check-in chỉ dựa vào `ticketId` mà không đối chiếu chủ sở hữu hiện tại, Alice có thể cố check-in bằng thông tin vé cũ.
