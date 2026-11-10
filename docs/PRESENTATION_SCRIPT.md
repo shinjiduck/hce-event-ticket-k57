@@ -1,6 +1,6 @@
 # KỊCH BẢN THUYẾT TRÌNH — FairTicket
 
-> 📌 **Kịch bản riêng cho từng người** (có số liệu thực tế kèm nguồn, các kiểu vé giả, phân tích ai được lợi gì): **[SCRIPT_THAO.md](SCRIPT_THAO.md)** · **[SCRIPT_LINH.md](SCRIPT_LINH.md)**. File này là bản tổng hợp cả buổi.
+> 📌 **Mỗi người thuyết trình trọn bài — mỗi người một bản đầy đủ** (số liệu thực tế có nguồn, 6 kiểu vé giả, ai được lợi gì, demo, thử phá luật): **[SCRIPT_THAO.md](SCRIPT_THAO.md)** (kể từ số liệu → kinh tế → demo, ví dụ vé BLACKPINK 6,8 triệu) · **[SCRIPT_LINH.md](SCRIPT_LINH.md)** (kể theo "hành trình của một tấm vé", ví dụ vé 2 triệu). File này là bản chia vai 2 người cũ, giữ để tham khảo.
 
 > Bản đầy đủ khoảng **13 phút + hỏi đáp**. Nếu bị giới hạn thời gian, dùng **bản rút gọn 7 phút** ở cuối file.
 > Phân vai theo `docs/PROJECT_PLAN.md` (Lab 12–15): **Thảo** nói bài toán, kinh tế, hợp đồng, bảo mật; **Linh** demo giao diện và kiểm thử.

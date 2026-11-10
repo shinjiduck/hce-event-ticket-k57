@@ -1,203 +1,299 @@
-# KỊCH BẢN THUYẾT TRÌNH — PHẦN CỦA LINH
+# KỊCH BẢN THUYẾT TRÌNH ĐẦY ĐỦ — BẢN CỦA LINH
 
-> **Người nói:** Mai Bá Linh (Giao diện + Kiểm thử, Lab 12–15)
-> **Thời lượng phần Linh:** khoảng 6 phút, nói một lượt liền, ở giữa buổi.
-> **Thứ tự cả buổi:** Thảo (mở đầu + kinh tế, 5 phút) → **Linh (demo + ca bị từ chối + kiểm thử, 6 phút)** → Thảo (bảo mật + giới hạn + kết, 2 phút) → hỏi đáp. Phần của Thảo: [SCRIPT_THAO.md](SCRIPT_THAO.md).
-> Chữ thường là lời nói. **[Thao tác]** là việc làm trên máy. **[Slide]** là nội dung trên màn chiếu. **[Chuyển lời]** là câu chuyển sang Thảo.
+> **Người nói:** Mai Bá Linh — **thuyết trình một mình toàn bộ bài** (khoảng 13 phút + hỏi đáp).
+> **Cách kể:** đi theo *"hành trình của một tấm vé"*: mỗi bước của tấm vé gắn với một kiểu gian lận mà FairTicket chặn được. Bản của Thảo ([SCRIPT_THAO.md](SCRIPT_THAO.md)) kể theo hướng khác để hai bài không trùng nhau.
+> Chữ thường là lời nói. **[Slide]** là nội dung trên màn chiếu. **[Thao tác]** là việc làm trên máy.
+> Mọi số liệu thực tế đều có nguồn ở **mục cuối**. Các ví dụ tính bằng tiền đồng là **phép tính minh họa** của nhóm và được ghi rõ.
 
 ---
 
-## Trước buổi: Linh chuẩn bị (làm trước ít nhất 1 ngày)
+## Phân bổ thời gian
 
-### 4 ví trên Sepolia, mỗi ví ≥ 0.05 ETH test
-
-| Ví | Vai | Mở ở đâu |
+| # | Phần | Thời lượng |
 |---|---|---|
-| **A** | Ban tổ chức | Trình duyệt Chrome, profile 1 |
-| **B** | Người mua 1 (người bán lại) | Chrome, profile 2 |
-| **C** | Người mua 2 (người mua lại) | Chrome, profile 3 |
-| **D** | CTV soát vé | **Điện thoại**, app MetaMask |
+| 1 | Mở đầu: một tình huống và những con số | 1 phút 30 |
+| 2 | Vì sao thị trường vé hỏng: 3 nguyên nhân kinh tế | 1 phút 30 |
+| 3 | Ý tưởng FairTicket: 3 nguyên tắc | 1 phút |
+| 4 | Ai được lợi, tính bằng tiền | 1 phút 30 |
+| 5 | Demo: hành trình của một tấm vé | 4 phút |
+| 6 | Thử phá luật | 1 phút 30 |
+| 7 | Bảo mật và kiểm thử | 1 phút |
+| 8 | Giới hạn, hướng phát triển, kết | 1 phút |
 
-### Dữ liệu dựng sẵn
+---
 
+## Chuẩn bị trước buổi
+
+**4 ví trên Sepolia, mỗi ví ≥ 0.05 ETH test.** Mỗi ví mở ở một profile Chrome riêng; ví D mở trên điện thoại.
+
+| Ví | Vai |
+|---|---|
+| **A** | Ban tổ chức |
+| **B** | Người mua 1, sẽ bán lại vé |
+| **C** | Người mua 2, mua lại vé |
+| **D** | CTV soát vé (điện thoại, app MetaMask) |
+
+**Dữ liệu dựng sẵn trên hợp đồng v4 `0x0845…9Fd0`:**
 1. Ví A tạo sự kiện **"FairTicket Night 2026"**:
    - có ảnh bìa, ngày diễn ra **sau** buổi thuyết trình;
    - trần **120%**, tối đa **2 vé/ví**;
-   - hạng Standard **0.01 ETH × 50 vé**.
-2. Ví A tạo thêm 1–2 sự kiện khác có ảnh, để trang chủ không trống.
-3. Ví B mua sẵn **2 vé**, tức là đã chạm giới hạn ví.
-4. Remix: biên dịch `ProjectCore.sol` → **At Address** `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0`, chọn sẵn ví B.
-5. **Quay sẵn video** toàn bộ phần demo để dự phòng.
+   - hạng Standard 0.01 ETH × 50 vé.
+2. Tạo thêm 1–2 sự kiện khác có ảnh, để trang chủ không trống.
+3. Ví B mua sẵn **2 vé**.
+4. Remix: biên dịch `ProjectCore.sol`, bấm **At Address** tới `0x0845EEB1Ed93C373173680a859fB255f168b9Fd0`, chọn ví B.
+5. **Quay sẵn video demo** để dự phòng trường hợp Sepolia chậm.
 
-### Ngay trước giờ lên
-
-- [ ] Bấm Ctrl+F5 ở cả 3 profile Chrome.
-- [ ] Ví D trên điện thoại: thử quét một mã QR bằng app camera.
-- [ ] Mở sẵn tab Etherscan của hợp đồng và file `evidence/lab-15-v4/ui-e2e-v4-log.txt`.
+**Ngay trước giờ lên:** Ctrl+F5 ở cả 3 profile; thử quét 1 mã QR bằng camera điện thoại; mở sẵn Etherscan và file `evidence/lab-15-v4/ui-e2e-v4-log.txt`.
 
 ---
 
-## 1. Câu mở (10 giây)
+## 1. Mở đầu: một tình huống và những con số (1 phút 30)
 
-**[Chuyển lời từ Thảo]** "Mời Linh demo trực tiếp trên DApp."
+**[Slide 1]** Tên đề tài, URL DApp, tên 2 thành viên.
 
-> Cảm ơn Thảo. Em sẽ demo trực tiếp trên DApp đã deploy công khai ở Vercel. Ứng dụng kết nối với hợp đồng thật trên mạng thử nghiệm Sepolia của Ethereum. Mọi thao tác mọi người sắp thấy đều là giao dịch thật, tra được trên Etherscan.
+> Em chào thầy cô và các bạn. Em là Linh, nhóm em gồm em và bạn Thảo. Hôm nay em trình bày **FairTicket**: nền tảng vé sự kiện trên blockchain, chống vé giả và hạn chế đầu cơ.
 
----
+**[Slide 2]** Một tin nhắn giả lập: *"Mình dư 2 vé, chuyển khoản trước mình gửi mã nhé"*. Ghi chú nhỏ: *tình huống minh họa*.
 
-## 2. Demo luồng thành công (3 phút 30)
-
-### 2.1 Trang chủ (20 giây)
-
-**[Thao tác]** Profile B, mở trang chủ. Cuộn nhẹ để thấy hiệu ứng.
-
-> Đây là trang chủ. Thẻ vé nổi bên phải là **sự kiện sắp diễn ra gần nhất, lấy trực tiếp từ blockchain**. Bên dưới là số sự kiện và số vé đã phát hành, **đọc thẳng từ hợp đồng**. Nhóm không đặt con số nào bằng tay.
-
-### 2.2 Tạo sự kiện (40 giây)
-
-**[Thao tác]** Profile A → **Tạo sự kiện**. Gõ tên, chọn danh mục, chọn ngày, chọn ảnh. Chỉ vào thẻ xem trước bên phải đang đổi theo khi gõ.
-
-> Ban tổ chức tạo sự kiện qua 3 bước. Bên phải là **bản xem trước**, cập nhật ngay khi gõ.
-
-**[Thao tác]** Sang bước 2. Chọn trần **120%**, số vé/ví **2**. Chỉ vào khung "Quy tắc ghi trên hợp đồng".
-
-> Bước 2 là phần kinh tế mà Thảo vừa trình bày. Ban tổ chức chọn **trần giá bán lại** và **số vé tối đa mỗi ví**. Khung bên phải tự tính luôn: giá bán lại tối đa, phí bản quyền 5%, và doanh thu nếu bán hết. Hai quy tắc này **ghi vĩnh viễn** lên hợp đồng.
-
-**[Thao tác]** Sang bước 3 "Xem lại", **không bấm Deploy** để tiết kiệm thời gian. Mở sự kiện "FairTicket Night 2026" đã tạo sẵn.
-
-> Bấm Deploy sẽ gửi 2 giao dịch. Để tiết kiệm thời gian, em dùng sự kiện đã tạo sẵn với đúng cấu hình này.
-
-### 2.3 Mua vé (40 giây)
-
-**[Thao tác]** Profile C → trang sự kiện. Chỉ dòng "Mỗi ví được mua mới tối đa 2 vé" và thông tin "trần 120%". Chọn 2 vé → **Mua vé**.
-
-> Người mua thấy rõ luật của sự kiện ngay trên trang: bán lại tối đa 120%, mỗi ví tối đa 2 vé.
-
-**[Thao tác]** Trang thanh toán, chỉ vào danh sách kiểm tra.
-
-> Trước khi bấm thanh toán, hệ thống **kiểm tra sẵn mọi thứ**: ví đã kết nối chưa, có đúng mạng không, còn đủ vé không, ví đã mua bao nhiêu so với giới hạn, số dư có đủ cả tiền vé lẫn phí gas không.
-
-**[Thao tác]** Bấm **Xác nhận & thanh toán** → xác nhận trong MetaMask.
-
-> Nếu MetaMask hỗ trợ gộp giao dịch thì **mua 2 vé chỉ cần ký 1 lần**; nếu không, web tự chuyển sang ký từng vé. Mỗi vé đều có link Etherscan để kiểm chứng.
-
-### 2.4 Rao bán và mua lại, kèm phí bản quyền (50 giây)
-
-**[Thao tác]** Profile B → **Vé của tôi** → mở vé #X → **Tạo mã check-in** → **chụp màn hình mã QR** (dùng cho ca bị từ chối số 3) → đóng hộp thoại → **Rao bán lại**.
-
-> Giả sử bạn B bận đột xuất và muốn bán lại vé. Hộp rao bán ghi rõ: giá gốc 0.01 ETH, **tối đa 0.012 ETH** theo trần 120%, và nếu bán được thì **B nhận 95%**. Em rao đúng 0.012.
-
-**[Thao tác]** Profile C → **Vé bán lại** → **Mua lại**. Dừng ở hộp xác nhận vài giây.
-
-> Phía người mua cũng minh bạch: trả 0.012 ETH, **trong đó 0.0006 ETH là phí bản quyền về ban tổ chức**. Em xác nhận.
-
-**[Thao tác]** Profile A → **Sự kiện của tôi**. Chỉ vào dòng "+ phí bản quyền bán lại: 0.0006 ETH" và mục hoạt động "Vé #X đổi chủ · 0.012 ETH (phí bản quyền 0.0006 ETH)".
-
-> Đây đúng là điều Thảo nói: **lần đầu tiên ban tổ chức nhận được phần từ thị trường bán lại**, và số liệu hiện ngay trên dashboard.
-
-### 2.5 Cấp quyền CTV và check-in bằng điện thoại (50 giây)
-
-**[Thao tác]** Profile A → trang sự kiện → **Quản lý CTV** → dán địa chỉ ví D → **Cấp quyền**.
-
-> Ở cửa, ban tổ chức không cần đưa ví của mình cho người soát vé, chỉ cần **cấp quyền cho ví CTV**. CTV **chỉ check-in được**: không rút được tiền, không tạo được hạng vé, và bị thu hồi là mất quyền ngay.
-
-**[Thao tác]** Profile C → **Vé của tôi** → **Tạo mã check-in** → hướng màn hình về phía điện thoại.
-
-> Mã QR này được **ký bằng ví của chủ vé** và **chỉ có hạn 5 phút**. Chụp lại gửi người khác thì quá 5 phút là vô dụng.
-
-**[Thao tác]** Điện thoại D: mở app camera → quét → link mở trang Check-in (nếu mở bằng Chrome thì bấm "Mở bằng ứng dụng MetaMask") → xác nhận → hiện "✓ đã ghi".
-
-> Chỉ cần quét bằng app camera là trang check-in mở ra với mã đã điền sẵn. Hệ thống kiểm tra trên blockchain rằng **người ký đúng là chủ hiện tại** của vé, vé đúng sự kiện và chưa dùng lần nào, rồi mới ghi check-in.
-
-### 2.6 Rút tiền (10 giây)
-
-**[Thao tác]** Profile A → **Rút tiền** → xác nhận.
-
-> Ban tổ chức rút cả tiền bán vé lẫn phí bản quyền trong một giao dịch.
-
-> 💡 **Nếu Sepolia chậm quá 30 giây:** nói *"Trong lúc chờ khối xác nhận, em chiếu đoạn đã quay sẵn"*, rồi quay lại màn hình thật khi giao dịch xong.
-
----
-
-## 3. Demo các ca bị từ chối (2 phút)
-
-> Với một hệ thống chống gian lận, phần quan trọng nhất là **lúc nó từ chối đúng**. Em sẽ thử phá luật theo hai cách: trên web, và **gọi thẳng hợp đồng qua Remix**, tức là bỏ qua hoàn toàn giao diện.
-
-**[Slide 10]** Bảng 5 ca. Đánh dấu ✓ từng ca sau khi demo xong.
-
-### Ca 1 — Rao giá vượt trần (30 giây)
-
-**[Thao tác]** Profile B → rao vé còn lại với giá **0.0121** ETH (121%) → web báo "Giá vượt trần 120%".
-**[Thao tác]** Remix (ví B) → `listForResale(<id>, 12100000000000000)` → MetaMask báo lỗi **`ResalePriceTooHigh`**.
-
-> Web chặn ngay. Nhưng người rành kỹ thuật có thể bỏ qua web và gọi thẳng hợp đồng. Em làm đúng như vậy trên Remix, và **hợp đồng vẫn từ chối**. Trần giá không phải quy định hiển thị, mà là **luật trên blockchain**.
-
-### Ca 2 — Mua vé thứ 3 khi đã đủ 2 vé (30 giây)
-
-**[Thao tác]** Profile B → trang sự kiện → nút đã đổi thành "Đã mua đủ 2 vé/ví" và bị khoá.
-**[Thao tác]** Remix (ví B) → `mintTicket(<tierId>)` kèm value 0.01 ETH → **`WalletLimitReached`**.
-
-> Ví B đã mua đủ 2 vé. Vé B vừa bán lại cho C vẫn được tính, vì **giới hạn tính theo vé mua mới**, nên bán đi rồi cũng không mua thêm được. Gọi thẳng hợp đồng cũng bị từ chối.
-
-### Ca 3 — Quét mã QR của chủ cũ (25 giây) ⚠️ trong vòng 5 phút kể từ bước 2.4
-
-**[Thao tác]** Profile A → **Check-in** → **Tải ảnh mã QR** → chọn ảnh B đã chụp ở bước 2.4 → web báo "Mã QR không do chủ vé hiện tại ký".
-
-> Đây là mánh "bán vé rồi vẫn giữ ảnh QR để vào cửa". Mã do B ký, nhưng vé giờ thuộc về C, nên **mọi mã của chủ cũ mất hiệu lực**.
+> Em bắt đầu bằng một tình huống mà chắc nhiều bạn đã gặp. Concert thần tượng mở bán, một phút sau hết vé. Bạn vào hội nhóm trên Facebook và thấy ai đó nhắn: *"Mình dư 2 vé, chuyển khoản trước mình gửi mã."* Bạn chuyển tiền, rồi người đó biến mất. Hoặc bạn nhận được mã vé, nhưng đến cửa thì người khác đã dùng mã đó trước.
 >
-> *(Nếu quá 5 phút, trang báo "Mã QR đã hết hạn". Khi đó nói: "Mã đã hết hạn nên bị chặn ngay ở lớp đầu tiên; kể cả còn hạn thì lớp thứ hai cũng chặn, vì người ký không còn là chủ vé.")*
+> Đây không phải chuyện hiếm.
 
-### Ca 4 — Check-in lần 2 (15 giây)
+**[Slide 3]** Bốn con số lớn, mỗi con số có nguồn ở góc.
 
-**[Thao tác]** Điện thoại D → quét lại mã của C → "Vé đã được check-in trước đó".
-
-> Một vé chỉ vào cửa đúng **một lần**.
-
-### Ca 5 — CTV bị thu hồi quyền (20 giây)
-
-**[Thao tác]** Profile A → **Quản lý CTV** → **Thu hồi** ví D. Điện thoại D → quét một vé khác → "Ví này không có quyền soát vé".
-
-> Thu hồi có hiệu lực **ngay lập tức**. Nếu CTV làm sai hoặc nghỉ giữa chừng, ban tổ chức tắt quyền chỉ bằng một nút.
-
-> 💡 **Nếu thiếu thời gian:** demo trực tiếp ca 1 và ca 2 (có Remix), ca 3–5 nói qua bằng slide.
+> - Ở **Anh, năm 2024**, người dân báo cáo **9.826 vụ** lừa đảo vé, thiệt hại **9,79 triệu bảng**, tăng **47%** so với năm trước. Gần **4 trên 10 vụ** là vé concert.
+> - Chỉ riêng tour **Taylor Swift**, ngân hàng Lloyds ước tính khoảng **3.000 người** bị lừa ở Anh, trung bình mỗi người mất **332 bảng**. Hơn **90%** bắt đầu từ bài đăng giả trên Facebook, giống hệt tình huống em vừa kể.
+> - Ở **Việt Nam**, với concert "Anh trai vượt ngàn chông gai", một fanpage xác nhận **144 vé bị lừa, khoảng 300 triệu đồng**.
+> - Còn chuyện **gom vé**: tháng 9/2025, Ủy ban Thương mại Liên bang Mỹ (FTC) kiện Ticketmaster, cáo buộc **chỉ 5 đầu mối** đã gom **246.407 vé** bằng cách **dùng nhiều tài khoản** để vượt giới hạn mua.
 
 ---
 
-## 4. Kiểm thử (30 giây)
+## 2. Vì sao thị trường vé hỏng: 3 nguyên nhân kinh tế (1 phút 30)
 
-**[Slide 15]** Hai khối số lớn: **19** test hợp đồng · **45** bước test giao diện. Bên dưới là ảnh chụp file log.
+**[Slide 4]** Ba ô, mỗi ô một nguyên nhân.
 
-**[Thao tác]** Mở `evidence/lab-15-v4/ui-e2e-v4-log.txt`, cuộn qua các dòng `PASS`.
-
-> Phần em phụ trách còn có kiểm thử. Ngoài 19 test cho hợp đồng, nhóm **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho một trình duyệt tự động điều khiển **4 ví giả lập** chạy **45 bước**: tạo sự kiện, mua vé, rao bán, mua lại, check-in, thu hồi quyền, và tất cả các ca bị từ chối mọi người vừa xem. **45 trên 45 đạt.**
+> Em nghĩ vấn đề không nằm ở việc người bán vé xấu hay tốt, mà nằm ở **cấu trúc của thị trường**. Có ba nguyên nhân.
 >
-> Bộ test này còn bắt được **lỗi thật** mà mắt thường khó thấy. Ví dụ:
-> - dashboard không cập nhật số vé đã bán khi tab mở sẵn;
-> - ví từ chối giao dịch thứ 2 thì bấm lại sẽ tạo **sự kiện trùng**;
-> - hộp thoại vé vẫn đè lên trang mới khi bấm nút Back.
+> **Thứ nhất: cung cố định, cầu dồn vào một lúc.** Sân vận động chỉ có từng ấy ghế, và ai cũng muốn mua đúng lúc mở bán. Giá niêm yết thường thấp hơn giá mà người hâm mộ sẵn sàng trả, nên ai **giữ được vé** thì giữ được phần chênh lệch đó. Đó là động cơ của phe vé. Ví dụ concert BLACKPINK ở Hà Nội năm 2023: vé hạng Cat1 giá **6,8 triệu**, chợ đen rao ghế đẹp tới **10 triệu**.
 >
-> Tất cả đã được sửa.
+> **Thứ hai: bất cân xứng thông tin.** Người bán biết vé thật hay giả, đã dùng hay chưa; người mua thì không. Kinh tế học gọi đây là *thị trường quả chanh* (*market for lemons*): vì không phân biệt được hàng tốt và hàng xấu, người mua mất lòng tin, và kẻ lừa đảo lợi dụng đúng khoảng trống đó.
+>
+> **Thứ ba: ban tổ chức không có phần ở thị trường bán lại.** Vé bán lại giá gấp đôi thì phần chênh vào túi người bán lại, ban tổ chức không được đồng nào. Vì vậy họ cũng **không có công cụ và không có động lực** để kiểm soát thị trường này.
 
-**[Chuyển lời]** "Phần bảo mật của hợp đồng, mời Thảo trình bày."
+**[Slide 5]** Bảng 6 kiểu gian lận.
+
+> Từ ba nguyên nhân đó sinh ra **sáu kiểu gian lận** phổ biến:
+
+| # | Kiểu | Ví dụ |
+|---|---|---|
+| 1 | Vé giả | Ảnh vé, mã vé bị chỉnh sửa |
+| 2 | Một vé bán cho nhiều người | Chụp mã QR gửi cho 5 người |
+| 3 | Vé đã dùng | Bán lại vé đã qua cửa |
+| 4 | Giả danh ban tổ chức | "Em làm trong BTC, chuyển khoản trước". Ở Hà Nội, một nhóm người đã chuyển **hơn 50 triệu** theo cách này |
+| 5 | "Pass vé bán lỗ" | Rao rẻ hơn giá gốc để dụ chuyển khoản nhanh |
+| 6 | Gom vé, thổi giá | Nhiều tài khoản hoặc bot mua sạch vé rồi bán lại giá cao |
+
+> Lát nữa trong phần demo, em sẽ chỉ ra **từng kiểu bị chặn ở bước nào**.
 
 ---
 
-## Câu hỏi Linh trả lời (giao diện, kỹ thuật, kiểm thử)
+## 3. Ý tưởng FairTicket: 3 nguyên tắc (1 phút)
+
+**[Slide 6]** Ba nguyên tắc lớn.
+
+> FairTicket dựa trên ba nguyên tắc:
+>
+> 1. **Mỗi vé là một bản ghi duy nhất trên blockchain.** Ai đang giữ vé, vé đã dùng chưa, ai cũng tra được. Không làm giả được, không nhân bản được.
+> 2. **Tiền và vé đổi chủ trong cùng một giao dịch.** Hoặc cả hai cùng xảy ra, hoặc không gì xảy ra. Không còn bước "chuyển khoản trước, gửi vé sau", nên các kiểu 4 và 5 không còn chỗ.
+> 3. **Luật kinh tế nằm trong hợp đồng thông minh.** Khi tạo sự kiện, ban tổ chức đặt:
+>    - **trần giá bán lại**, từ 100% đến 200% giá gốc, mặc định 110%;
+>    - **số vé tối đa mỗi ví**.
+>
+>    Mỗi lần vé đổi chủ, **5% là phí bản quyền** về ban tổ chức. Nhóm em làm web cũng không sửa được các luật này.
+
+---
+
+## 4. Ai được lợi, tính bằng tiền (1 phút 30)
+
+**[Slide 7]** Bảng, tô đậm dòng 110%. Ghi chú: *ví dụ minh họa, vé giá 2.000.000đ*.
+
+> Em lấy một vé giá **2 triệu đồng** làm ví dụ. Giả sử người bán lại bán đúng bằng mức trần, rồi trừ 5% phí bản quyền:
+
+| | Bán lại tối đa | Người bán nhận | Người bán lời/lỗ | Ban tổ chức nhận thêm |
+|---|---|---|---|---|
+| *Chợ đen, giả sử bán gấp đôi* | *4.000.000đ* | *4.000.000đ* | ***+2.000.000đ (+100%)*** | ***0đ*** |
+| Trần 100% | 2.000.000đ | 1.900.000đ | −100.000đ (−5%) | 100.000đ |
+| **Trần 110% (mặc định)** | **2.200.000đ** | **2.090.000đ** | **+90.000đ (+4,5%)** | **110.000đ** |
+| Trần 120% | 2.400.000đ | 2.280.000đ | +280.000đ (+14%) | 120.000đ |
+| Trần 150% | 3.000.000đ | 2.850.000đ | +850.000đ (+42,5%) | 150.000đ |
+
+> Nhìn từng bên:
+> - **Phe vé:** ở mức mặc định, lời tối đa **90 nghìn mỗi vé, chưa trừ phí giao dịch**. Lấy luôn bài toán gom vé bằng nhiều tài khoản như vụ FTC: một người tạo **100 ví**, mỗi ví mua 2 vé. Họ phải ôm **400 triệu đồng tiền vốn** để kiếm tối đa **18 triệu**, mà chỉ cần ế vài chục vé là lỗ. **Lãi bị chặn, còn lỗ thì không**, nên đầu cơ không còn đáng làm.
+> - **Người mua thật nhưng bận đột xuất:** bán lại ở khoảng **105%** là gần hòa vốn. Thị trường bán lại vẫn mở cho nhu cầu thật.
+> - **Ban tổ chức:** từ chỗ **0 đồng**, nay nhận thêm **110 nghìn** mỗi lần vé đổi chủ. Đây là lý do ban tổ chức **muốn** dùng FairTicket: lần đầu tiên họ có phần trong thị trường bán lại, nên cũng có động lực giữ thị trường đó minh bạch.
+> - **Nền tảng:** không thu phí. Uy tín đến từ việc ai cũng kiểm tra được luật trên Etherscan.
+>
+> Vì sao không bỏ trần giá, khi đã có giới hạn ví? Vì như vụ FTC, **tài khoản thì lách được**; trên blockchain, tạo ví mới còn dễ hơn. Giới hạn ví chỉ làm việc gom vé tốn công hơn; **trần giá mới là thứ chặn lợi nhuận**. Và vì sao không cố định 110%? Vì hội thảo học thuật có thể muốn 100%, còn concert lớn muốn 110–120%. **Ban tổ chức chọn luật, hợp đồng thực thi luật.**
+
+---
+
+## 5. Demo: hành trình của một tấm vé (4 phút)
+
+> Giờ em đi theo **một tấm vé**, từ lúc được tạo ra đến lúc qua cửa, trên DApp thật đã deploy ở Vercel, kết nối hợp đồng thật trên mạng Sepolia.
+
+**[Slide 8]** Thanh tiến trình 6 chặng: *Ra đời → Mua → Bán lại → Mua lại → Qua cửa → Ban tổ chức nhận tiền*.
+
+### Chặng 1: Tấm vé ra đời (40 giây)
+
+**[Thao tác]** Profile A → **Tạo sự kiện**. Gõ tên, chọn ảnh, chọn ngày. Chỉ thẻ xem trước bên phải đang đổi theo. Sang bước 2, chọn trần **120%**, tối đa **2 vé/ví**. Chỉ khung "Quy tắc ghi trên hợp đồng". Sang bước 3 rồi dừng lại.
+
+> Ban tổ chức tạo sự kiện và đặt luật: trần 120%, tối đa 2 vé mỗi ví. Khung bên phải tính sẵn giá bán lại tối đa và doanh thu nếu bán hết. Hai quy tắc này **ghi vĩnh viễn**: ban tổ chức cũng không đổi được sau đó, nên người mua biết trước luật chơi.
+>
+> Để tiết kiệm thời gian, em dùng sự kiện đã tạo sẵn với đúng cấu hình này.
+
+**[Thao tác]** Mở sự kiện "FairTicket Night 2026".
+
+### Chặng 2: Có người mua (40 giây) → chặn **kiểu 1, 4, 5**
+
+**[Thao tác]** Profile C → trang sự kiện → chọn 2 vé → **Mua vé**. Chỉ danh sách kiểm tra → **Xác nhận & thanh toán**.
+
+> Người mua thấy luật ngay trên trang. Trước khi thanh toán, hệ thống kiểm tra trước: đúng mạng chưa, còn vé không, ví đã mua bao nhiêu trên giới hạn, đủ tiền không. MetaMask hỗ trợ gộp giao dịch thì 2 vé chỉ cần ký 1 lần.
+>
+> Tiền đi vào hợp đồng và vé về ví người mua **cùng một lúc**. Không có ai đứng giữa để "chuyển khoản trước", nên **kiểu 4 và 5 không có chỗ**. Vé là bản ghi trên chain nên **kiểu 1, vé giả, cũng không có**.
+
+### Chặng 3: Chủ vé bận, muốn bán lại (40 giây) → chặn **kiểu 6**
+
+**[Thao tác]** Profile B → **Vé của tôi** → mở vé #X → **Tạo mã check-in** → chụp màn hình mã QR (dùng cho phần "thử phá luật") → đóng → **Rao bán lại**, nhập 0.012.
+
+> Bạn B có vé nhưng bận. Hộp rao bán ghi rõ: tối đa **0.012 ETH** theo trần 120%, và **B nhận 95%**. Muốn rao cao hơn là không được. Lát nữa em sẽ thử. Đây là chỗ **kiểu 6, thổi giá**, bị chặn.
+
+### Chặng 4: Tấm vé đổi chủ (30 giây)
+
+**[Thao tác]** Profile C → **Vé bán lại** → **Mua lại**. Dừng ở hộp xác nhận → xác nhận.
+
+> Người mua lại thấy rõ: trả 0.012 ETH, **trong đó 0.0006 ETH là phí bản quyền về ban tổ chức**. Vé chuyển sang C, tiền chia đúng 95/5, tất cả trong một giao dịch.
+
+### Chặng 5: Qua cửa (60 giây) → chặn **kiểu 2, 3**
+
+**[Thao tác]** Profile A → trang sự kiện → **Quản lý CTV** → dán ví D → **Cấp quyền**.
+
+> Ở cửa, ban tổ chức cấp quyền soát vé cho **ví của CTV**. CTV chỉ check-in được: không rút tiền, không tạo vé, và bị thu hồi là mất quyền ngay.
+
+**[Thao tác]** Profile C → **Tạo mã check-in** → đưa màn hình. Điện thoại D: dùng **app camera** quét mã → trang Check-in mở ra với mã đã điền sẵn (nếu mở bằng Chrome thì bấm "Mở bằng ứng dụng MetaMask") → xác nhận → "✓ đã ghi".
+
+> Mã QR được **ký bằng ví chủ vé** và **hết hạn sau 5 phút**. Hệ thống kiểm tra trên blockchain rằng người ký đúng là **chủ hiện tại** của vé và vé chưa dùng, rồi mới ghi check-in.
+>
+> Vì vậy **kiểu 2**, chụp mã gửi nhiều người, không qua được: mã hết hạn, và mỗi vé chỉ vào được một lần. **Kiểu 3**, vé đã dùng, cũng vậy: vé đã check-in thì không rao bán hay mua lại được nữa.
+
+### Chặng 6: Ban tổ chức nhận tiền (30 giây)
+
+**[Thao tác]** Profile A → **Sự kiện của tôi**. Chỉ dòng "+ phí bản quyền bán lại" và mục hoạt động "đổi chủ · phí bản quyền". Bấm **Rút tiền**.
+
+> Dashboard hiện cả doanh thu bán lần đầu lẫn **phí bản quyền từ thị trường bán lại**, đúng con số em tính ở phần trước. Ban tổ chức rút tất cả trong một giao dịch.
+
+> 💡 **Nếu Sepolia chậm quá 30 giây:** *"Trong lúc chờ khối xác nhận, em chiếu đoạn đã quay sẵn."*
+
+---
+
+## 6. Thử phá luật (1 phút 30)
+
+> Một hệ thống chống gian lận cần được kiểm tra ở **lúc nó từ chối**. Em thử phá luật cả trên web, lẫn **gọi thẳng hợp đồng qua Remix** để bỏ qua giao diện.
+
+**[Slide 9]** Bảng 5 ca, đánh dấu ✓ khi demo xong.
+
+| # | Em thử | Kết quả |
+|---|---|---|
+| 1 | Profile B rao vé giá **0.0121** (121%) → web chặn. Remix: `listForResale(<id>, 12100000000000000)` | **`ResalePriceTooHigh`**: hợp đồng từ chối |
+| 2 | Profile B (đã mua 2 vé) mua vé thứ 3: nút bị khoá. Remix: `mintTicket(<tierId>)` kèm 0.01 ETH | **`WalletLimitReached`** |
+| 3 | Profile A → **Check-in** → **Tải ảnh** QR mà B chụp ở chặng 3 | "Mã QR không do chủ vé hiện tại ký" |
+| 4 | Điện thoại D quét lại mã của C | "Vé đã được check-in trước đó" |
+| 5 | Profile A **thu hồi** quyền D, rồi D quét vé khác | "Ví này không có quyền soát vé" (`NotCheckInAuthorized`) |
+
+> - Ca 1 và 2: em bỏ qua web, gọi thẳng hợp đồng, **vẫn bị từ chối**. Luật không nằm ở giao diện mà nằm trên blockchain.
+> - Ca 2: B đã bán một vé cho C nhưng vẫn không mua thêm được, vì giới hạn **tính theo số vé mua mới**.
+> - Ca 3: mánh "bán vé rồi vẫn giữ ảnh QR để vào cửa". Vé đã sang tay C nên mã của B mất hiệu lực.
+
+> ⚠️ **Ca 3 phải làm trong vòng 5 phút** kể từ chặng 3. Quá 5 phút thì trang báo "Mã QR đã hết hạn". Khi đó nói: *"Mã bị chặn ngay ở lớp đầu là hạn 5 phút; kể cả còn hạn thì lớp sau cũng chặn, vì người ký không còn là chủ vé."*
+> 💡 **Thiếu thời gian:** làm trực tiếp ca 1 và 2, các ca 3–5 nói qua bằng slide.
+
+---
+
+## 7. Bảo mật và kiểm thử (1 phút)
+
+**[Slide 10]** Trái: sơ đồ tấn công reentrancy. Phải: hai số lớn, **19** test hợp đồng và **45** bước test giao diện.
+
+> Hợp đồng giữ tiền của nhiều người nên phải chống được lỗi kinh điển **reentrancy**: kẻ tấn công gọi rút tiền lặp đi lặp lại trước khi số dư kịp về 0. Ở Lab 13 nhóm viết hẳn hợp đồng tấn công để thử. FairTicket chặn bằng hai cách:
+> - **người nhận tự rút tiền** (pull-payment);
+> - **số dư được đặt về 0 trước khi gửi tiền**.
+>
+> Hợp đồng tấn công thất bại.
+>
+> Về kiểm thử:
+> - Hợp đồng có **19 ca test**, gồm cả ca làm tròn phí: bán 1.099 wei thì phí 54 wei, người bán nhận 1.045 wei, **không mất một wei nào**.
+> - Nhóm còn **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho trình duyệt tự động điều khiển **4 ví** chạy **45 bước**, gồm tất cả các ca em vừa demo. **45 trên 45 đạt.**
+> - Bộ test bắt được cả **lỗi thật**, ví dụ: ví từ chối giao dịch thứ 2 thì bấm lại sẽ tạo **sự kiện trùng**, hoặc dashboard không cập nhật số vé đã bán. Tất cả đã sửa.
+
+---
+
+## 8. Giới hạn, hướng phát triển, kết (1 phút)
+
+**[Slide 11]** 4 giới hạn.
+
+> Em muốn nói thẳng những gì hệ thống **chưa làm được**:
+> 1. **Giới hạn tính theo ví, không theo người.** Nhiều ví vẫn gom được vé, nhưng trần giá đã chặn lợi nhuận. Hướng tiếp theo: định danh mỗi người một ví.
+> 2. **Chưa có hạn bán lại theo thời gian.** Web đã ẩn nút mua với sự kiện đã diễn ra, nhưng gọi thẳng hợp đồng vẫn mua lại được.
+> 3. **Ban tổ chức và CTV được coi là đáng tin.** Chữ ký QR được kiểm tra ở web, chưa kiểm tra trong hợp đồng.
+> 4. **Thỏa thuận ngoài chuỗi:** người mua đưa thêm tiền mặt, rồi người bán rao đúng giá trần. Không chặn tuyệt đối được, nhưng tin rao là công khai, ai cũng mua trước được, nên **rủi ro cho chính hai bên**.
+
+**[Slide 12]** Một câu lớn: *"Không cấm bán lại — làm cho đầu cơ không còn lời."*
+
+> Quay lại tình huống lúc đầu: trên FairTicket, bạn **không cần tin người bán**. Bạn chỉ cần tin hợp đồng, và ai cũng đọc được hợp đồng. FairTicket không cấm bán lại: nó làm cho đầu cơ không còn lời, giữ thị trường bán lại cho người có nhu cầu thật, và chia một phần lợi ích đó về cho người làm ra sự kiện.
+>
+> Em cảm ơn thầy cô và các bạn đã lắng nghe. Em xin nhận câu hỏi.
+
+---
+
+## Câu hỏi dự kiến
+
+**Sao không cấm bán lại hẳn?**
+Cấm hẳn thì người bận việc mất trắng tiền vé, và chợ đen ngoài chuỗi lại mọc lên, nơi không có trần giá và không kiểm tra được vé. Có trần thì nhu cầu thật vẫn được đáp ứng mà đầu cơ không lời.
+
+**Sao phí là 5%?**
+Với 5%, điểm hòa vốn khi bán lại là khoảng 105%, nên ở trần 110% phe vé gần như không lời, còn người bán vì lý do thật chỉ thiệt nhẹ. Nếu 10% thì bán lại ở 110% vẫn lỗ khoảng 1%, quá nặng cho người bận việc.
+
+**Tạo 100 ví thì sao?**
+Như ví dụ ở phần 4: ôm 400 triệu vốn để lời tối đa 18 triệu, chưa trừ phí giao dịch, và lỗ không bị chặn. Trần giá là lớp chặn chính; muốn chặn tuyệt đối thì cần định danh người dùng.
+
+**Ban tổ chức gian lận được không?**
+Không đổi được giá, tổng số vé, trần giá hay giới hạn ví sau khi tạo; không chuyển vé của người khác; không "un-check-in" được vé. Ban tổ chức **có thể** check-in vé của người khác. Đây là giả định "ban tổ chức đáng tin" đã nêu ở phần giới hạn.
+
+**Sao không dùng NFT chuẩn ERC-721?**
+ERC-721 bắt buộc có hàm chuyển vé tự do. Khi đó người bán nhận tiền ngoài chuỗi rồi chuyển thẳng vé, bỏ qua trần giá. Vé FairTicket chỉ đổi chủ qua chợ bán lại có kiểm tra trần.
 
 **Ai trả phí gas?**
-Ai thao tác thì người đó trả: ban tổ chức trả khi tạo sự kiện và hạng vé, người mua trả khi mua, CTV trả khi check-in. Ký mã QR và ký lưu thông tin sự kiện thì **miễn phí**, vì đó chỉ là chữ ký, không phải giao dịch. Trên Sepolia, ETH dùng để test nên không mất tiền thật.
+Ai thao tác thì người đó trả: ban tổ chức khi tạo sự kiện, người mua khi mua, CTV khi check-in. Ký mã QR là chữ ký, không phải giao dịch, nên **miễn phí**. Trên Sepolia, ETH dùng để test nên không mất tiền thật.
 
-**Ảnh và mô tả sự kiện lưu ở đâu? Vercel sập thì sao?**
-Ảnh, mô tả và địa điểm lưu trên Vercel Blob để khỏi tốn gas. Muốn sửa phải **ký bằng ví ban tổ chức**, và server kiểm tra chữ ký khớp với ban tổ chức ghi trên hợp đồng. Vercel sập thì chỉ mất phần hiển thị; vé, tiền và check-in vẫn nằm trên blockchain, vẫn thao tác được qua Remix hay Etherscan.
+**Ảnh và mô tả lưu ở đâu? Vercel sập thì sao?**
+Lưu trên Vercel để khỏi tốn gas; muốn sửa phải ký bằng ví ban tổ chức. Vercel sập thì chỉ mất phần hiển thị. Vé, tiền và check-in vẫn trên blockchain, thao tác được qua Remix hoặc Etherscan.
 
-**Không có mạng ở cửa thì check-in thế nào?**
-Check-in cần ghi lên blockchain nên cần mạng. Mã QR thì tạo được khi khách có mạng, và có hạn 5 phút. Hướng tiếp theo là cho phép soát vé ngoại tuyến rồi ghi lên chain sau.
+**Vì sao số liệu chủ yếu của Anh và Mỹ?**
+Việt Nam chưa có thống kê tổng hợp công khai về lừa đảo vé. Số liệu chính thức của Anh và Mỹ cho thấy quy mô vấn đề; các vụ ở Việt Nam (BLACKPINK, "Anh trai") cho thấy cùng các kiểu gian lận đó đang diễn ra ở đây.
 
-**Sao mua nhiều vé có lúc phải ký nhiều lần?**
-Hợp đồng v4 mua mỗi lần một vé. Nếu MetaMask đã bật tài khoản thông minh và hỗ trợ gộp giao dịch (chuẩn EIP-5792), web gửi tất cả trong **một lần ký**; nếu không thì quay về ký từng vé. Nhóm chọn sửa ở web thay vì deploy lại hợp đồng.
+**Test bằng ví giả lập có đáng tin không?**
+Ví giả lập chỉ thay phần bấm xác nhận của MetaMask. Giao dịch vẫn chạy trên **đúng bytecode hợp đồng đang chạy trên Sepolia**. Các luồng chính cũng đã chạy bằng ví thật trên Sepolia, mã giao dịch ghi trong `docs/PRESENTATION_PLAN.md`.
 
-**Kiểm thử với ví giả lập có đáng tin không?**
-Ví giả lập chỉ thay phần bấm xác nhận của MetaMask. Mọi giao dịch vẫn chạy trên **đúng bytecode hợp đồng đang chạy trên Sepolia**, cùng địa chỉ và cùng chainId. Ngoài ra nhóm đã chạy các luồng chính bằng ví thật trên Sepolia, mã giao dịch có trong `docs/PRESENTATION_PLAN.md`.
+**Có hoàn tiền không?**
+Chưa có. Người mua lấy lại tiền bằng cách rao bán lại, tối đa bằng mức trần. Hoàn tiền khi sự kiện bị huỷ là hướng phát triển tiếp theo.
 
-**Web dùng công nghệ gì?**
-HTML, CSS và JavaScript thuần, không cần build; ethers.js để nói chuyện với hợp đồng; thư viện tạo và đọc mã QR; Vercel cho web và API lưu ảnh. Không có khoá bí mật nào nằm trên giao diện.
+---
+
+## Nguồn số liệu
+
+- **Anh, 2024: 9.826 vụ, £9,79 triệu, tăng 47%, 38% là vé concert** (số liệu Action Fraud): [Bitdefender](https://www.bitdefender.com/en-gb/blog/hotforsecurity/action-fraud-urges-vigilance-as-ticket-fraud-losses-surge-to-9-7-million) · [Durham Police](https://www.durham.police.uk/news/durham/news2/2025/april/stay-vigilant-for-ticket-fraud-ahead-of-top-events-and-concerts-this-summer/)
+- **Taylor Swift: ≈ 3.000 nạn nhân, > £1 triệu, trung bình £332, > 90% từ Facebook** (Lloyds Bank, 4/2024): [STV News](https://news.stv.tv/west-central/taylor-swift-fans-targeted-by-surge-in-concert-ticket-scams-major-bank-warns) · [Yahoo Finance UK](https://uk.finance.yahoo.com/news/taylor-swift-fans-lose-1m-050100886.html)
+- **FTC kiện Ticketmaster (9/2025): 5 đầu mối gom 246.407 vé cho 2.594 sự kiện bằng nhiều tài khoản**: [Digital Music News](https://www.digitalmusicnews.com/2025/09/18/ftc-lawsuit-live-nation-ticketmaster-ticket-resale/) · [Engadget](https://www.engadget.com/entertainment/the-ftc-sues-ticketmaster-for-allegedly-colluding-with-resellers-191337586.html)
+- **BLACKPINK Hà Nội 2023: Cat1 6,8 triệu, chợ đen tới 10 triệu**: [VnExpress](https://vnexpress.net/loan-ve-xem-show-blackpink-4630134.html)
+- **"Anh trai vượt ngàn chông gai": 144 vé bị lừa ≈ 300 triệu**: [Znews](https://znews.vn/fanpage-bi-to-lua-300-trieu-tien-ve-chong-gai-lam-viec-voi-cong-an-post1559958.html)
+- **> 50 triệu chuyển cho đối tượng tự xưng người trong BTC; Công an quận Hai Bà Trưng điều tra**: [Nhân Dân](https://nhandan.vn/post-848181.html) · [Báo Quốc tế](https://baoquocte.vn/tranh-mat-tien-oan-khi-mua-ve-anh-trai-say-hi-va-anh-trai-vuot-ngan-chong-gai-295837.html)
+
+> Bảng ở phần 4 và ví dụ "100 ví" là **phép tính minh họa** của nhóm (vé giả định 2.000.000đ), không phải số liệu thống kê. Trên DApp, giá tính bằng ETH testnet.

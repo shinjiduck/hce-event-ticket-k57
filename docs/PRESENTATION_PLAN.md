@@ -2,7 +2,7 @@
 
 > Đề bài tham chiếu "khung ở Phần C" nhưng không có trong đề đã đưa cho repo này — khung dưới đây là bản mặc định hợp lý (thời lượng, vai trò, mỗi người phụ trách đúng 1 artifact). Nếu có bản khung chính thức khác từ giảng viên, thay nội dung bảng theo đúng khung đó, giữ nguyên cấu trúc file.
 
-> **Kịch bản riêng từng người:** [SCRIPT_THAO.md](SCRIPT_THAO.md) · [SCRIPT_LINH.md](SCRIPT_LINH.md). **Bản tổng hợp:** [PRESENTATION_SCRIPT.md](PRESENTATION_SCRIPT.md) (bản 13 phút + bản rút gọn 7 phút, kèm bảng lời/lỗ theo trần giá và câu hỏi dự kiến).
+> **Kịch bản đầy đủ, mỗi người thuyết trình trọn bài:** [SCRIPT_THAO.md](SCRIPT_THAO.md) · [SCRIPT_LINH.md](SCRIPT_LINH.md). **Bản tổng hợp:** [PRESENTATION_SCRIPT.md](PRESENTATION_SCRIPT.md) (bản 13 phút + bản rút gọn 7 phút, kèm bảng lời/lỗ theo trần giá và câu hỏi dự kiến).
 
 ## Phân vai — mỗi người phụ trách đúng 1 artifact
 

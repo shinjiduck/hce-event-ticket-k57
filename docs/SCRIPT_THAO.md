@@ -1,14 +1,28 @@
-# KỊCH BẢN THUYẾT TRÌNH — PHẦN CỦA THẢO
+# KỊCH BẢN THUYẾT TRÌNH ĐẦY ĐỦ — BẢN CỦA THẢO
 
-> **Người nói:** Nguyễn Hoàng Thảo (Đặc tả + Hợp đồng, Lab 12–15)
-> **Thời lượng phần Thảo:** khoảng 7 phút, chia làm 3 lượt nói. Linh demo ở giữa (xem [SCRIPT_LINH.md](SCRIPT_LINH.md)).
-> **Thứ tự cả buổi:** Thảo (mở đầu + kinh tế, 5 phút) → Linh (demo + ca bị từ chối + kiểm thử, 6 phút) → Thảo (bảo mật + giới hạn + kết, 2 phút) → hỏi đáp.
-> Chữ thường là lời nói. **[Slide]** là nội dung trên màn chiếu. **[Chuyển lời]** là câu chuyển sang Linh.
-> Mọi số liệu đều có nguồn ở **mục cuối** — giảng viên hỏi "số này ở đâu ra" thì đọc nguồn.
+> **Người nói:** Nguyễn Hoàng Thảo — **thuyết trình một mình toàn bộ bài** (khoảng 13 phút + hỏi đáp).
+> **Cách kể:** đi từ **số liệu thực tế → bài toán kinh tế → luật của FairTicket → demo chứng minh → bảo mật**. Ví dụ chính là concert BLACKPINK (vé 6,8 triệu). Bản của Linh ([SCRIPT_LINH.md](SCRIPT_LINH.md)) kể theo kiểu "hành trình của một tấm vé" với ví dụ khác, để hai bài không trùng nhau.
+> Chữ thường là lời nói. **[Slide]** là nội dung trên màn chiếu. **[Thao tác]** là việc làm trên máy.
+> Mọi số liệu đều có nguồn ở **mục cuối**. Giảng viên hỏi "số này ở đâu ra" thì đọc nguồn.
+
+| # | Phần | Thời lượng |
+|---|---|---|
+| 1 | Mở đầu, số liệu, 6 kiểu lừa đảo | 2 phút |
+| 2 | Bài toán kinh tế: ai được gì, luật của FairTicket, bảng lời/lỗ | 3 phút |
+| 3 | Demo trên DApp | 3 phút 30 |
+| 4 | Thử phá luật | 1 phút 30 |
+| 5 | Bảo mật và kiểm thử | 1 phút 15 |
+| 6 | Giới hạn và kết | 1 phút |
+
+**Chuẩn bị trước buổi:** giống mục "Chuẩn bị trước buổi" trong [SCRIPT_LINH.md](SCRIPT_LINH.md):
+- 4 ví A/B/C/D trên Sepolia;
+- sự kiện "FairTicket Night 2026" (trần 120%, 2 vé/ví) và ví B đã mua sẵn 2 vé;
+- Remix đã trỏ **At Address** tới hợp đồng;
+- video demo quay sẵn để dự phòng.
 
 ---
 
-## LƯỢT 1 — Mở đầu: vé sự kiện đang có vấn đề gì (2 phút)
+## 1. Mở đầu: vé sự kiện đang có vấn đề gì (2 phút)
 
 ### 1.1 Câu mở (20 giây)
 
@@ -58,7 +72,7 @@
 
 ---
 
-## LƯỢT 1 (tiếp) — Bài toán kinh tế (3 phút)
+## 2. Bài toán kinh tế (3 phút)
 
 ### 2.1 Mỗi bên được gì, mất gì trong thị trường vé hiện nay (50 giây)
 
@@ -142,18 +156,89 @@ Bán lại:      Người mua lại --giá bán lại--> Hợp đồng --95%--> 
 | 5 | "Pass vé bán lỗ" | Như trên: muốn mua phải mua qua chợ bán lại của hợp đồng |
 | 6 | Gom vé, thổi giá | **Trần giá + giới hạn ví + phí 5%**: lãi bị chặn ở mức thấp |
 
-> Để thấy những luật này chạy thật trên blockchain, em mời bạn Linh demo.
-
-**[Chuyển lời]** "Mời Linh demo trực tiếp trên DApp."
+> Để chứng minh những luật này chạy thật trên blockchain, em demo trực tiếp.
 
 ---
 
-## LƯỢT 2 — Bảo mật (1 phút), nói ngay sau phần kiểm thử của Linh
+## 3. Demo trên DApp (3 phút 30)
 
-**[Slide 16]** Ba cột: Tấn công · Cách chặn · Bằng chứng.
+> Đây là DApp đã deploy công khai ở Vercel, kết nối với hợp đồng thật trên mạng thử nghiệm Sepolia. Mọi thao tác đều là giao dịch thật, tra được trên Etherscan.
 
-> Cảm ơn Linh. Em nói thêm về bảo mật của hợp đồng, phần em phụ trách.
+### 3.1 Trang chủ (15 giây)
+
+**[Thao tác]** Profile B, mở trang chủ.
+
+> Thẻ vé nổi và các con số ở đầu trang (số sự kiện, số vé đã phát hành) đều **đọc thẳng từ hợp đồng**. Không có số nào đặt bằng tay.
+
+### 3.2 Ban tổ chức đặt luật (40 giây)
+
+**[Thao tác]** Profile A → **Tạo sự kiện** → điền nhanh tên, ảnh, ngày → bước 2: trần **120%**, **2 vé/ví** → chỉ khung "Quy tắc ghi trên hợp đồng" → sang bước 3 rồi dừng → mở sự kiện "FairTicket Night 2026" đã tạo sẵn.
+
+> Đây chính là hai luật em vừa trình bày. Ban tổ chức chọn trần giá và số vé tối đa mỗi ví, và khung bên phải tính sẵn giá bán lại tối đa cùng phí bản quyền. Hai luật này **ghi vĩnh viễn** lên hợp đồng. Em dùng sự kiện đã tạo sẵn với đúng cấu hình đó để tiết kiệm thời gian.
+
+### 3.3 Mua vé: tiền và vé đổi chủ cùng lúc (40 giây)
+
+**[Thao tác]** Profile C → trang sự kiện → chọn 2 vé → **Mua vé** → chỉ danh sách kiểm tra → **Xác nhận & thanh toán**.
+
+> Trang thanh toán kiểm tra trước mọi thứ: đúng mạng chưa, còn vé không, ví đã mua bao nhiêu trên giới hạn, đủ tiền chưa. Bấm thanh toán thì tiền vào hợp đồng và vé về ví **trong cùng một giao dịch**. Đây là thứ chặn kiểu lừa "chuyển khoản trước, gửi vé sau".
+
+### 3.4 Bán lại có trần và phí bản quyền (50 giây)
+
+**[Thao tác]** Profile B → **Vé của tôi** → mở vé #X → **Tạo mã check-in** → **chụp màn hình QR** (dùng cho phần "thử phá luật") → đóng → **Rao bán lại** 0.012.
+
+> Hộp rao bán ghi rõ: tối đa 0.012 ETH theo trần 120%, người bán nhận 95%.
+
+**[Thao tác]** Profile C → **Vé bán lại** → **Mua lại** → dừng ở hộp xác nhận → xác nhận.
+
+> Người mua lại thấy rõ **0.0006 ETH là phí bản quyền** về ban tổ chức.
+
+**[Thao tác]** Profile A → **Sự kiện của tôi**, chỉ dòng "+ phí bản quyền bán lại".
+
+> Đây là điều em nói ở phần kinh tế: lần đầu tiên ban tổ chức **có phần trong thị trường bán lại**, và con số hiện ngay trên dashboard.
+
+### 3.5 Soát vé bằng CTV (50 giây)
+
+**[Thao tác]** Profile A → **Quản lý CTV** → dán ví D → **Cấp quyền**. Profile C → **Tạo mã check-in**. Điện thoại D: app camera quét → trang Check-in mở với mã điền sẵn → xác nhận → "✓ đã ghi".
+
+> Ban tổ chức cấp quyền cho ví CTV thay vì đưa ví của mình. CTV chỉ check-in được, không rút được tiền.
 >
+> Mã QR được **ký bằng ví chủ vé**, **hết hạn sau 5 phút**. Hệ thống kiểm tra người ký đúng là **chủ hiện tại** của vé rồi mới ghi check-in. Kiểu lừa "chụp mã gửi nhiều người" không qua được.
+
+### 3.6 Rút tiền (15 giây)
+
+**[Thao tác]** Profile A → **Rút tiền**.
+
+> Ban tổ chức rút cả tiền bán vé lẫn phí bản quyền trong một giao dịch.
+
+> 💡 **Nếu Sepolia chậm quá 30 giây:** *"Trong lúc chờ khối xác nhận, em chiếu đoạn đã quay sẵn."*
+
+---
+
+## 4. Thử phá luật (1 phút 30)
+
+> Hệ thống chống gian lận phải được kiểm tra ở **lúc nó từ chối**. Em thử phá luật cả trên web, lẫn **gọi thẳng hợp đồng qua Remix**, tức là bỏ qua giao diện.
+
+**[Slide 10]** Bảng 5 ca.
+
+| # | Thử phá | Kết quả |
+|---|---|---|
+| 1 | Ví B rao giá **0.0121** (121%), rồi gọi thẳng `listForResale(<id>, 12100000000000000)` trên Remix | Web chặn; hợp đồng báo **`ResalePriceTooHigh`** |
+| 2 | Ví B (đã mua 2 vé) mua vé thứ 3, rồi gọi thẳng `mintTicket(<tierId>)` kèm 0.01 ETH | Nút bị khoá; hợp đồng báo **`WalletLimitReached`** |
+| 3 | Ví A → **Check-in** → **Tải ảnh** QR mà B chụp ở bước 3.4 | "Mã QR không do chủ vé hiện tại ký" |
+| 4 | Quét lại mã của C | "Vé đã được check-in trước đó" |
+| 5 | Ví A **thu hồi** quyền D, rồi D quét vé khác | "Ví này không có quyền soát vé" |
+
+> Ca 1 và 2 là quan trọng nhất: kể cả **bỏ qua web để gọi thẳng hợp đồng**, luật vẫn đứng vững. Trần giá và giới hạn ví không phải quy định hiển thị, mà là **luật trên blockchain**. Ca 3 là mánh "bán vé rồi vẫn giữ ảnh QR để vào cửa": vé đã sang tay người khác nên mã cũ mất hiệu lực.
+
+> ⚠️ **Ca 3 phải làm trong vòng 5 phút** kể từ bước 3.4. Quá giờ thì trang báo "Mã QR đã hết hạn". Khi đó nói: *"Bị chặn ngay ở lớp đầu là hạn 5 phút; kể cả còn hạn thì lớp sau cũng chặn, vì người ký không còn là chủ vé."*
+> 💡 **Thiếu thời gian:** làm trực tiếp ca 1 và 2, các ca 3–5 nói qua bằng slide.
+
+---
+
+## 5. Bảo mật và kiểm thử (1 phút 15)
+
+**[Slide 11]** Ba cột: Tấn công · Cách chặn · Bằng chứng.
+
 > Lỗi nổi tiếng nhất của hợp đồng giữ tiền là **reentrancy**: hợp đồng gửi tiền trước rồi mới cập nhật số dư, nên kẻ tấn công gọi rút tiền lặp đi lặp lại trước khi số dư kịp về 0. Ở Lab 13, nhóm viết hẳn một hợp đồng tấn công để thử.
 >
 > FairTicket chặn bằng hai lớp:
@@ -162,13 +247,15 @@ Bán lại:      Người mua lại --giá bán lại--> Hợp đồng --95%--> 
 >
 > Hợp đồng tấn công thất bại, và kịch bản này được chạy lại cho bản v4. Bản v4 có **19 ca test**, gồm cả ca làm tròn phí: bán 1.099 wei thì phí 54 wei, người bán nhận 1.045 wei, **tổng khớp, không mất một wei nào**.
 >
+> Ngoài ra, nhóm **chép đúng bytecode đang chạy trên Sepolia** sang một blockchain chạy trên máy, rồi cho trình duyệt tự động điều khiển 4 ví chạy **45 bước test giao diện**, gồm tất cả các ca em vừa demo. **45 trên 45 đạt.** Bộ test còn bắt được lỗi thật, ví dụ tạo sự kiện bị trùng khi ví từ chối giao dịch thứ 2. Lỗi này đã được sửa.
+>
 > Trước khi nộp, nhóm rà lại toàn bộ dự án. Kết luận: **không có lỗi làm mất tiền hay mất vé**.
 
 ---
 
-## LƯỢT 2 (tiếp) — Giới hạn và hướng phát triển (40 giây)
+## 6. Giới hạn và hướng phát triển (40 giây)
 
-**[Slide 17]** 4 giới hạn.
+**[Slide 12]** 4 giới hạn.
 
 > Nhóm muốn nói thẳng những gì hệ thống **chưa làm được**:
 > 1. **Giới hạn vé tính theo ví, không theo người.** Tạo nhiều ví vẫn gom được, chỉ là bị trần giá chặn lợi nhuận. Hướng tiếp theo: định danh mỗi người một ví.
@@ -178,9 +265,9 @@ Bán lại:      Người mua lại --giá bán lại--> Hợp đồng --95%--> 
 
 ---
 
-## LƯỢT 2 (tiếp) — Kết (20 giây)
+## 7. Kết (20 giây)
 
-**[Slide 18]** Một câu lớn: "Không cấm bán lại — làm cho đầu cơ không còn lời."
+**[Slide 13]** Một câu lớn: "Không cấm bán lại — làm cho đầu cơ không còn lời."
 
 > Tóm lại, FairTicket **không cấm bán lại**. Nó làm cho đầu cơ không còn lời, giữ thị trường bán lại cho người có nhu cầu thật, và lần đầu tiên chia một phần lợi ích của thị trường đó về cho người làm ra sự kiện. Mọi luật đều nằm trong hợp đồng, và ai cũng kiểm chứng được.
 >
@@ -188,7 +275,7 @@ Bán lại:      Người mua lại --giá bán lại--> Hợp đồng --95%--> 
 
 ---
 
-## Câu hỏi Thảo trả lời (kinh tế, hợp đồng)
+## Câu hỏi dự kiến
 
 **Sao không cấm bán lại cho đơn giản?**
 Cấm hẳn thì người bận việc sẽ mất trắng tiền vé, và chợ đen ngoài chuỗi lại mọc lên, nơi không có trần giá và không kiểm tra được vé. Cho bán lại có trần thì nhu cầu thật vẫn được đáp ứng, còn đầu cơ không có lời.
@@ -207,6 +294,15 @@ ERC-721 bắt buộc có hàm chuyển vé tự do (`transferFrom`). Khi đó ng
 
 **Số liệu ở Anh và Mỹ có liên quan gì Việt Nam?**
 Ở Việt Nam chưa có thống kê tổng hợp công khai về lừa đảo vé, nên nhóm dùng số liệu chính thức của Anh và Mỹ để thấy quy mô vấn đề. Các vụ ở Việt Nam (BLACKPINK, "Anh trai") cho thấy cùng các kiểu lừa đảo đó đang diễn ra ở đây.
+
+**Ai trả phí gas?**
+Ai thao tác thì người đó trả: ban tổ chức khi tạo sự kiện, người mua khi mua, CTV khi check-in. Ký mã QR chỉ là chữ ký, không phải giao dịch, nên **miễn phí**. Trên Sepolia, ETH dùng để test nên không mất tiền thật.
+
+**Ảnh và mô tả lưu ở đâu? Vercel sập thì sao?**
+Lưu trên Vercel để khỏi tốn gas; muốn sửa phải ký bằng ví ban tổ chức. Vercel sập thì chỉ mất phần hiển thị. Vé, tiền và check-in vẫn trên blockchain, thao tác được qua Remix hoặc Etherscan.
+
+**Test bằng ví giả lập có đáng tin không?**
+Ví giả lập chỉ thay phần bấm xác nhận của MetaMask. Giao dịch vẫn chạy trên **đúng bytecode hợp đồng đang chạy trên Sepolia**.
 
 **Có hoàn tiền không?**
 Chưa có. Người mua lấy lại tiền bằng cách rao bán lại, tối đa bằng mức trần. Hoàn tiền khi sự kiện bị huỷ là hướng phát triển tiếp theo.

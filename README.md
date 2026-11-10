@@ -22,7 +22,7 @@ Vé sự kiện giới hạn bán lại.
 - [docs/ECONOMIC_RULES.md](docs/ECONOMIC_RULES.md) — quy tắc kinh tế v0.2
 - [docs/AI_JOURNAL.md](docs/AI_JOURNAL.md) — nhật ký sử dụng AI
 - [docs/WEBSITE.md](docs/WEBSITE.md) — **tiến độ website**: từng trang có gì, đã chạy thật hay chưa, việc cần test
-- [docs/PRESENTATION_SCRIPT.md](docs/PRESENTATION_SCRIPT.md) — **kịch bản thuyết trình** (tổng hợp); bản riêng từng người: [Thảo](docs/SCRIPT_THAO.md) · [Linh](docs/SCRIPT_LINH.md)
+- [docs/PRESENTATION_SCRIPT.md](docs/PRESENTATION_SCRIPT.md) — **kịch bản thuyết trình** (tổng hợp); bản đầy đủ mỗi người tự thuyết trình trọn bài: [Thảo](docs/SCRIPT_THAO.md) · [Linh](docs/SCRIPT_LINH.md)
 - [docs/PROGRESS.md](docs/PROGRESS.md) — **tiến độ dự án**: trạng thái từng Lab, việc còn lại, lỗi đã sửa, giao dịch thật trên Sepolia
 
 **DApp công khai:** https://hce-event-ticket-k57-git-main-nguyenhoangthao.vercel.app
