@@ -12,8 +12,10 @@ Vé sự kiện giới hạn bán lại.
 
 ## Thành viên
 
-- Mai Bá Linh
-- Nguyễn Hoàng Thảo
+| Họ tên | Mã sinh viên |
+|---|---|
+| Mai Bá Linh | 23K4300011 |
+| Nguyễn Hoàng Thảo | 23K4300017 |
 
 ## Tài liệu
 
